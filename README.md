@@ -2,6 +2,8 @@
 
 センサーで植物の状態を記録し、AIが日々の変化を日報にする植物管理アプリ。
 
+現在の仕様は [docs/spec.md](docs/spec.md) にまとめています。
+
 ## 構成
 
 - Cloudflare Workers（TypeScript）
