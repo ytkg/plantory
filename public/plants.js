@@ -29,6 +29,10 @@ function formatValue(value) {
   return new Intl.NumberFormat("ja-JP", { maximumFractionDigits: 2 }).format(value);
 }
 
+function formatMoisture(value) {
+  return new Intl.NumberFormat("ja-JP", { maximumFractionDigits: 0 }).format(Math.round(value));
+}
+
 function differenceText(values, suffix = "") {
   if (values.length < 2) return "比較データはまだありません";
   const difference = values[0] - values[1];
@@ -60,18 +64,18 @@ function createMetricChart(type, metrics, metricRange) {
   title.textContent = isWaterSource ? "水分量" : metricLabel(type);
   const value = document.createElement("p");
   value.className = "text-lg font-semibold text-leaf-700";
-  value.textContent = isWaterSource ? `${formatValue(normalizedMetrics[0])}%` : formatValue(latest.value);
+  value.textContent = isWaterSource ? `${formatMoisture(normalizedMetrics[0])}%` : formatValue(latest.value);
   header.append(title, value);
 
   const detail = document.createElement("p");
   detail.className = "mt-1 text-xs text-stone-500";
-  detail.textContent = `${formatDateTime(latest.created_at)} 受信 · ${differenceText(isWaterSource ? normalizedMetrics : metrics.map((metric) => metric.value), isWaterSource ? "%" : "")}`;
+  detail.textContent = `${formatDateTime(latest.created_at)} 受信 · ${differenceText(isWaterSource ? normalizedMetrics.map(Math.round) : metrics.map((metric) => metric.value), isWaterSource ? "%" : "")}`;
 
   const graph = document.createElement("div");
   graph.className = "mt-3 h-32";
   const canvas = document.createElement("canvas");
   canvas.setAttribute("role", "img");
-  canvas.setAttribute("aria-label", `${isWaterSource ? "水分量" : metricLabel(type)}の直近${history.length}件の推移。最新値は${isWaterSource ? `${formatValue(normalizedMetrics[0])}%` : formatValue(latest.value)}。`);
+  canvas.setAttribute("aria-label", `${isWaterSource ? "水分量" : metricLabel(type)}の直近${history.length}件の推移。最新値は${isWaterSource ? `${formatMoisture(normalizedMetrics[0])}%` : formatValue(latest.value)}。`);
   graph.append(canvas);
   chart.append(header, detail, graph);
 
@@ -108,7 +112,7 @@ function createMetricChart(type, metrics, metricRange) {
               return formatDateTime(history[items[0].dataIndex].created_at);
             },
             label(context) {
-              return `${context.dataset.label}: ${formatValue(context.parsed.y)}${isWaterSource ? "%" : ""}`;
+              return `${context.dataset.label}: ${isWaterSource ? formatMoisture(context.parsed.y) : formatValue(context.parsed.y)}${isWaterSource ? "%" : ""}`;
             },
           },
         },
@@ -155,7 +159,7 @@ function createPlantCard(plant, metrics, metricRanges) {
   const status = document.createElement("p");
   status.className = "mt-1 text-sm text-stone-600";
   status.textContent = latest && hasWaterStatus
-    ? `最新: 水分量 ${formatValue(normalizeToPercentage(latest.value, waterRange))}% · ${formatDateTime(latest.created_at)}`
+    ? `最新: 水分量 ${formatMoisture(normalizeToPercentage(latest.value, waterRange))}% · ${formatDateTime(latest.created_at)}`
     : latest
     ? `最新: ${metricLabel(latest.metric_type)} ${formatValue(latest.value)} · ${formatDateTime(latest.created_at)}`
     : waterSource
