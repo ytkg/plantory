@@ -32,19 +32,22 @@
         <h1 class="text-3xl font-semibold">API キー</h1>
         <p class="mt-3 leading-7 text-stone-600">外部のセンサーや連携サービス用のキーを管理します。</p>
       </header>
-      <section class="mt-10 rounded-3xl border border-leaf-100 bg-white p-6 shadow-sm">
-        <h2 class="text-lg font-semibold">新しいキーを発行</h2>
-        <form id="key-form" class="mt-5 grid gap-4">
-          <label class="grid gap-2 text-sm font-medium">用途名<input class="rounded-xl border border-stone-200 px-3 py-2.5" name="name" placeholder="リビングの温湿度センサー" required /></label>
-          <label class="grid gap-2 text-sm font-medium">権限<select class="rounded-xl border border-stone-200 px-3 py-2.5" name="scope"><option value="write">write — 登録・取得</option><option value="read">read — 取得のみ</option></select></label>
-          <button class="rounded-xl bg-leaf-700 px-4 py-3 text-sm font-semibold text-white" type="submit">キーを発行</button>
-        </form>
-        <div id="new-key" class="mt-5 hidden rounded-xl bg-leaf-50 p-4"><p class="text-sm font-semibold text-leaf-700">このキーは今だけ表示されます。</p><code id="new-key-value" class="mt-3 block break-all rounded-lg bg-white p-3 text-sm"></code><button id="copy-new-key" class="mt-3 text-sm font-semibold text-leaf-700 underline underline-offset-4" type="button">キーをコピー</button></div>
-      </section>
       <p id="key-feedback" class="mt-5 hidden text-sm" role="status" aria-live="polite"></p>
-      <section class="mt-8"><h2 class="text-lg font-semibold">発行済みのキー</h2><div id="key-list" class="mt-4 grid gap-3"></div></section>
+      <section class="mt-10" aria-labelledby="keys-heading"><div class="flex items-center justify-between gap-4"><h2 id="keys-heading" class="text-lg font-semibold">発行済みのキー</h2><button id="open-create-key" class="rounded-xl bg-leaf-700 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-leaf-500">キーを発行</button></div><div id="key-list" class="mt-4 grid gap-3" aria-live="polite"></div></section>
     </main>
     <footer class="border-t border-leaf-100/80 py-6 text-center text-sm text-stone-500">© 2026 Plantory</footer>
+    <dialog id="create-key-dialog" class="w-[calc(100%-2.5rem)] max-w-md rounded-2xl border border-leaf-100 bg-white p-0 text-ink shadow-xl backdrop:bg-ink/30">
+      <form id="key-form" class="p-6" novalidate>
+        <div class="flex items-start justify-between gap-4"><div><h2 class="text-xl font-semibold">API キーを発行</h2><p class="mt-2 text-sm leading-6 text-stone-600">用途と権限を設定してください。</p></div><button type="button" id="close-create-key" class="-mr-2 -mt-2 rounded-lg px-2 py-1 text-2xl leading-none text-stone-500 hover:bg-leaf-50" aria-label="閉じる">×</button></div>
+        <label class="mt-6 block text-sm font-semibold" for="key-name">用途名</label>
+        <input id="key-name" name="name" type="text" maxlength="100" required autocomplete="off" placeholder="リビングの温湿度センサー" class="mt-2 w-full rounded-xl border border-leaf-100 bg-white px-4 py-3 text-base outline-none transition focus:border-leaf-500 focus:ring-2 focus:ring-leaf-100" />
+        <label class="mt-5 block text-sm font-semibold" for="key-scope">権限</label>
+        <select id="key-scope" name="scope" class="mt-2 w-full rounded-xl border border-leaf-100 bg-white px-4 py-3 text-base outline-none transition focus:border-leaf-500 focus:ring-2 focus:ring-leaf-100"><option value="write">write — 登録・取得</option><option value="read">read — 取得のみ</option></select>
+        <p id="create-key-error" class="mt-3 hidden text-sm text-rose-700" role="alert"></p>
+        <div class="mt-6 flex justify-end gap-3"><button type="button" id="cancel-create-key" class="rounded-xl px-4 py-2 text-sm font-semibold text-stone-600 hover:bg-leaf-50">キャンセル</button><button id="submit-create-key" type="submit" class="rounded-xl bg-leaf-700 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-leaf-500 disabled:cursor-wait disabled:opacity-60">発行する</button></div>
+      </form>
+      <section id="new-key" class="hidden p-6" aria-labelledby="new-key-heading"><h2 id="new-key-heading" class="text-xl font-semibold">API キーを発行しました</h2><p class="mt-3 text-sm leading-6 text-stone-600">このキーは今だけ表示されます。安全な場所に保存してください。</p><code id="new-key-value" class="mt-5 block break-all rounded-xl bg-leaf-50 p-4 text-sm"></code><div class="mt-6 flex justify-end gap-3"><button id="copy-new-key" class="rounded-xl px-4 py-2 text-sm font-semibold text-leaf-700 hover:bg-leaf-50" type="button">キーをコピー</button><button id="close-issued-key" class="rounded-xl bg-leaf-700 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-leaf-500" type="button">閉じる</button></div></section>
+    </dialog>
     <script type="module" src="/api-keys.js"></script>
   </body>
 </html>

@@ -2,6 +2,10 @@ import { logout, requestJson } from "./api-client.js";
 
 const form = document.querySelector("#key-form");
 const list = document.querySelector("#key-list");
+const dialog = document.querySelector("#create-key-dialog");
+const nameInput = document.querySelector("#key-name");
+const errorElement = document.querySelector("#create-key-error");
+const submitButton = document.querySelector("#submit-create-key");
 const keyBox = document.querySelector("#new-key");
 const keyValue = document.querySelector("#new-key-value");
 const copyButton = document.querySelector("#copy-new-key");
@@ -14,6 +18,20 @@ function showFeedback(text, error = false) {
 
 function keyDetail(key) {
   return `${key.scope} · 作成 ${key.created_at}${key.last_used_at ? ` · 最終利用 ${key.last_used_at}` : ""}`;
+}
+
+function showCreateForm() {
+  form.reset();
+  form.classList.remove("hidden");
+  keyBox.classList.add("hidden");
+  errorElement.textContent = "";
+  errorElement.classList.add("hidden");
+  copyButton.textContent = "キーをコピー";
+}
+
+function closeDialog() {
+  showCreateForm();
+  dialog.close();
 }
 
 function render(keys) {
@@ -70,16 +88,33 @@ async function load() {
 
 form.addEventListener("submit", async (event) => {
   event.preventDefault();
-  const result = await requestJson("/api/api-keys", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(Object.fromEntries(new FormData(form))),
-  });
-  keyValue.textContent = result.key;
-  keyBox.classList.remove("hidden");
-  form.reset();
-  await load();
-  showFeedback("新しい API キーを発行しました。安全な場所にコピーしてください。");
+  const name = nameInput.value.trim();
+  if (!name) {
+    errorElement.textContent = "用途名を入力してください。";
+    errorElement.classList.remove("hidden");
+    nameInput.focus();
+    return;
+  }
+
+  submitButton.disabled = true;
+  errorElement.classList.add("hidden");
+  try {
+    const result = await requestJson("/api/api-keys", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name, scope: new FormData(form).get("scope") }),
+    });
+    keyValue.textContent = result.key;
+    form.classList.add("hidden");
+    keyBox.classList.remove("hidden");
+    await load();
+    showFeedback("新しい API キーを発行しました。安全な場所にコピーしてください。");
+  } catch (error) {
+    errorElement.textContent = error instanceof Error ? error.message : "API キーを発行できませんでした。";
+    errorElement.classList.remove("hidden");
+  } finally {
+    submitButton.disabled = false;
+  }
 });
 
 copyButton.addEventListener("click", async () => {
@@ -91,6 +126,15 @@ copyButton.addEventListener("click", async () => {
     showFeedback("コピーできませんでした。キーを選択してコピーしてください。", true);
   }
 });
+
+document.querySelector("#open-create-key").addEventListener("click", () => {
+  showCreateForm();
+  dialog.showModal();
+  nameInput.focus();
+});
+document.querySelector("#close-create-key").addEventListener("click", closeDialog);
+document.querySelector("#cancel-create-key").addEventListener("click", closeDialog);
+document.querySelector("#close-issued-key").addEventListener("click", closeDialog);
 
 document.querySelectorAll(".logout").forEach((button) => button.addEventListener("click", logout));
 
