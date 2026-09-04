@@ -56,6 +56,8 @@ api_keys(id INTEGER PRIMARY KEY, name TEXT, key_hash TEXT, scope TEXT, created_a
 
 ## API
 
+ルーティングはHonoの機能別ルーター（`src/routes/`）で管理し、各ルーターから処理本体を呼び出す。Workerのエントリポイント（`src/index.ts`）はルーターの組み立てと共通エラーハンドリングのみを担当する。
+
 APIキーは `Authorization: Bearer plnt_...` で送る。`read` は取得のみ、`write` は取得と登録に利用できる。管理画面からのログインCookieでも、植物・metrics APIを利用できる。
 
 ### 植物

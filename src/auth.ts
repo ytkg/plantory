@@ -86,7 +86,7 @@ async function authenticateApiKey(
   request: Request,
   env: Env,
   requiredScope: Scope,
-  ctx: ExecutionContext,
+  ctx: Pick<ExecutionContext, "waitUntil">,
 ): Promise<ApiKeyAuth | null> {
   const key = authorizationToken(request);
   if (!key?.startsWith("plnt_")) return null;
@@ -113,7 +113,7 @@ export async function authenticate(
   request: Request,
   env: Env,
   requiredScope: Scope,
-  ctx: ExecutionContext,
+  ctx: Pick<ExecutionContext, "waitUntil">,
 ): Promise<Authentication> {
   return (await authenticateSession(request, env)) ?? authenticateApiKey(request, env, requiredScope, ctx);
 }
