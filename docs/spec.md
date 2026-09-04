@@ -88,6 +88,7 @@ APIキー管理APIはログインCookieでのみ利用できる。
 
 - 技術構成: Cloudflare Workers、Cloudflare D1、TypeScript、Tailwind CSS v4、Chart.js v4.5.1。
 - `npm run build` でTailwind CSSとChart.jsアセットを生成し、TypeScriptを検証する。
+- `npm test` でVitestとCloudflare Workers用テスト環境を使い、ローカルD1に対するAPIの認証・登録・取得・APIキー管理を検証する。
 - 本番反映は `npx wrangler deploy` を実行する。
 - D1のマイグレーションは `migrations/` で管理する。既存の本番環境には `0001_initial_schema.sql` と `0002_create_api_keys.sql` が適用済みである。
 

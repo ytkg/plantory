@@ -10,7 +10,7 @@
 - Cloudflare D1
 - Tailwind CSS v4
 - auth.takagi.dev（ログインとトークン検証）
-- D1 migration: `migrations/0001_initial_schema.sql`
+- D1 migrations: `migrations/0001_initial_schema.sql`、`migrations/0002_create_api_keys.sql`
 
 ## データモデル
 
@@ -53,6 +53,8 @@ npx wrangler secret put API_KEY_PEPPER
 - `npm run dev` — ローカル Worker を起動
 - `npm run build` — Tailwind CSS と TypeScript を検証
 - `npm run check` — TypeScript を検証
+- `npm test` — ローカルD1を使い、APIの認証・権限・登録・取得・APIキー削除を検証
+- `npm run test:watch` — テストを監視実行
 - `npm run deploy` — Worker をデプロイ
 
 ## API
