@@ -11,8 +11,8 @@ function showMessage(message, tone = "muted") {
   const element = document.createElement("p");
   element.className =
     tone === "error"
-      ? "rounded-2xl border border-rose-200 bg-rose-50 px-5 py-6 text-rose-700"
-      : "rounded-2xl border border-dashed border-leaf-100 bg-white/70 px-5 py-10 text-center text-stone-500";
+      ? "rounded-2xl border border-rose-200 bg-rose-50 px-5 py-6 text-rose-700 shadow-sm"
+      : "rounded-2xl border border-leaf-100 bg-white px-5 py-6 text-center text-stone-500 shadow-sm";
   element.textContent = message;
   plantsElement.append(element);
 }

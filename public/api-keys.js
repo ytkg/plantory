@@ -16,8 +16,28 @@ function showFeedback(text, error = false) {
   feedback.className = error ? "mt-5 text-sm text-rose-700" : "mt-5 text-sm text-leaf-700";
 }
 
+function formatDateTime(value) {
+  const date = new Date(`${value.replace(" ", "T")}Z`);
+  return new Intl.DateTimeFormat("ja-JP", {
+    month: "numeric",
+    day: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  }).format(date);
+}
+
 function keyDetail(key) {
-  return `${key.scope} · 作成 ${key.created_at}${key.last_used_at ? ` · 最終利用 ${key.last_used_at}` : ""}`;
+  return `${key.scope} · 作成 ${formatDateTime(key.created_at)}${key.last_used_at ? ` · 最終利用 ${formatDateTime(key.last_used_at)}` : ""}`;
+}
+
+function showListMessage(text, error = false) {
+  list.replaceChildren();
+  const element = document.createElement("p");
+  element.className = error
+    ? "rounded-2xl border border-rose-200 bg-rose-50 px-5 py-6 text-rose-700 shadow-sm"
+    : "rounded-2xl border border-leaf-100 bg-white px-5 py-6 text-center text-stone-500 shadow-sm";
+  element.textContent = text;
+  list.append(element);
 }
 
 function showCreateForm() {
@@ -37,7 +57,7 @@ function closeDialog() {
 function render(keys) {
   list.replaceChildren();
   if (!keys.length) {
-    list.textContent = "まだ API キーはありません。";
+    showListMessage("まだ API キーはありません。");
     return;
   }
 
@@ -64,17 +84,25 @@ function render(keys) {
       button.textContent = "削除";
       button.onclick = async () => {
         if (!window.confirm(`「${key.name}」を削除しますか？`)) return;
-        await requestJson(`/api/api-keys/${key.id}`, { method: "DELETE" });
-        await load();
-        showFeedback(`「${key.name}」を削除しました。`);
+        try {
+          await requestJson(`/api/api-keys/${key.id}`, { method: "DELETE" });
+          await load();
+          showFeedback(`「${key.name}」を削除しました。`);
+        } catch (error) {
+          showFeedback(error instanceof Error ? error.message : "API キーを削除できませんでした。", true);
+        }
       };
     } else {
       button.textContent = "無効化";
       button.onclick = async () => {
         if (!window.confirm(`「${key.name}」を無効化しますか？`)) return;
-        await requestJson(`/api/api-keys/${key.id}/revoke`, { method: "POST" });
-        await load();
-        showFeedback(`「${key.name}」を無効化しました。`);
+        try {
+          await requestJson(`/api/api-keys/${key.id}/revoke`, { method: "POST" });
+          await load();
+          showFeedback(`「${key.name}」を無効化しました。`);
+        } catch (error) {
+          showFeedback(error instanceof Error ? error.message : "API キーを無効化できませんでした。", true);
+        }
       };
     }
     item.append(button);
@@ -83,7 +111,12 @@ function render(keys) {
 }
 
 async function load() {
-  render((await requestJson("/api/api-keys")).apiKeys);
+  try {
+    render((await requestJson("/api/api-keys")).apiKeys);
+  } catch (error) {
+    showListMessage("API キーを読み込めませんでした。時間をおいてもう一度お試しください。", true);
+    showFeedback(error instanceof Error ? error.message : "API キーを読み込めませんでした。", true);
+  }
 }
 
 form.addEventListener("submit", async (event) => {
