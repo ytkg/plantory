@@ -9,6 +9,19 @@ type CreatePlantInput = {
   name?: unknown;
 };
 
+type Metric = {
+  id: number;
+  plant_id: number;
+  metric_type: string;
+  value: number;
+  created_at: string;
+};
+
+type CreateMetricInput = {
+  metric_type?: unknown;
+  value?: unknown;
+};
+
 type ApiKey = {
   id: number;
   name: string;
@@ -253,6 +266,60 @@ async function createPlant(request: Request, env: Env): Promise<Response> {
   return json({ plant }, 201);
 }
 
+function resourceId(value: string): number | null {
+  const id = Number(value);
+  return Number.isSafeInteger(id) && id > 0 ? id : null;
+}
+
+async function plantExists(id: number, env: Env): Promise<boolean> {
+  const plant = await env.DB.prepare("SELECT id FROM plants WHERE id = ? LIMIT 1")
+    .bind(id)
+    .first<Pick<Plant, "id">>();
+  return plant !== null;
+}
+
+async function listMetrics(plantId: number, env: Env): Promise<Response> {
+  if (!(await plantExists(plantId, env))) return error("Plant not found.", 404);
+
+  const result = await env.DB.prepare(
+    `SELECT id, plant_id, metric_type, value, created_at
+     FROM metrics WHERE plant_id = ? ORDER BY id DESC LIMIT 100`,
+  )
+    .bind(plantId)
+    .all<Metric>();
+  return json({ metrics: result.results });
+}
+
+async function createMetric(plantId: number, request: Request, env: Env): Promise<Response> {
+  let input: CreateMetricInput;
+
+  try {
+    input = await request.json();
+  } catch {
+    return error("Request body must be valid JSON.", 400);
+  }
+
+  if (typeof input.metric_type !== "string" || !/^[a-z][a-z0-9_]{0,49}$/.test(input.metric_type)) {
+    return error("metric_type must be 1 to 50 lowercase letters, numbers, or underscores.", 400);
+  }
+  if (typeof input.value !== "number" || !Number.isFinite(input.value)) {
+    return error("value must be a finite number.", 400);
+  }
+  if (!(await plantExists(plantId, env))) return error("Plant not found.", 404);
+
+  const result = await env.DB.prepare(
+    `INSERT INTO metrics (plant_id, metric_type, value, created_at)
+     VALUES (?, ?, ?, CURRENT_TIMESTAMP)
+     RETURNING id, plant_id, metric_type, value, created_at`,
+  )
+    .bind(plantId, input.metric_type, input.value)
+    .all<Metric>();
+
+  const metric = result.results[0];
+  if (!metric) return error("Could not create metric.", 500);
+  return json({ metric }, 201);
+}
+
 async function login(request: Request, env: Env): Promise<Response> {
   let credentials: { username?: unknown; password?: unknown };
   try {
@@ -399,6 +466,24 @@ export default {
           status: 405,
           headers: { Allow: "GET, POST" },
         });
+      }
+
+      const metricsMatch = pathname.match(/^\/api\/plants\/(\d+)\/metrics$/);
+      if (metricsMatch) {
+        const plantId = resourceId(metricsMatch[1]);
+        if (!plantId) return error("Plant not found.", 404);
+        const requiredScope = request.method === "GET" ? "read" : "write";
+        const authentication = await authenticate(request, env, requiredScope, ctx);
+        if (!authentication) return unauthorized();
+        const cookies = authentication.kind === "session" ? authentication.cookies : [];
+
+        if (request.method === "GET") {
+          return withCookies(await listMetrics(plantId, env), cookies);
+        }
+        if (request.method === "POST") {
+          return withCookies(await createMetric(plantId, request, env), cookies);
+        }
+        return new Response(null, { status: 405, headers: { Allow: "GET, POST" } });
       }
 
       if (pathname === "/api/api-keys") {

@@ -84,6 +84,30 @@ npx wrangler secret put API_KEY_PEPPER
 
 成功時は `201 Created` と登録済みの植物を返します。`name` は前後の空白を除いた 1〜100 文字で指定します。
 
+### 植物のmetricsを取得
+
+`GET /api/plants/:plantId/metrics`
+
+植物ごとのmetricsを新しい順に最大100件返します。
+
+```bash
+curl https://plantory.ytkg.workers.dev/api/plants/2/metrics \
+  -H "Authorization: Bearer plnt_..."
+```
+
+### 植物のmetricを登録
+
+`POST /api/plants/:plantId/metrics`
+
+```bash
+curl -X POST https://plantory.ytkg.workers.dev/api/plants/2/metrics \
+  -H "Authorization: Bearer plnt_..." \
+  -H "Content-Type: application/json" \
+  -d '{"metric_type":"soil_moisture","value":62.4}'
+```
+
+`metric_type` は1〜50文字の小文字・数字・アンダースコアで指定します。`value` は有限の数値です。`created_at` はWorkerが受信時に自動で記録します。
+
 ## トップページ
 
 `/` は公開日報のトップページです。日報機能を追加するまで「準備中」を表示します。植物一覧は認証必須の `/plants` にあり、Tailwind CSS でビルドした静的アセットを Cloudflare Workers から配信します。
