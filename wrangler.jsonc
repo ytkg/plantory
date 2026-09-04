@@ -1,13 +1,13 @@
 {
-  "$schema": "./node_modules/wrangler/config-schema.json",
-  "name": "plantory",
-  "main": "src/index.ts",
-  "compatibility_date": "2026-09-04",
-  "d1_databases": [
-    {
-      "binding": "DB",
-      "database_name": "plantory",
-      "database_id": "00000000-0000-0000-0000-000000000000"
-    }
-  ]
+	"$schema": "./node_modules/wrangler/config-schema.json",
+	"name": "plantory",
+	"main": "src/index.ts",
+	"compatibility_date": "2026-09-04",
+	"d1_databases": [
+		{
+			"binding": "DB",
+			"database_name": "plantory",
+			"database_id": "3cccf19f-8c8e-4633-9240-f0202644620a"
+		}
+	]
 }
