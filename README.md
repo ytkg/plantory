@@ -95,7 +95,7 @@ M5Stackなどの端末からmetricsを送る方法は、[firmware/metrics-api.md
 
 `GET /api/plants/:plantId/metrics`
 
-植物ごとのmetricsを新しい順に最大100件返します。
+植物ごとのmetricsを新しい順に最大100件返します。保存されているmetricsの総件数 `totalCount` も含まれます。
 
 ```bash
 curl https://plantory.ytkg.workers.dev/api/plants/2/metrics \
@@ -114,6 +114,10 @@ curl -X POST https://plantory.ytkg.workers.dev/api/plants/2/metrics \
 ```
 
 `metric_type` は1〜50文字の小文字・数字・アンダースコアで指定します。`value` は有限の数値です。`created_at` はWorkerが受信時に自動で記録します。
+
+### 植物の測定データを削除
+
+`DELETE /api/plants/:plantId/metrics` は、write権限で対象植物のmetricsをすべて削除します。植物自体は残り、成功時は `204 No Content` を返します。
 
 ### 公開ステータス
 

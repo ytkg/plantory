@@ -8,6 +8,11 @@ const form = document.querySelector("#create-plant-form");
 const nameInput = document.querySelector("#plant-name");
 const errorElement = document.querySelector("#create-plant-error");
 const submitButton = document.querySelector("#submit-create-plant");
+const feedbackElement = document.querySelector("#plant-feedback");
+const deleteDialog = document.querySelector("#delete-metrics-dialog");
+const deleteForm = document.querySelector("#delete-metrics-form");
+const deleteMessage = document.querySelector("#delete-metrics-message");
+const deleteSubmitButton = document.querySelector("#submit-delete-metrics");
 const metricLabels = {
   soil_moisture: "土壌水分",
   temperature: "温度",
@@ -16,6 +21,12 @@ const metricLabels = {
   weight: "重量",
 };
 const waterSourceTypes = new Set(["soil_moisture", "weight"]);
+let pendingDelete = null;
+
+function showFeedback(message, error = false) {
+  feedbackElement.textContent = message;
+  feedbackElement.className = error ? "mb-4 text-sm text-rose-700" : "mb-4 text-sm text-leaf-700";
+}
 
 function showMessage(message, error = false) {
   replaceWithListState(plantsElement, message, { error });
@@ -132,7 +143,7 @@ function createMetricChart(type, metrics, metricRange) {
   return chart;
 }
 
-function createPlantCard(plant, metrics, metricRanges) {
+function createPlantCard(plant, metrics, metricRanges, totalCount) {
   const item = document.createElement("article");
   item.className = "rounded-2xl border border-leaf-100 bg-white px-5 py-5 shadow-sm";
   const heading = document.createElement("div");
@@ -169,6 +180,18 @@ function createPlantCard(plant, metrics, metricRanges) {
   heading.append(icon, summary);
   item.append(heading);
 
+  if (totalCount > 0) {
+    const deleteButton = document.createElement("button");
+    deleteButton.className = "mt-4 text-sm font-semibold text-rose-700 underline underline-offset-4";
+    deleteButton.textContent = "測定データを削除";
+    deleteButton.addEventListener("click", () => {
+      pendingDelete = plant;
+      deleteMessage.textContent = `${plant.name}の測定データ ${totalCount}件をすべて削除します。この操作は取り消せません。`;
+      deleteDialog.showModal();
+    });
+    item.append(deleteButton);
+  }
+
   if (groupedMetrics.size) {
     const charts = document.createElement("div");
     charts.className = "mt-5 grid gap-3";
@@ -192,7 +215,7 @@ async function loadPlants() {
     plantCountElement.textContent = `${plants.length} 鉢`;
     if (!plants.length) return showMessage("まだ植物が登録されていません。");
     const plantsWithMetrics = await Promise.all(plants.map(async (plant) => ({ plant, ...(await loadMetrics(plant.id)) })));
-    plantsElement.replaceChildren(...plantsWithMetrics.map(({ plant, metrics, metricRanges }) => createPlantCard(plant, metrics, metricRanges)));
+    plantsElement.replaceChildren(...plantsWithMetrics.map(({ plant, metrics, metricRanges, totalCount }) => createPlantCard(plant, metrics, metricRanges, totalCount)));
   } catch {
     plantCountElement.textContent = "—";
     showMessage("植物を読み込めませんでした。", true);
@@ -216,6 +239,33 @@ document.querySelector("#open-create-plant").addEventListener("click", () => {
 
 document.querySelector("#close-create-plant").addEventListener("click", closeDialog);
 document.querySelector("#cancel-create-plant").addEventListener("click", closeDialog);
+
+function closeDeleteDialog() {
+  pendingDelete = null;
+  deleteDialog.close();
+}
+
+document.querySelector("#close-delete-metrics").addEventListener("click", closeDeleteDialog);
+document.querySelector("#cancel-delete-metrics").addEventListener("click", closeDeleteDialog);
+
+deleteForm.addEventListener("submit", async (event) => {
+  event.preventDefault();
+  if (!pendingDelete) return;
+  deleteSubmitButton.disabled = true;
+  deleteSubmitButton.textContent = "削除中…";
+  try {
+    await requestJson(`/api/plants/${pendingDelete.id}/metrics`, { method: "DELETE" });
+    const name = pendingDelete.name;
+    closeDeleteDialog();
+    await loadPlants();
+    showFeedback(`${name}の測定データを削除しました。`);
+  } catch {
+    showFeedback("測定データを削除できませんでした。", true);
+  } finally {
+    deleteSubmitButton.disabled = false;
+    deleteSubmitButton.textContent = "すべて削除";
+  }
+});
 
 form.addEventListener("submit", async (event) => {
   event.preventDefault();

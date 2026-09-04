@@ -37,7 +37,7 @@ async function plantExists(id: number, env: Env): Promise<boolean> {
 export async function listMetrics(plantId: number, env: Env): Promise<Response> {
   if (!(await plantExists(plantId, env))) return error("Plant not found.", 404);
 
-  const [result, rangeResult] = await Promise.all([
+  const [result, rangeResult, countResult] = await Promise.all([
     env.DB.prepare(
       `SELECT id, plant_id, metric_type, value, created_at
        FROM metrics WHERE plant_id = ? ORDER BY id DESC LIMIT 100`,
@@ -46,11 +46,18 @@ export async function listMetrics(plantId: number, env: Env): Promise<Response> 
       `SELECT metric_type, MIN(value) AS min_value, MAX(value) AS max_value
        FROM metrics WHERE plant_id = ? GROUP BY metric_type`,
     ).bind(plantId).all<MetricRange>(),
+    env.DB.prepare("SELECT COUNT(*) AS total_count FROM metrics WHERE plant_id = ?").bind(plantId).first<{ total_count: number }>(),
   ]);
   const metricRanges = Object.fromEntries(
     rangeResult.results.map((range) => [range.metric_type, { min: range.min_value, max: range.max_value }]),
   );
-  return json({ metrics: result.results, metricRanges });
+  return json({ metrics: result.results, metricRanges, totalCount: countResult?.total_count ?? 0 });
+}
+
+export async function deleteMetrics(plantId: number, env: Env): Promise<Response> {
+  if (!(await plantExists(plantId, env))) return error("Plant not found.", 404);
+  await env.DB.prepare("DELETE FROM metrics WHERE plant_id = ?").bind(plantId).run();
+  return new Response(null, { status: 204 });
 }
 
 export async function createMetric(plantId: number, request: Request, env: Env): Promise<Response> {

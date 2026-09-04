@@ -273,6 +273,37 @@ describe("Plantory API", () => {
     });
   });
 
+  it("deletes all metrics while keeping the plant and other plants intact", async () => {
+    await env.DB.batch([
+      env.DB.prepare("INSERT INTO plants (name) VALUES (?)").bind("カランコエ"),
+      env.DB.prepare("INSERT INTO plants (name) VALUES (?)").bind("苔玉"),
+      env.DB.prepare("INSERT INTO metrics (plant_id, metric_type, value) VALUES (?, ?, ?)").bind(1, "soil_moisture", 40),
+      env.DB.prepare("INSERT INTO metrics (plant_id, metric_type, value) VALUES (?, ?, ?)").bind(1, "temperature", 22),
+      env.DB.prepare("INSERT INTO metrics (plant_id, metric_type, value) VALUES (?, ?, ?)").bind(2, "weight", 80),
+    ]);
+
+    const listed = await request("/api/plants/1/metrics", withApiKey(readKey));
+    await expect(listed.json()).resolves.toMatchObject({ totalCount: 2 });
+
+    const deleted = await request("/api/plants/1/metrics", withApiKey(writeKey, { method: "DELETE" }));
+    expect(deleted.status).toBe(204);
+    expect(await deleted.text()).toBe("");
+    await expect(env.DB.prepare("SELECT COUNT(*) AS count FROM metrics WHERE plant_id = 1").first<{ count: number }>()).resolves.toMatchObject({ count: 0 });
+    await expect(env.DB.prepare("SELECT COUNT(*) AS count FROM metrics WHERE plant_id = 2").first<{ count: number }>()).resolves.toMatchObject({ count: 1 });
+    await expect(env.DB.prepare("SELECT id FROM plants WHERE id = 1").first()).resolves.not.toBeNull();
+  });
+
+  it("requires write access and returns success when there are no metrics", async () => {
+    await env.DB.prepare("INSERT INTO plants (name) VALUES (?)").bind("空の鉢").run();
+    expect((await request("/api/plants/1/metrics", { method: "DELETE" })).status).toBe(401);
+    expect((await request("/api/plants/1/metrics", withApiKey(readKey, { method: "DELETE" }))).status).toBe(401);
+    expect((await request("/api/plants/999/metrics", withApiKey(writeKey, { method: "DELETE" }))).status).toBe(404);
+    expect((await request("/api/plants/1/metrics", withApiKey(writeKey, { method: "DELETE" }))).status).toBe(204);
+
+    mockSignedInSession();
+    expect((await request("/api/plants/1/metrics", { method: "DELETE", headers: { Cookie: "plantory_access=test-access-token" } })).status).toBe(204);
+  });
+
   it("validates metrics before writing them", async () => {
     await env.DB.prepare("INSERT INTO plants (name) VALUES (?)").bind("シダ").run();
 

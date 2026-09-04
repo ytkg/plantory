@@ -7,7 +7,7 @@ import {
 import { authenticate, authenticateSession, login, logout, unauthorized } from "./auth";
 import { error, methodNotAllowed, resourceId } from "./http";
 import { loginDestination, protectedAsset, redirectToLogin, withCookies } from "./pages";
-import { createMetric, createPlant, listMetrics, listPlants } from "./plants";
+import { createMetric, createPlant, deleteMetrics, listMetrics, listPlants } from "./plants";
 import { listReports, upsertReport } from "./reports";
 import { listStatus } from "./status";
 
@@ -65,7 +65,8 @@ async function handleMetricsApi(
 ): Promise<Response> {
   if (request.method === "GET") return authenticatedApiResponse(request, env, ctx, "read", () => listMetrics(plantId, env));
   if (request.method === "POST") return authenticatedApiResponse(request, env, ctx, "write", () => createMetric(plantId, request, env));
-  return methodNotAllowed("GET, POST");
+  if (request.method === "DELETE") return authenticatedApiResponse(request, env, ctx, "write", () => deleteMetrics(plantId, env));
+  return methodNotAllowed("GET, POST, DELETE");
 }
 
 async function handleApiKeysApi(request: Request, env: Env): Promise<Response> {
