@@ -322,6 +322,16 @@ describe("Plantory API", () => {
     });
   });
 
+  it("orders metrics by measurement time before id", async () => {
+    await env.DB.batch([
+      env.DB.prepare("INSERT INTO plants (name) VALUES (?)").bind("時刻テスト"),
+      env.DB.prepare("INSERT INTO metrics (plant_id, metric_type, value, created_at) VALUES (?, ?, ?, ?)").bind(1, "soil_moisture", 80, "2026-01-01 00:00:00"),
+      env.DB.prepare("INSERT INTO metrics (plant_id, metric_type, value, created_at) VALUES (?, ?, ?, ?)").bind(1, "soil_moisture", 40, "2026-01-02 00:00:00"),
+    ]);
+    const response = await request("/api/plants/1/metrics", withApiKey(readKey));
+    await expect(response.json()).resolves.toMatchObject({ metrics: [{ value: 40 }, { value: 80 }] });
+  });
+
   it("only permits deleting a revoked API key from a signed-in session", async () => {
     await env.DB.prepare(
       "INSERT INTO api_keys (name, key_hash, scope, revoked_at) VALUES (?, ?, ?, CURRENT_TIMESTAMP)",

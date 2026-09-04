@@ -40,7 +40,7 @@ export async function listMetrics(plantId: number, env: Env): Promise<Response> 
   const [result, rangeResult, countResult] = await Promise.all([
     env.DB.prepare(
       `SELECT id, plant_id, metric_type, value, created_at
-       FROM metrics WHERE plant_id = ? ORDER BY id DESC LIMIT 100`,
+       FROM metrics WHERE plant_id = ? ORDER BY created_at DESC, id DESC LIMIT 100`,
     ).bind(plantId).all<Metric>(),
     env.DB.prepare(
       `SELECT metric_type, MIN(value) AS min_value, MAX(value) AS max_value
