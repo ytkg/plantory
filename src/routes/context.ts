@@ -4,6 +4,11 @@ import { withCookies } from "../http";
 
 export type AppContext = Context<{ Bindings: Env }>;
 
+export function notAllowed(c: AppContext, methods: string): Response {
+  c.header("Allow", methods);
+  return c.body(null, 405);
+}
+
 export async function authenticated(c: AppContext, scope: "read" | "write", handler: () => Promise<Response>): Promise<Response> {
   const authentication = await authenticate(c.req.raw, c.env, scope, c.executionCtx);
   if (!authentication) return unauthorized();

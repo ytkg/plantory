@@ -1,11 +1,11 @@
 import { Hono } from "hono";
-import { methodNotAllowed, error } from "../http";
+import { error } from "../http";
 import { createMetric, createPlant, deleteMetrics, listMetrics, listPlants } from "../services/plants";
-import { authenticated, type AppContext } from "./context";
+import { authenticated, notAllowed } from "./context";
 
 export const plantRoutes = new Hono<{ Bindings: Env }>();
 plantRoutes.on(["GET", "POST"], "/", async (c) => authenticated(c, c.req.method === "GET" ? "read" : "write", () => c.req.method === "GET" ? listPlants(c.env) : createPlant(c.req.raw, c.env)));
-plantRoutes.all("/", (c) => methodNotAllowed("GET, POST"));
+plantRoutes.all("/", (c) => notAllowed(c, "GET, POST"));
 
 plantRoutes.get("/:id/metrics", async (c) => {
   const id = Number(c.req.param("id"));
@@ -19,4 +19,4 @@ plantRoutes.delete("/:id/metrics", async (c) => {
   const id = Number(c.req.param("id"));
   return Number.isSafeInteger(id) && id > 0 ? authenticated(c, "write", () => deleteMetrics(id, c.env)) : error("Plant not found.", 404);
 });
-plantRoutes.all("/:id/metrics", (c) => methodNotAllowed("GET, POST, DELETE"));
+plantRoutes.all("/:id/metrics", (c) => notAllowed(c, "GET, POST, DELETE"));

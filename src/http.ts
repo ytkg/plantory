@@ -18,7 +18,3 @@ export function resourceId(value: string): number | null {
   const id = Number(value);
   return Number.isSafeInteger(id) && id > 0 ? id : null;
 }
-
-export function methodNotAllowed(methods: string): Response {
-  return new Response(null, { status: 405, headers: { Allow: methods } });
-}
