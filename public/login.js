@@ -8,7 +8,8 @@ form.addEventListener("submit", async (event) => {
   try {
     const response = await fetch("/api/auth/login", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(Object.fromEntries(new FormData(form))) });
     if (!response.ok) throw new Error((await response.json()).error ?? "ログインできませんでした。");
-    window.location.assign("/plants");
+    const next = new URLSearchParams(window.location.search).get("next");
+    window.location.assign(next?.startsWith("/") && !next.startsWith("//") ? next : "/");
   } catch (error) {
     errorElement.textContent = error instanceof Error ? error.message : "ログインできませんでした。";
     errorElement.classList.remove("hidden");

@@ -342,10 +342,15 @@ async function protectedAsset(path: string, request: Request, env: Env): Promise
 }
 
 function redirectToLogin(request: Request, cookies: string[]): Response {
-  const url = new URL(request.url);
-  url.pathname = "/login";
-  url.search = "";
+  const currentUrl = new URL(request.url);
+  const url = new URL("/login", request.url);
+  url.searchParams.set("next", `${currentUrl.pathname}${currentUrl.search}`);
   return withCookies(Response.redirect(url.toString(), 302), cookies);
+}
+
+function loginDestination(request: Request): string {
+  const next = new URL(request.url).searchParams.get("next");
+  return next?.startsWith("/") && !next.startsWith("//") ? next : "/";
 }
 
 export default {
@@ -413,7 +418,7 @@ export default {
 
       if (pathname === "/login") {
         const session = await authenticateSession(request, env);
-        return session ? withCookies(Response.redirect(new URL("/plants", request.url).toString(), 302), session.cookies) : protectedAsset("/login.html", request, env);
+        return session ? withCookies(Response.redirect(new URL(loginDestination(request), request.url).toString(), 302), session.cookies) : protectedAsset("/login.html", request, env);
       }
       if (["/styles.css", "/login.js", "/plants.js", "/api-keys.js", "/authenticated-header.js"].includes(pathname)) {
         return protectedAsset(pathname, request, env);
