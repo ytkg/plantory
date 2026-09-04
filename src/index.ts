@@ -19,6 +19,7 @@ const staticAssets = new Set([
   "/styles.css",
   "/chart.umd.min.js",
   "/api-client.js",
+  "/ui.js",
   "/reports.js",
   "/login.js",
   "/plants.js",

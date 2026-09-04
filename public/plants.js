@@ -1,4 +1,5 @@
 import { logout, requestJson } from "./api-client.js";
+import { formatDateTime, replaceWithListState } from "./ui.js";
 
 const plantsElement = document.querySelector("#plants");
 const plantCountElement = document.querySelector("#plant-count");
@@ -15,13 +16,7 @@ const metricLabels = {
 };
 
 function showMessage(message, error = false) {
-  plantsElement.replaceChildren();
-  const element = document.createElement("p");
-  element.className = error
-    ? "rounded-2xl border border-rose-200 bg-rose-50 px-5 py-6 text-rose-700 shadow-sm"
-    : "rounded-2xl border border-leaf-100 bg-white px-5 py-6 text-center text-stone-500 shadow-sm";
-  element.textContent = message;
-  plantsElement.append(element);
+  replaceWithListState(plantsElement, message, { error });
 }
 
 function metricLabel(type) {
@@ -30,16 +25,6 @@ function metricLabel(type) {
 
 function formatValue(value) {
   return new Intl.NumberFormat("ja-JP", { maximumFractionDigits: 2 }).format(value);
-}
-
-function formatMeasuredAt(value) {
-  const date = new Date(`${value.replace(" ", "T")}Z`);
-  return new Intl.DateTimeFormat("ja-JP", {
-    month: "numeric",
-    day: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
-  }).format(date);
 }
 
 function differenceText(metrics) {
@@ -67,7 +52,7 @@ function createMetricChart(type, metrics) {
 
   const detail = document.createElement("p");
   detail.className = "mt-1 text-xs text-stone-500";
-  detail.textContent = `${formatMeasuredAt(latest.created_at)} 受信 · ${differenceText(metrics)}`;
+  detail.textContent = `${formatDateTime(latest.created_at)} 受信 · ${differenceText(metrics)}`;
 
   const graph = document.createElement("div");
   graph.className = "mt-3 h-32";
@@ -106,7 +91,7 @@ function createMetricChart(type, metrics) {
           displayColors: false,
           callbacks: {
             title(items) {
-              return formatMeasuredAt(history[items[0].dataIndex].created_at);
+              return formatDateTime(history[items[0].dataIndex].created_at);
             },
             label(context) {
               return `${metricLabel(type)}: ${formatValue(context.parsed.y)}`;
@@ -144,7 +129,7 @@ function createPlantCard(plant, metrics) {
   const status = document.createElement("p");
   status.className = "mt-1 text-sm text-stone-600";
   status.textContent = latest
-    ? `最新: ${metricLabel(latest.metric_type)} ${formatValue(latest.value)} · ${formatMeasuredAt(latest.created_at)}`
+    ? `最新: ${metricLabel(latest.metric_type)} ${formatValue(latest.value)} · ${formatDateTime(latest.created_at)}`
     : "まだ測定がありません";
   summary.append(status);
   heading.append(icon, summary);

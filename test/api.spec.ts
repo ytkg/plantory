@@ -98,11 +98,15 @@ describe("Plantory API", () => {
     await expect(response.json()).resolves.toEqual({ error: "Authentication is required." });
   });
 
-  it("serves the shared browser API client as a static asset", async () => {
+  it("serves shared browser UI modules as static assets", async () => {
     const response = await request("/api-client.js");
 
     expect(response.status).toBe(200);
     await expect(response.text()).resolves.toContain("export async function requestJson");
+
+    const uiResponse = await request("/ui.js");
+    expect(uiResponse.status).toBe(200);
+    await expect(uiResponse.text()).resolves.toContain("export function listStateCard");
   });
 
   it("publishes one aggregate observation per date and updates it on a rerun", async () => {
