@@ -15,10 +15,7 @@ const metricLabels = {
   light: "照度",
   weight: "重量",
 };
-const relativePercentageLabels = {
-  soil_moisture: "水分量",
-  weight: "重量",
-};
+const waterSourceTypes = new Set(["soil_moisture", "weight"]);
 
 function showMessage(message, error = false) {
   replaceWithListState(plantsElement, message, { error });
@@ -32,11 +29,11 @@ function formatValue(value) {
   return new Intl.NumberFormat("ja-JP", { maximumFractionDigits: 2 }).format(value);
 }
 
-function differenceText(metrics) {
-  if (metrics.length < 2) return "比較データはまだありません";
-  const difference = metrics[0].value - metrics[1].value;
+function differenceText(values, suffix = "") {
+  if (values.length < 2) return "比較データはまだありません";
+  const difference = values[0] - values[1];
   if (difference === 0) return "前回と同じ";
-  return `前回から ${difference > 0 ? "+" : ""}${formatValue(difference)}`;
+  return `前回から ${difference > 0 ? "+" : ""}${formatValue(difference)}${suffix}`;
 }
 
 function normalizeToPercentage(value, range) {
@@ -51,8 +48,9 @@ function createMetricChart(type, metrics, metricRange) {
     min: Math.min(...metrics.map((metric) => metric.value)),
     max: Math.max(...metrics.map((metric) => metric.value)),
   };
-  const relativePercentageLabel = relativePercentageLabels[type];
-  const showRelativePercentage = relativePercentageLabel && range.max !== range.min;
+  const isWaterSource = waterSourceTypes.has(type);
+  const normalizedHistory = history.map((metric) => normalizeToPercentage(metric.value, range));
+  const normalizedMetrics = metrics.map((metric) => normalizeToPercentage(metric.value, range));
 
   const chart = document.createElement("section");
   chart.className = "rounded-xl bg-leaf-50 p-3";
@@ -60,21 +58,21 @@ function createMetricChart(type, metrics, metricRange) {
   header.className = "flex items-baseline justify-between gap-3";
   const title = document.createElement("h4");
   title.className = "text-xs font-semibold text-stone-600";
-  title.textContent = metricLabel(type);
+  title.textContent = isWaterSource ? "水分量" : metricLabel(type);
   const value = document.createElement("p");
   value.className = "text-lg font-semibold text-leaf-700";
-  value.textContent = formatValue(latest.value);
+  value.textContent = isWaterSource ? `${formatValue(normalizedMetrics[0])}%` : formatValue(latest.value);
   header.append(title, value);
 
   const detail = document.createElement("p");
   detail.className = "mt-1 text-xs text-stone-500";
-  detail.textContent = `${formatDateTime(latest.created_at)} 受信 · ${differenceText(metrics)}${showRelativePercentage ? ` · ${formatValue(range.min)}–${formatValue(range.max)} を0–100%換算` : ""}`;
+  detail.textContent = `${formatDateTime(latest.created_at)} 受信 · ${differenceText(isWaterSource ? normalizedMetrics : metrics.map((metric) => metric.value), isWaterSource ? "%" : "")}`;
 
   const graph = document.createElement("div");
   graph.className = "mt-3 h-32";
   const canvas = document.createElement("canvas");
   canvas.setAttribute("role", "img");
-  canvas.setAttribute("aria-label", `${metricLabel(type)}の直近${history.length}件の推移。最新値は${formatValue(latest.value)}。${showRelativePercentage ? `${relativePercentageLabel}を過去の最小値0%、最大値100%として併記。` : ""}`);
+  canvas.setAttribute("aria-label", `${isWaterSource ? "水分量" : metricLabel(type)}の直近${history.length}件の推移。最新値は${isWaterSource ? `${formatValue(normalizedMetrics[0])}%` : formatValue(latest.value)}。`);
   graph.append(canvas);
   chart.append(header, detail, graph);
 
@@ -88,40 +86,22 @@ function createMetricChart(type, metrics, metricRange) {
     type: "line",
     data: {
       labels: history.map((metric) => metric.created_at),
-      datasets: [
-        {
-          label: metricLabel(type),
-          data: history.map((metric) => metric.value),
-          borderColor: "#27613a",
-          borderWidth: 2,
-          pointBackgroundColor: "#27613a",
-          pointRadius: history.length === 1 ? 3 : 0,
-          pointHoverRadius: 4,
-          tension: 0.25,
-        },
-        ...(showRelativePercentage
-          ? [{
-              label: `${relativePercentageLabel}（相対%）`,
-              data: history.map((metric) => normalizeToPercentage(metric.value, range)),
-              yAxisID: "percentage",
-              borderColor: "#5b6db1",
-              borderDash: [5, 4],
-              borderWidth: 2,
-              pointRadius: 0,
-              pointHoverRadius: 4,
-              tension: 0.25,
-            }]
-          : []),
-      ],
+      datasets: [{
+        label: isWaterSource ? "水分量" : metricLabel(type),
+        data: isWaterSource ? normalizedHistory : history.map((metric) => metric.value),
+        borderColor: "#27613a",
+        borderWidth: 2,
+        pointBackgroundColor: "#27613a",
+        pointRadius: history.length === 1 ? 3 : 0,
+        pointHoverRadius: 4,
+        tension: 0.25,
+      }],
     },
     options: {
       responsive: true,
       maintainAspectRatio: false,
       plugins: {
-        legend: {
-          display: showRelativePercentage,
-          labels: { boxWidth: 10, boxHeight: 2, color: "#57534e", font: { size: 11 } },
-        },
+        legend: { display: false },
         tooltip: {
           displayColors: false,
           callbacks: {
@@ -129,9 +109,7 @@ function createMetricChart(type, metrics, metricRange) {
               return formatDateTime(history[items[0].dataIndex].created_at);
             },
             label(context) {
-              return context.dataset.yAxisID === "percentage"
-                ? `${context.dataset.label}: ${formatValue(context.parsed.y)}%`
-                : `${context.dataset.label}: ${formatValue(context.parsed.y)}`;
+              return `${context.dataset.label}: ${formatValue(context.parsed.y)}${isWaterSource ? "%" : ""}`;
             },
           },
         },
@@ -141,20 +119,10 @@ function createMetricChart(type, metrics, metricRange) {
         y: {
           border: { display: false },
           grid: { color: "#e5f3e8" },
-          ticks: { color: "#78716c", maxTicksLimit: 3 },
+          ...(isWaterSource
+            ? { min: 0, max: 100, ticks: { color: "#78716c", callback: (value) => `${value}%`, maxTicksLimit: 3 } }
+            : { ticks: { color: "#78716c", maxTicksLimit: 3 } }),
         },
-        ...(showRelativePercentage
-          ? {
-              percentage: {
-                position: "right",
-                min: 0,
-                max: 100,
-                border: { display: false },
-                grid: { drawOnChartArea: false },
-                ticks: { color: "#5b6db1", callback: (value) => `${value}%`, maxTicksLimit: 3 },
-              },
-            }
-          : {}),
       },
     },
   });
@@ -174,26 +142,33 @@ function createPlantCard(plant, metrics, metricRanges) {
   name.textContent = plant.name;
   const summary = document.createElement("div");
   summary.append(name);
-  const latest = metrics[0];
-  const status = document.createElement("p");
-  status.className = "mt-1 text-sm text-stone-600";
-  status.textContent = latest
-    ? `最新: ${metricLabel(latest.metric_type)} ${formatValue(latest.value)} · ${formatDateTime(latest.created_at)}`
-    : "まだ測定がありません";
-  summary.append(status);
-  heading.append(icon, summary);
-  item.append(heading);
-
   const groupedMetrics = new Map();
   for (const metric of metrics) {
     const group = groupedMetrics.get(metric.metric_type) ?? [];
     group.push(metric);
     groupedMetrics.set(metric.metric_type, group);
   }
+  const waterSource = groupedMetrics.has("soil_moisture") ? "soil_moisture" : groupedMetrics.has("weight") ? "weight" : null;
+  const waterMetrics = waterSource ? groupedMetrics.get(waterSource) : null;
+  const latest = waterMetrics?.[0] ?? metrics[0];
+  const status = document.createElement("p");
+  status.className = "mt-1 text-sm text-stone-600";
+  status.textContent = latest && waterMetrics
+    ? `最新: 水分量 ${formatValue(normalizeToPercentage(latest.value, metricRanges[waterSource]))}% · ${formatDateTime(latest.created_at)}`
+    : latest
+    ? `最新: ${metricLabel(latest.metric_type)} ${formatValue(latest.value)} · ${formatDateTime(latest.created_at)}`
+    : "まだ測定がありません";
+  summary.append(status);
+  heading.append(icon, summary);
+  item.append(heading);
+
   if (groupedMetrics.size) {
     const charts = document.createElement("div");
     charts.className = "mt-5 grid gap-3";
-    for (const [type, values] of groupedMetrics) charts.append(createMetricChart(type, values, metricRanges[type]));
+    for (const [type, values] of groupedMetrics) {
+      if (waterSourceTypes.has(type) && type !== waterSource) continue;
+      charts.append(createMetricChart(type, values, metricRanges[type]));
+    }
     item.append(charts);
   }
   return item;
