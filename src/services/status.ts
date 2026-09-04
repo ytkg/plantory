@@ -1,5 +1,5 @@
-import { json } from "./http";
-import { buildMoistureStatuses, type MoistureMetric } from "./moisture";
+import { json } from "../http";
+import { buildMoistureStatuses, type MoistureMetric } from "../moisture";
 
 export async function listStatus(env: Env): Promise<Response> {
   const result = await env.DB.prepare(

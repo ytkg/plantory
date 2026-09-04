@@ -1,5 +1,5 @@
-import { error, json } from "./http";
-import type { Metric, Plant } from "./types";
+import { error, json } from "../http";
+import type { Metric, Plant } from "../types";
 
 type CreatePlantInput = { name?: unknown };
 type CreateMetricInput = { metric_type?: unknown; value?: unknown };

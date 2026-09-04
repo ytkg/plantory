@@ -1,6 +1,6 @@
 import { Hono } from "hono";
 import { methodNotAllowed, error } from "../http";
-import { createMetric, createPlant, deleteMetrics, listMetrics, listPlants } from "../plants";
+import { createMetric, createPlant, deleteMetrics, listMetrics, listPlants } from "../services/plants";
 import { authenticated, type AppContext } from "./context";
 
 export const plantRoutes = new Hono<{ Bindings: Env }>();

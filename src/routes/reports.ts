@@ -1,6 +1,6 @@
 import { Hono } from "hono";
 import { methodNotAllowed } from "../http";
-import { listReports, upsertReport } from "../reports";
+import { listReports, upsertReport } from "../services/reports";
 import { authenticated, type AppContext } from "./context";
 
 export const reportRoutes = new Hono<{ Bindings: Env }>();

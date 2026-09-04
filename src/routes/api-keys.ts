@@ -1,6 +1,6 @@
 import { Hono } from "hono";
 import { methodNotAllowed } from "../http";
-import { createManagedApiKey, deleteRevokedApiKey, listApiKeys, revokeApiKey } from "../api-keys";
+import { createManagedApiKey, deleteRevokedApiKey, listApiKeys, revokeApiKey } from "../services/api-keys";
 import { sessionOnly } from "./context";
 
 export const apiKeyRoutes = new Hono<{ Bindings: Env }>();

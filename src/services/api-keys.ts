@@ -1,6 +1,6 @@
-import { createApiKeyValue, hashApiKey } from "./auth";
-import { error, json } from "./http";
-import type { ApiKey } from "./types";
+import { createApiKeyValue, hashApiKey } from "../auth";
+import { error, json } from "../http";
+import type { ApiKey } from "../types";
 
 type CreateApiKeyInput = { name?: unknown; scope?: unknown };
 

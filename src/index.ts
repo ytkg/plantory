@@ -5,7 +5,7 @@ import { authRoutes } from "./routes/auth";
 import { pageRoutes } from "./routes/pages";
 import { plantRoutes } from "./routes/plants";
 import { reportRoutes } from "./routes/reports";
-import { listStatus } from "./status";
+import { listStatus } from "./services/status";
 
 const app = new Hono<{ Bindings: Env }>();
 

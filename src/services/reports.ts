@@ -1,5 +1,5 @@
-import { error, json } from "./http";
-import type { DailyReport } from "./types";
+import { error, json } from "../http";
+import type { DailyReport } from "../types";
 
 type UpsertReportInput = { content?: unknown };
 
