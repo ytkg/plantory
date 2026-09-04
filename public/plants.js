@@ -40,6 +40,13 @@ function formatMeasuredAt(value) {
   }).format(date);
 }
 
+function differenceText(metrics) {
+  if (metrics.length < 2) return "比較データはまだありません";
+  const difference = metrics[0].value - metrics[1].value;
+  if (difference === 0) return "前回と同じ";
+  return `前回から ${difference > 0 ? "+" : ""}${formatValue(difference)}`;
+}
+
 function createMetricChart(type, metrics) {
   const latest = metrics[0];
   const history = metrics.slice(0, 30).reverse();
@@ -56,13 +63,17 @@ function createMetricChart(type, metrics) {
   value.textContent = formatValue(latest.value);
   header.append(title, value);
 
+  const detail = document.createElement("p");
+  detail.className = "mt-1 text-xs text-stone-500";
+  detail.textContent = `${formatMeasuredAt(latest.created_at)} 受信 · ${differenceText(metrics)}`;
+
   const graph = document.createElement("div");
   graph.className = "mt-3 h-32";
   const canvas = document.createElement("canvas");
   canvas.setAttribute("role", "img");
   canvas.setAttribute("aria-label", `${metricLabel(type)}の直近${history.length}件の推移。最新値は${formatValue(latest.value)}。`);
   graph.append(canvas);
-  chart.append(header, graph);
+  chart.append(header, detail, graph);
 
   if (typeof window.Chart !== "function") {
     graph.textContent = "グラフを読み込めませんでした。";
@@ -92,6 +103,9 @@ function createMetricChart(type, metrics) {
         tooltip: {
           displayColors: false,
           callbacks: {
+            title(items) {
+              return formatMeasuredAt(history[items[0].dataIndex].created_at);
+            },
             label(context) {
               return `${metricLabel(type)}: ${formatValue(context.parsed.y)}`;
             },

@@ -25,19 +25,45 @@ function showReports(reports) {
     return;
   }
 
-  const items = reports.map((report) => {
+  const createReport = (report, featured = false) => {
     const article = document.createElement("article");
-    article.className = "rounded-3xl border border-leaf-100 bg-white p-7 shadow-sm";
+    article.className = featured
+      ? "rounded-3xl border border-leaf-100 bg-white p-7 shadow-sm sm:p-8"
+      : "rounded-3xl border border-leaf-100 bg-white p-6 shadow-sm";
     const date = document.createElement("p");
     date.className = "text-sm font-semibold text-leaf-700";
     date.textContent = formatDate(report.date);
     const content = document.createElement("p");
-    content.className = "mt-4 whitespace-pre-wrap leading-8 text-stone-700";
+    content.className = featured
+      ? "mt-4 whitespace-pre-wrap text-lg leading-8 text-stone-700"
+      : "mt-3 whitespace-pre-wrap leading-7 text-stone-700";
     content.textContent = report.content;
     article.append(date, content);
     return article;
-  });
-  reportsElement.replaceChildren(...items);
+  };
+
+  const latest = document.createElement("section");
+  const latestHeading = document.createElement("h2");
+  latestHeading.className = "text-sm font-semibold tracking-[0.12em] text-leaf-700";
+  latestHeading.textContent = "最新の観察";
+  latest.append(latestHeading, createReport(reports[0], true));
+  latest.lastElementChild.classList.add("mt-3");
+
+  if (reports.length === 1) {
+    reportsElement.replaceChildren(latest);
+    return;
+  }
+
+  const history = document.createElement("section");
+  history.className = "mt-8";
+  const historyHeading = document.createElement("h2");
+  historyHeading.className = "text-sm font-semibold tracking-[0.12em] text-stone-600";
+  historyHeading.textContent = "これまでの記録";
+  const items = document.createElement("div");
+  items.className = "mt-3 grid gap-3";
+  items.append(...reports.slice(1).map((report) => createReport(report)));
+  history.append(historyHeading, items);
+  reportsElement.replaceChildren(latest, history);
 }
 
 async function loadReports() {
