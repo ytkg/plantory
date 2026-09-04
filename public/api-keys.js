@@ -66,6 +66,6 @@ form.addEventListener("submit", async (event) => {
   await load();
 });
 
-document.querySelector("#logout").addEventListener("click", logout);
+document.querySelectorAll(".logout").forEach((button) => button.addEventListener("click", logout));
 
 void load();

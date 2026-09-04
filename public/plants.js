@@ -30,6 +30,16 @@ function formatValue(value) {
   return new Intl.NumberFormat("ja-JP", { maximumFractionDigits: 2 }).format(value);
 }
 
+function formatMeasuredAt(value) {
+  const date = new Date(`${value.replace(" ", "T")}Z`);
+  return new Intl.DateTimeFormat("ja-JP", {
+    month: "numeric",
+    day: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  }).format(date);
+}
+
 function createMetricChart(type, metrics) {
   const latest = metrics[0];
   const history = metrics.slice(0, 30).reverse();
@@ -112,7 +122,16 @@ function createPlantCard(plant, metrics) {
   const name = document.createElement("h3");
   name.className = "text-base font-semibold";
   name.textContent = plant.name;
-  heading.append(icon, name);
+  const summary = document.createElement("div");
+  summary.append(name);
+  const latest = metrics[0];
+  const status = document.createElement("p");
+  status.className = "mt-1 text-sm text-stone-600";
+  status.textContent = latest
+    ? `最新: ${metricLabel(latest.metric_type)} ${formatValue(latest.value)} · ${formatMeasuredAt(latest.created_at)}`
+    : "まだ測定がありません";
+  summary.append(status);
+  heading.append(icon, summary);
   item.append(heading);
 
   const groupedMetrics = new Map();
@@ -193,8 +212,6 @@ form.addEventListener("submit", async (event) => {
   }
 });
 
-document.querySelector("#logout").addEventListener("click", async () => {
-  await logout();
-});
+document.querySelectorAll(".logout").forEach((button) => button.addEventListener("click", logout));
 
 void loadPlants();
