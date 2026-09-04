@@ -118,9 +118,9 @@ describe("Plantory API", () => {
     const response = await request("/api/status");
     expect(response.status).toBe(200);
     await expect(response.json()).resolves.toEqual([
-      { name: "丸葉", moisture: 33 },
-      { name: "苔玉", moisture: 100 },
       { name: "カランコエ", moisture: 100 },
+      { name: "苔玉", moisture: 100 },
+      { name: "丸葉", moisture: 33 },
     ]);
   });
 
@@ -195,9 +195,24 @@ describe("Plantory API", () => {
     expect(created.status).toBe(201);
     await expect(created.json()).resolves.toMatchObject({ plant: { id: 1, name: "カランコエ" } });
 
+    const second = await request(
+      "/api/plants",
+      withApiKey(writeKey, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name: "エゾ松の苔玉" }),
+      }),
+    );
+    expect(second.status).toBe(201);
+
     const listed = await request("/api/plants", withApiKey(readKey));
     expect(listed.status).toBe(200);
-    await expect(listed.json()).resolves.toMatchObject({ plants: [{ id: 1, name: "カランコエ" }] });
+    await expect(listed.json()).resolves.toMatchObject({
+      plants: [
+        { id: 1, name: "カランコエ" },
+        { id: 2, name: "エゾ松の苔玉" },
+      ],
+    });
   });
 
   it("does not allow a read key to create a plant", async () => {

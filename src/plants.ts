@@ -6,7 +6,7 @@ type CreateMetricInput = { metric_type?: unknown; value?: unknown };
 type MetricRange = { metric_type: string; min_value: number; max_value: number };
 
 export async function listPlants(env: Env): Promise<Response> {
-  const result = await env.DB.prepare("SELECT id, name, created_at, updated_at FROM plants ORDER BY id DESC").all<Plant>();
+  const result = await env.DB.prepare("SELECT id, name, created_at, updated_at FROM plants ORDER BY id ASC").all<Plant>();
   return json({ plants: result.results });
 }
 

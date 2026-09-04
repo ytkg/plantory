@@ -19,7 +19,7 @@ export async function listStatus(env: Env): Promise<Response> {
      FROM plants p
      JOIN latest ON latest.plant_id = p.id AND latest.row_number = 1
      JOIN ranges ON ranges.plant_id = latest.plant_id AND ranges.metric_type = latest.metric_type
-     ORDER BY p.id DESC`,
+     ORDER BY p.id ASC`,
   ).all<MoistureMetric>();
 
   return json(buildMoistureStatuses(result.results));

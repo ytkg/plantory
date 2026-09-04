@@ -61,7 +61,7 @@ APIキーは `Authorization: Bearer plnt_...` で送る。`read` は取得のみ
 
 | メソッド | URL | 権限 | 内容 |
 | --- | --- | --- | --- |
-| `GET` | `/api/plants` | read | 植物をID降順で取得する。 |
+| `GET` | `/api/plants` | read | 植物をID昇順で取得する。 |
 | `POST` | `/api/plants` | write | `{ "name": "…" }` で植物を登録する。名前は前後空白を除き1〜100文字。 |
 
 ### metrics
@@ -87,7 +87,7 @@ APIキーは `Authorization: Bearer plnt_...` で送る。`read` は取得のみ
 
 | メソッド | URL | 権限 | 内容 |
 | --- | --- | --- | --- |
-| `GET` | `/api/status` | 公開 | 植物ID降順で、植物名と現在の相対水分量だけを配列で返す。 |
+| `GET` | `/api/status` | 公開 | 植物ID昇順で、植物名と現在の相対水分量だけを配列で返す。 |
 
 - 水分系metricは `soil_moisture` を優先し、なければ `weight` を使う。
 - 選択した種類の全期間の最小値を0%、最大値を100%として最新値を四捨五入する。
