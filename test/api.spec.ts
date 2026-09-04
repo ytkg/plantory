@@ -22,12 +22,10 @@ const schemaQueries = [
   )`,
   `CREATE TABLE daily_reports (
     id INTEGER PRIMARY KEY,
-    plant_id INTEGER,
-    date DATE,
-    content TEXT,
-    created_at DATETIME,
-    updated_at DATETIME,
-    FOREIGN KEY (plant_id) REFERENCES plants(id)
+    date DATE NOT NULL UNIQUE,
+    content TEXT NOT NULL,
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
   )`,
   `CREATE TABLE api_keys (
     id INTEGER PRIMARY KEY,
@@ -105,6 +103,47 @@ describe("Plantory API", () => {
 
     expect(response.status).toBe(200);
     await expect(response.text()).resolves.toContain("export async function requestJson");
+  });
+
+  it("publishes one aggregate observation per date and updates it on a rerun", async () => {
+    const created = await request(
+      "/api/reports/2026-09-04",
+      withApiKey(writeKey, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ content: "カランコエは元気です。" }),
+      }),
+    );
+    expect(created.status).toBe(200);
+
+    const updated = await request(
+      "/api/reports/2026-09-04",
+      withApiKey(writeKey, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ content: "カランコエとエゾ松の苔玉は穏やかです。" }),
+      }),
+    );
+    expect(updated.status).toBe(200);
+
+    const listed = await request("/api/reports");
+    expect(listed.status).toBe(200);
+    await expect(listed.json()).resolves.toEqual({
+      reports: [expect.objectContaining({ date: "2026-09-04", content: "カランコエとエゾ松の苔玉は穏やかです。" })],
+    });
+  });
+
+  it("does not allow a read key to update an observation", async () => {
+    const response = await request(
+      "/api/reports/2026-09-04",
+      withApiKey(readKey, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ content: "更新できないはずです。" }),
+      }),
+    );
+
+    expect(response.status).toBe(401);
   });
 
   it("allows a write key to create a plant and a read key to list it", async () => {

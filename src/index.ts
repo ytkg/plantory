@@ -8,6 +8,7 @@ import { authenticate, authenticateSession, login, logout, unauthorized } from "
 import { error, methodNotAllowed, resourceId } from "./http";
 import { loginDestination, protectedAsset, redirectToLogin, withCookies } from "./pages";
 import { createMetric, createPlant, listMetrics, listPlants } from "./plants";
+import { listReports, upsertReport } from "./reports";
 
 const protectedPages = new Map([
   ["/plants", "/plants.html"],
@@ -18,6 +19,7 @@ const staticAssets = new Set([
   "/styles.css",
   "/chart.umd.min.js",
   "/api-client.js",
+  "/reports.js",
   "/login.js",
   "/plants.js",
   "/api-keys.js",
@@ -70,6 +72,14 @@ async function handleApiKeysApi(request: Request, env: Env): Promise<Response> {
   return methodNotAllowed("GET, POST");
 }
 
+async function handleReportsApi(request: Request, env: Env, ctx: ExecutionContext, date?: string): Promise<Response> {
+  if (!date && request.method === "GET") return listReports(env);
+  if (date && request.method === "PUT") {
+    return authenticatedApiResponse(request, env, ctx, "write", () => upsertReport(date, request, env));
+  }
+  return methodNotAllowed(date ? "PUT" : "GET");
+}
+
 export default {
   async fetch(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
     const { pathname } = new URL(request.url);
@@ -101,6 +111,11 @@ export default {
       }
 
       if (pathname === "/api/api-keys") return handleApiKeysApi(request, env);
+
+      if (pathname === "/api/reports") return handleReportsApi(request, env, ctx);
+
+      const reportMatch = pathname.match(/^\/api\/reports\/(\d{4}-\d{2}-\d{2})$/);
+      if (reportMatch) return handleReportsApi(request, env, ctx, reportMatch[1]);
 
       const revokeMatch = pathname.match(/^\/api\/api-keys\/(\d+)\/revoke$/);
       if (revokeMatch && request.method === "POST") {

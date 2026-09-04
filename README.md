@@ -10,7 +10,7 @@
 - Cloudflare D1
 - Tailwind CSS v4
 - auth.takagi.dev（ログインとトークン検証）
-- D1 migrations: `migrations/0001_initial_schema.sql`、`migrations/0002_create_api_keys.sql`
+- D1 migrations: `migrations/0001_initial_schema.sql`、`migrations/0002_create_api_keys.sql`、`migrations/0003_make_daily_reports_aggregate.sql`
 - `firmware/`（M5Stackからmetricsを送るファームウェアと送信仕様）
 
 ## データモデル
@@ -18,10 +18,10 @@
 ```text
 plants(id INTEGER PRIMARY KEY, name TEXT, created_at DATETIME, updated_at DATETIME)
 metrics(id INTEGER PRIMARY KEY, plant_id INTEGER, metric_type TEXT, value REAL, created_at DATETIME)
-daily_reports(id INTEGER PRIMARY KEY, plant_id INTEGER, date DATE, content TEXT, created_at DATETIME, updated_at DATETIME)
+daily_reports(id INTEGER PRIMARY KEY, date DATE UNIQUE, content TEXT, created_at DATETIME, updated_at DATETIME)
 ```
 
-`metrics.plant_id` と `daily_reports.plant_id` は `plants.id` を参照します。現段階では、センサー自体を管理するテーブル、`species`、`unit`、`measured_at` は設けません。
+`metrics.plant_id` は `plants.id` を参照します。`daily_reports` は全植物をまとめた日付ごとの観察日記です。現段階では、センサー自体を管理するテーブル、`species`、`unit`、`measured_at` は設けません。
 
 ## はじめかた
 
@@ -117,7 +117,7 @@ curl -X POST https://plantory.ytkg.workers.dev/api/plants/2/metrics \
 
 ## トップページ
 
-`/` は公開日報のトップページです。日報機能を追加するまで「準備中」を表示します。植物一覧は認証必須の `/plants` にあり、Tailwind CSS でビルドした静的アセットを Cloudflare Workers から配信します。
+`/` は公開の観察日記トップページです。全植物をまとめた観察日記を新しい順に表示します。植物一覧は認証必須の `/plants` にあり、Tailwind CSS でビルドした静的アセットを Cloudflare Workers から配信します。
 
 ## 認証と API キー
 

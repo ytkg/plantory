@@ -13,6 +13,14 @@ export type Metric = {
   created_at: string;
 };
 
+export type DailyReport = {
+  id: number;
+  date: string;
+  content: string;
+  created_at: string;
+  updated_at: string;
+};
+
 export type ApiKey = {
   id: number;
   name: string;
