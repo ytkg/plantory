@@ -34,9 +34,19 @@ function differenceText(metrics) {
   return `前回から ${difference > 0 ? "+" : ""}${formatValue(difference)}`;
 }
 
-function createMetricChart(type, metrics) {
+function normalizeToPercentage(value, range) {
+  if (range.max === range.min) return 50;
+  return ((value - range.min) / (range.max - range.min)) * 100;
+}
+
+function createMetricChart(type, metrics, metricRange) {
   const latest = metrics[0];
   const history = metrics.slice(0, 30).reverse();
+  const range = metricRange ?? {
+    min: Math.min(...metrics.map((metric) => metric.value)),
+    max: Math.max(...metrics.map((metric) => metric.value)),
+  };
+  const showRelativeMoisture = type === "soil_moisture" && range.max !== range.min;
 
   const chart = document.createElement("section");
   chart.className = "rounded-xl bg-leaf-50 p-3";
@@ -52,13 +62,13 @@ function createMetricChart(type, metrics) {
 
   const detail = document.createElement("p");
   detail.className = "mt-1 text-xs text-stone-500";
-  detail.textContent = `${formatDateTime(latest.created_at)} 受信 · ${differenceText(metrics)}`;
+  detail.textContent = `${formatDateTime(latest.created_at)} 受信 · ${differenceText(metrics)}${showRelativeMoisture ? ` · ${formatValue(range.min)}–${formatValue(range.max)} を0–100%換算` : ""}`;
 
   const graph = document.createElement("div");
   graph.className = "mt-3 h-32";
   const canvas = document.createElement("canvas");
   canvas.setAttribute("role", "img");
-  canvas.setAttribute("aria-label", `${metricLabel(type)}の直近${history.length}件の推移。最新値は${formatValue(latest.value)}。`);
+  canvas.setAttribute("aria-label", `${metricLabel(type)}の直近${history.length}件の推移。最新値は${formatValue(latest.value)}。${showRelativeMoisture ? "水分量を過去の最小値0%、最大値100%として併記。" : ""}`);
   graph.append(canvas);
   chart.append(header, detail, graph);
 
@@ -72,21 +82,40 @@ function createMetricChart(type, metrics) {
     type: "line",
     data: {
       labels: history.map((metric) => metric.created_at),
-      datasets: [{
-        data: history.map((metric) => metric.value),
-        borderColor: "#27613a",
-        borderWidth: 2,
-        pointBackgroundColor: "#27613a",
-        pointRadius: history.length === 1 ? 3 : 0,
-        pointHoverRadius: 4,
-        tension: 0.25,
-      }],
+      datasets: [
+        {
+          label: metricLabel(type),
+          data: history.map((metric) => metric.value),
+          borderColor: "#27613a",
+          borderWidth: 2,
+          pointBackgroundColor: "#27613a",
+          pointRadius: history.length === 1 ? 3 : 0,
+          pointHoverRadius: 4,
+          tension: 0.25,
+        },
+        ...(showRelativeMoisture
+          ? [{
+              label: "水分量（相対%）",
+              data: history.map((metric) => normalizeToPercentage(metric.value, range)),
+              yAxisID: "percentage",
+              borderColor: "#5b6db1",
+              borderDash: [5, 4],
+              borderWidth: 2,
+              pointRadius: 0,
+              pointHoverRadius: 4,
+              tension: 0.25,
+            }]
+          : []),
+      ],
     },
     options: {
       responsive: true,
       maintainAspectRatio: false,
       plugins: {
-        legend: { display: false },
+        legend: {
+          display: showRelativeMoisture,
+          labels: { boxWidth: 10, boxHeight: 2, color: "#57534e", font: { size: 11 } },
+        },
         tooltip: {
           displayColors: false,
           callbacks: {
@@ -94,7 +123,9 @@ function createMetricChart(type, metrics) {
               return formatDateTime(history[items[0].dataIndex].created_at);
             },
             label(context) {
-              return `${metricLabel(type)}: ${formatValue(context.parsed.y)}`;
+              return context.dataset.yAxisID === "percentage"
+                ? `${context.dataset.label}: ${formatValue(context.parsed.y)}%`
+                : `${context.dataset.label}: ${formatValue(context.parsed.y)}`;
             },
           },
         },
@@ -106,13 +137,25 @@ function createMetricChart(type, metrics) {
           grid: { color: "#e5f3e8" },
           ticks: { color: "#78716c", maxTicksLimit: 3 },
         },
+        ...(showRelativeMoisture
+          ? {
+              percentage: {
+                position: "right",
+                min: 0,
+                max: 100,
+                border: { display: false },
+                grid: { drawOnChartArea: false },
+                ticks: { color: "#5b6db1", callback: (value) => `${value}%`, maxTicksLimit: 3 },
+              },
+            }
+          : {}),
       },
     },
   });
   return chart;
 }
 
-function createPlantCard(plant, metrics) {
+function createPlantCard(plant, metrics, metricRanges) {
   const item = document.createElement("article");
   item.className = "rounded-2xl border border-leaf-100 bg-white px-5 py-5 shadow-sm";
   const heading = document.createElement("div");
@@ -144,14 +187,14 @@ function createPlantCard(plant, metrics) {
   if (groupedMetrics.size) {
     const charts = document.createElement("div");
     charts.className = "mt-5 grid gap-3";
-    for (const [type, values] of groupedMetrics) charts.append(createMetricChart(type, values));
+    for (const [type, values] of groupedMetrics) charts.append(createMetricChart(type, values, metricRanges[type]));
     item.append(charts);
   }
   return item;
 }
 
 async function loadMetrics(plantId) {
-  return (await requestJson(`/api/plants/${plantId}/metrics`)).metrics;
+  return requestJson(`/api/plants/${plantId}/metrics`);
 }
 
 async function loadPlants() {
@@ -159,8 +202,8 @@ async function loadPlants() {
     const { plants } = await requestJson("/api/plants");
     plantCountElement.textContent = `${plants.length} 鉢`;
     if (!plants.length) return showMessage("まだ植物が登録されていません。");
-    const plantsWithMetrics = await Promise.all(plants.map(async (plant) => ({ plant, metrics: await loadMetrics(plant.id) })));
-    plantsElement.replaceChildren(...plantsWithMetrics.map(({ plant, metrics }) => createPlantCard(plant, metrics)));
+    const plantsWithMetrics = await Promise.all(plants.map(async (plant) => ({ plant, ...(await loadMetrics(plant.id)) })));
+    plantsElement.replaceChildren(...plantsWithMetrics.map(({ plant, metrics, metricRanges }) => createPlantCard(plant, metrics, metricRanges)));
   } catch {
     plantCountElement.textContent = "—";
     showMessage("植物を読み込めませんでした。", true);

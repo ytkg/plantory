@@ -3,6 +3,7 @@ import type { Metric, Plant } from "./types";
 
 type CreatePlantInput = { name?: unknown };
 type CreateMetricInput = { metric_type?: unknown; value?: unknown };
+type MetricRange = { metric_type: string; min_value: number; max_value: number };
 
 export async function listPlants(env: Env): Promise<Response> {
   const result = await env.DB.prepare("SELECT id, name, created_at, updated_at FROM plants ORDER BY id DESC").all<Plant>();
@@ -36,11 +37,20 @@ async function plantExists(id: number, env: Env): Promise<boolean> {
 export async function listMetrics(plantId: number, env: Env): Promise<Response> {
   if (!(await plantExists(plantId, env))) return error("Plant not found.", 404);
 
-  const result = await env.DB.prepare(
-    `SELECT id, plant_id, metric_type, value, created_at
-     FROM metrics WHERE plant_id = ? ORDER BY id DESC LIMIT 100`,
-  ).bind(plantId).all<Metric>();
-  return json({ metrics: result.results });
+  const [result, rangeResult] = await Promise.all([
+    env.DB.prepare(
+      `SELECT id, plant_id, metric_type, value, created_at
+       FROM metrics WHERE plant_id = ? ORDER BY id DESC LIMIT 100`,
+    ).bind(plantId).all<Metric>(),
+    env.DB.prepare(
+      `SELECT metric_type, MIN(value) AS min_value, MAX(value) AS max_value
+       FROM metrics WHERE plant_id = ? GROUP BY metric_type`,
+    ).bind(plantId).all<MetricRange>(),
+  ]);
+  const metricRanges = Object.fromEntries(
+    rangeResult.results.map((range) => [range.metric_type, { min: range.min_value, max: range.max_value }]),
+  );
+  return json({ metrics: result.results, metricRanges });
 }
 
 export async function createMetric(plantId: number, request: Request, env: Env): Promise<Response> {

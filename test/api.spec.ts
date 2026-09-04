@@ -205,10 +205,24 @@ describe("Plantory API", () => {
       metric: { plant_id: createdPlant.id, metric_type: "soil_moisture", value: 62.4 },
     });
 
+    const earlierMetric = await request(
+      `/api/plants/${createdPlant.id}/metrics`,
+      withApiKey(writeKey, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ metric_type: "soil_moisture", value: 48 }),
+      }),
+    );
+    expect(earlierMetric.status).toBe(201);
+
     const listed = await request(`/api/plants/${createdPlant.id}/metrics`, withApiKey(readKey));
     expect(listed.status).toBe(200);
     await expect(listed.json()).resolves.toMatchObject({
-      metrics: [{ plant_id: createdPlant.id, metric_type: "soil_moisture", value: 62.4 }],
+      metrics: [
+        { plant_id: createdPlant.id, metric_type: "soil_moisture", value: 48 },
+        { plant_id: createdPlant.id, metric_type: "soil_moisture", value: 62.4 },
+      ],
+      metricRanges: { soil_moisture: { min: 48, max: 62.4 } },
     });
   });
 
