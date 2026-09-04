@@ -7,6 +7,7 @@
 - Cloudflare Workers（TypeScript）
 - Cloudflare D1
 - Tailwind CSS v4
+- auth.takagi.dev（ログインとトークン検証）
 - D1 migration: `migrations/0001_initial_schema.sql`
 
 ## データモデル
@@ -37,6 +38,12 @@ npx wrangler d1 migrations apply plantory --local
 ```bash
 npx wrangler d1 create plantory
 npx wrangler d1 migrations apply plantory --remote
+```
+
+API キーを使う前に、キーのハッシュ化に使う秘密値を Cloudflare へ設定します。値は十分に長いランダム文字列にし、リポジトリへ保存しないでください。
+
+```bash
+npx wrangler secret put API_KEY_PEPPER
 ```
 
 ## 利用可能なスクリプト
@@ -79,4 +86,11 @@ npx wrangler d1 migrations apply plantory --remote
 
 ## トップページ
 
-`/` では登録済みの植物をカードで一覧表示します。画面は `GET /api/plants` からデータを読み込み、Tailwind CSS でビルドした静的アセットを Cloudflare Workers から配信します。
+`/` は公開日報のトップページです。日報機能を追加するまで「準備中」を表示します。植物一覧は認証必須の `/plants` にあり、Tailwind CSS でビルドした静的アセットを Cloudflare Workers から配信します。
+
+## 認証と API キー
+
+- `/plants` と植物管理 API はログイン Cookie または API キーで保護します。
+- `/api/auth/login` は auth.takagi.dev に資格情報を送信し、アクセストークンとリフレッシュトークンを `HttpOnly` Cookie として保存します。
+- API キーは `/settings/api-keys` で発行・無効化できます。キーは発行時に一度だけ表示され、D1 にはハッシュだけを保存します。
+- API キーは `Authorization: Bearer plnt_...` で送信します。`read` は取得のみ、`write` は登録・取得に利用できます。

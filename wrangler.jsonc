@@ -3,8 +3,14 @@
 	"name": "plantory",
 	"main": "src/index.ts",
 	"compatibility_date": "2026-09-04",
+	"vars": {
+		"AUTH_BASE_URL": "https://auth.takagi.dev"
+	},
 	"assets": {
-		"directory": "./public"
+		"directory": "./public",
+		"binding": "ASSETS",
+		"html_handling": "none",
+		"run_worker_first": true
 	},
 	"d1_databases": [
 		{
