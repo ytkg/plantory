@@ -11,12 +11,19 @@ function formatDate(date) {
 
 function message(text, error = false) {
   reportsElement.replaceChildren();
+  const section = document.createElement("section");
+  const heading = document.createElement("h2");
+  heading.className = error
+    ? "text-sm font-semibold tracking-[0.12em] text-rose-700"
+    : "text-sm font-semibold tracking-[0.12em] text-leaf-700";
+  heading.textContent = error ? "読み込みエラー" : "最新の観察";
   const element = document.createElement("p");
   element.className = error
-    ? "rounded-3xl border border-rose-200 bg-rose-50 p-7 text-rose-700"
-    : "rounded-3xl border border-dashed border-leaf-100 bg-white/70 p-7 text-center text-stone-500";
+    ? "mt-3 rounded-3xl border border-rose-200 bg-rose-50 p-7 text-rose-700 shadow-sm sm:p-8"
+    : "mt-3 rounded-3xl border border-leaf-100 bg-white p-7 text-center text-stone-500 shadow-sm sm:p-8";
   element.textContent = text;
-  reportsElement.append(element);
+  section.append(heading, element);
+  reportsElement.append(section);
 }
 
 function showReports(reports) {
