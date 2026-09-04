@@ -29,7 +29,7 @@ function publicHeader({ loginPage = false } = {}) {
   return `<header class="${headerClass}"><div class="${shellClass} justify-between">${brand.replace('class="mr-auto ', 'class="')}<nav class="flex items-center gap-4" aria-label="公開ナビゲーション">${observation}${login}</nav></div></header>`;
 }
 
-const footer = '<footer class="border-t border-leaf-100/80 py-6 text-center text-sm text-stone-500">© 2026 Plantory</footer>';
+const footer = '<footer class="border-t border-leaf-100/80 py-3 text-center text-sm text-stone-500">© 2026 Plantory</footer>';
 const pages = [
   ["public/index.html", publicHeader()],
   ["public/index-authenticated.html", managementHeader("/")],
