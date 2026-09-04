@@ -17,5 +17,3 @@ export function loginDestination(request: Request): string {
   const next = new URL(request.url).searchParams.get("next");
   return next?.startsWith("/") && !next.startsWith("//") ? next : "/";
 }
-
-export { withCookies };

@@ -60,6 +60,8 @@ api_keys(id INTEGER PRIMARY KEY, name TEXT, key_hash TEXT, scope TEXT, created_a
 
 処理本体（D1アクセスとドメイン処理）は`src/services/`に集約し、ルート定義と分離する。認証などの共通処理は`src/auth.ts`、ページ配信は`src/pages.ts`で管理する。
 
+HTTPレスポンスの共通処理は、サービス層のJSON／エラー生成とCookie付与に必要な最小限だけを`src/http.ts`に残し、ルーター自身の404・500はHonoの標準レスポンスを利用する。
+
 APIキーは `Authorization: Bearer plnt_...` で送る。`read` は取得のみ、`write` は取得と登録に利用できる。管理画面からのログインCookieでも、植物・metrics APIを利用できる。
 
 ### 植物

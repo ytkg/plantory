@@ -1,7 +1,7 @@
 import { Hono } from "hono";
 import { authenticateSession } from "../auth";
-import { loginDestination, protectedAsset, redirectToLogin, withCookies } from "../pages";
-import { error } from "../http";
+import { loginDestination, protectedAsset, redirectToLogin } from "../pages";
+import { withCookies } from "../http";
 import type { AppContext } from "./context";
 
 export const pageRoutes = new Hono<{ Bindings: Env }>();

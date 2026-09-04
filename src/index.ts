@@ -1,5 +1,4 @@
 import { Hono } from "hono";
-import { error } from "./http";
 import { apiKeyRoutes } from "./routes/api-keys";
 import { authRoutes } from "./routes/auth";
 import { pageRoutes } from "./routes/pages";
@@ -17,10 +16,10 @@ app.route("/api/reports", reportRoutes);
 app.route("/api/api-keys", apiKeyRoutes);
 app.route("/", pageRoutes);
 
-app.notFound(() => error("Not found.", 404));
+app.notFound((c) => c.json({ error: "Not found." }, 404));
 app.onError((cause) => {
   console.error("Plantory request failed", cause);
-  return error("Internal server error.", 500);
+  return new Response(JSON.stringify({ error: "Internal server error." }), { status: 500, headers: { "Content-Type": "application/json" } });
 });
 
 export default app;
