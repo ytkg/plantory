@@ -1,3 +1,5 @@
+import { logout, requestJson } from "./api-client.js";
+
 const plantsElement = document.querySelector("#plants");
 const plantCountElement = document.querySelector("#plant-count");
 const dialog = document.querySelector("#create-plant-dialog");
@@ -18,10 +20,6 @@ function showMessage(message, error = false) {
   element.className = error ? "rounded-2xl border border-rose-200 bg-rose-50 px-5 py-6 text-rose-700" : "rounded-2xl border border-dashed border-leaf-100 bg-white/70 px-5 py-10 text-center text-stone-500";
   element.textContent = message;
   plantsElement.append(element);
-}
-
-function redirectToLogin() {
-  window.location.assign("/login?next=/plants");
 }
 
 function metricLabel(type) {
@@ -133,26 +131,15 @@ function createPlantCard(plant, metrics) {
 }
 
 async function loadMetrics(plantId) {
-  const response = await fetch(`/api/plants/${plantId}/metrics`);
-  if (response.status === 401) {
-    redirectToLogin();
-    return null;
-  }
-  if (!response.ok) throw new Error();
-  const { metrics } = await response.json();
-  return metrics;
+  return (await requestJson(`/api/plants/${plantId}/metrics`)).metrics;
 }
 
 async function loadPlants() {
   try {
-    const response = await fetch("/api/plants");
-    if (response.status === 401) return redirectToLogin();
-    if (!response.ok) throw new Error();
-    const { plants } = await response.json();
+    const { plants } = await requestJson("/api/plants");
     plantCountElement.textContent = `${plants.length} 鉢`;
     if (!plants.length) return showMessage("まだ植物が登録されていません。");
     const plantsWithMetrics = await Promise.all(plants.map(async (plant) => ({ plant, metrics: await loadMetrics(plant.id) })));
-    if (plantsWithMetrics.some(({ metrics }) => metrics === null)) return;
     plantsElement.replaceChildren(...plantsWithMetrics.map(({ plant, metrics }) => createPlantCard(plant, metrics)));
   } catch {
     plantCountElement.textContent = "—";
@@ -191,16 +178,11 @@ form.addEventListener("submit", async (event) => {
   submitButton.disabled = true;
   errorElement.classList.add("hidden");
   try {
-    const response = await fetch("/api/plants", {
+    await requestJson("/api/plants", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ name }),
     });
-    if (response.status === 401) return redirectToLogin();
-    if (!response.ok) {
-      const body = await response.json().catch(() => ({}));
-      throw new Error(typeof body.error === "string" ? body.error : "植物を追加できませんでした。");
-    }
     closeDialog();
     await loadPlants();
   } catch (error) {
@@ -212,8 +194,7 @@ form.addEventListener("submit", async (event) => {
 });
 
 document.querySelector("#logout").addEventListener("click", async () => {
-  await fetch("/api/auth/logout", { method: "POST" });
-  window.location.assign("/");
+  await logout();
 });
 
 void loadPlants();

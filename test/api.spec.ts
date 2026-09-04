@@ -100,6 +100,13 @@ describe("Plantory API", () => {
     await expect(response.json()).resolves.toEqual({ error: "Authentication is required." });
   });
 
+  it("serves the shared browser API client as a static asset", async () => {
+    const response = await request("/api-client.js");
+
+    expect(response.status).toBe(200);
+    await expect(response.text()).resolves.toContain("export async function requestJson");
+  });
+
   it("allows a write key to create a plant and a read key to list it", async () => {
     const created = await request(
       "/api/plants",

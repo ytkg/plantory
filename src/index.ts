@@ -1,439 +1,73 @@
-type Plant = {
-  id: number;
-  name: string;
-  created_at: string;
-  updated_at: string;
-};
+import {
+  createManagedApiKey,
+  deleteRevokedApiKey,
+  listApiKeys,
+  revokeApiKey,
+} from "./api-keys";
+import { authenticate, authenticateSession, login, logout, unauthorized } from "./auth";
+import { error, methodNotAllowed, resourceId } from "./http";
+import { loginDestination, protectedAsset, redirectToLogin, withCookies } from "./pages";
+import { createMetric, createPlant, listMetrics, listPlants } from "./plants";
 
-type CreatePlantInput = {
-  name?: unknown;
-};
+const protectedPages = new Map([
+  ["/plants", "/plants.html"],
+  ["/settings/api-keys", "/api-keys.html"],
+]);
 
-type Metric = {
-  id: number;
-  plant_id: number;
-  metric_type: string;
-  value: number;
-  created_at: string;
-};
+const staticAssets = new Set([
+  "/styles.css",
+  "/chart.umd.min.js",
+  "/api-client.js",
+  "/login.js",
+  "/plants.js",
+  "/api-keys.js",
+  "/authenticated-header.js",
+]);
 
-type CreateMetricInput = {
-  metric_type?: unknown;
-  value?: unknown;
-};
-
-type ApiKey = {
-  id: number;
-  name: string;
-  scope: "read" | "write";
-  created_at: string;
-  last_used_at: string | null;
-  revoked_at: string | null;
-};
-
-type CreateApiKeyInput = {
-  name?: unknown;
-  scope?: unknown;
-};
-
-type TokenPair = {
-  accessToken?: unknown;
-  refreshToken?: unknown;
-  expiresIn?: unknown;
-};
-
-type SessionAuth = {
-  kind: "session";
-  cookies: string[];
-};
-
-type ApiKeyAuth = {
-  kind: "apiKey";
-  scope: "read" | "write";
-  id: number;
-};
-
-type Authentication = SessionAuth | ApiKeyAuth | null;
-
-const ACCESS_COOKIE = "plantory_access";
-const REFRESH_COOKIE = "plantory_refresh";
-const encoder = new TextEncoder();
-
-const json = (body: unknown, status = 200): Response =>
-  Response.json(body, { status });
-
-const error = (message: string, status: number): Response =>
-  json({ error: message }, status);
-
-function withCookies(response: Response, cookies: string[]): Response {
-  if (cookies.length === 0) return response;
-
-  const headers = new Headers(response.headers);
-  for (const cookie of cookies) {
-    headers.append("Set-Cookie", cookie);
-  }
-  return new Response(response.body, {
-    status: response.status,
-    statusText: response.statusText,
-    headers,
-  });
-}
-
-function parseCookies(request: Request): Map<string, string> {
-  const cookies = new Map<string, string>();
-  const header = request.headers.get("Cookie");
-  if (!header) return cookies;
-
-  for (const part of header.split(";")) {
-    const separator = part.indexOf("=");
-    if (separator === -1) continue;
-    cookies.set(part.slice(0, separator).trim(), part.slice(separator + 1).trim());
-  }
-  return cookies;
-}
-
-function cookie(name: string, value: string, maxAge: number, secure: boolean): string {
-  return [
-    `${name}=${value}`,
-    "Path=/",
-    "HttpOnly",
-    "SameSite=Lax",
-    `Max-Age=${maxAge}`,
-    ...(secure ? ["Secure"] : []),
-  ].join("; ");
-}
-
-function expiredCookie(name: string, secure: boolean): string {
-  return cookie(name, "", 0, secure);
-}
-
-function tokenPairCookies(pair: TokenPair, request: Request): string[] | null {
-  if (typeof pair.accessToken !== "string" || typeof pair.refreshToken !== "string") {
-    return null;
-  }
-
-  const maxAge = typeof pair.expiresIn === "number" ? pair.expiresIn : 900;
-  const secure = new URL(request.url).protocol === "https:";
-  return [
-    cookie(ACCESS_COOKIE, pair.accessToken, maxAge, secure),
-    cookie(REFRESH_COOKIE, pair.refreshToken, 60 * 60 * 24 * 7, secure),
-  ];
-}
-
-async function authFetch(env: Env, path: string, init: RequestInit): Promise<Response> {
-  return fetch(new URL(path, env.AUTH_BASE_URL), init);
-}
-
-async function verifyAccessToken(token: string, env: Env): Promise<boolean> {
-  const response = await authFetch(env, "/verify", {
-    headers: { Authorization: `Bearer ${token}` },
-  });
-  return response.ok;
-}
-
-async function authenticateSession(request: Request, env: Env): Promise<SessionAuth | null> {
-  const cookies = parseCookies(request);
-  const accessToken = cookies.get(ACCESS_COOKIE);
-
-  if (accessToken && (await verifyAccessToken(accessToken, env))) {
-    return { kind: "session", cookies: [] };
-  }
-
-  const refreshToken = cookies.get(REFRESH_COOKIE);
-  if (!refreshToken) return null;
-
-  const response = await authFetch(env, "/refresh", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ refreshToken }),
-  });
-  if (!response.ok) return null;
-
-  const pair = (await response.json()) as TokenPair;
-  const refreshedCookies = tokenPairCookies(pair, request);
-  return refreshedCookies ? { kind: "session", cookies: refreshedCookies } : null;
-}
-
-function authorizationToken(request: Request): string | null {
-  const header = request.headers.get("Authorization");
-  if (!header?.startsWith("Bearer ")) return null;
-  return header.slice("Bearer ".length);
-}
-
-function toHex(bytes: ArrayBuffer): string {
-  return [...new Uint8Array(bytes)].map((byte) => byte.toString(16).padStart(2, "0")).join("");
-}
-
-async function hashApiKey(key: string, env: Env): Promise<string> {
-  const digest = await crypto.subtle.digest(
-    "SHA-256",
-    encoder.encode(`${env.API_KEY_PEPPER}:${key}`),
-  );
-  return toHex(digest);
-}
-
-function createApiKeyValue(): string {
-  const bytes = crypto.getRandomValues(new Uint8Array(32));
-  const encoded = btoa(String.fromCharCode(...bytes))
-    .replaceAll("+", "-")
-    .replaceAll("/", "_")
-    .replaceAll("=", "");
-  return `plnt_${encoded}`;
-}
-
-async function authenticateApiKey(
+async function authenticatedApiResponse(
   request: Request,
   env: Env,
-  requiredScope: "read" | "write",
   ctx: ExecutionContext,
-): Promise<ApiKeyAuth | null> {
-  const key = authorizationToken(request);
-  if (!key?.startsWith("plnt_")) return null;
-
-  const keyHash = await hashApiKey(key, env);
-  const apiKey = await env.DB.prepare(
-    `SELECT id, scope FROM api_keys
-     WHERE key_hash = ? AND revoked_at IS NULL
-     LIMIT 1`,
-  )
-    .bind(keyHash)
-    .first<Pick<ApiKey, "id" | "scope">>();
-
-  if (!apiKey || (requiredScope === "write" && apiKey.scope !== "write")) {
-    return null;
-  }
-
-  ctx.waitUntil(
-    env.DB.prepare("UPDATE api_keys SET last_used_at = CURRENT_TIMESTAMP WHERE id = ?")
-      .bind(apiKey.id)
-      .run()
-      .then(
-        () => undefined,
-        (cause) => console.error("Could not update API key usage", cause),
-      ),
-  );
-
-  return { kind: "apiKey", scope: apiKey.scope, id: apiKey.id };
+  requiredScope: "read" | "write",
+  handler: () => Promise<Response>,
+): Promise<Response> {
+  const authentication = await authenticate(request, env, requiredScope, ctx);
+  if (!authentication) return unauthorized();
+  const response = await handler();
+  return authentication.kind === "session" ? withCookies(response, authentication.cookies) : response;
 }
 
-async function authenticate(
+async function sessionApiResponse(
   request: Request,
   env: Env,
-  requiredScope: "read" | "write",
-  ctx: ExecutionContext,
-): Promise<Authentication> {
+  handler: () => Promise<Response>,
+): Promise<Response> {
   const session = await authenticateSession(request, env);
-  if (session) return session;
-  return authenticateApiKey(request, env, requiredScope, ctx);
+  if (!session) return unauthorized();
+  return withCookies(await handler(), session.cookies);
 }
 
-function unauthorized(cookies: string[] = []): Response {
-  return withCookies(error("Authentication is required.", 401), cookies);
+async function handlePlantsApi(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
+  if (request.method === "GET") return authenticatedApiResponse(request, env, ctx, "read", () => listPlants(env));
+  if (request.method === "POST") return authenticatedApiResponse(request, env, ctx, "write", () => createPlant(request, env));
+  return methodNotAllowed("GET, POST");
 }
 
-async function listPlants(env: Env): Promise<Response> {
-  const result = await env.DB.prepare(
-    "SELECT id, name, created_at, updated_at FROM plants ORDER BY id DESC",
-  ).all<Plant>();
-
-  return json({ plants: result.results });
+async function handleMetricsApi(
+  request: Request,
+  env: Env,
+  ctx: ExecutionContext,
+  plantId: number,
+): Promise<Response> {
+  if (request.method === "GET") return authenticatedApiResponse(request, env, ctx, "read", () => listMetrics(plantId, env));
+  if (request.method === "POST") return authenticatedApiResponse(request, env, ctx, "write", () => createMetric(plantId, request, env));
+  return methodNotAllowed("GET, POST");
 }
 
-async function createPlant(request: Request, env: Env): Promise<Response> {
-  let input: CreatePlantInput;
-
-  try {
-    input = await request.json();
-  } catch {
-    return error("Request body must be valid JSON.", 400);
-  }
-
-  if (typeof input.name !== "string") {
-    return error("name is required.", 400);
-  }
-
-  const name = input.name.trim();
-  if (name.length === 0 || name.length > 100) {
-    return error("name must contain 1 to 100 characters.", 400);
-  }
-
-  const result = await env.DB.prepare(
-    `INSERT INTO plants (name, created_at, updated_at)
-     VALUES (?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
-     RETURNING id, name, created_at, updated_at`,
-  )
-    .bind(name)
-    .all<Plant>();
-
-  const plant = result.results[0];
-  if (!plant) {
-    return error("Could not create plant.", 500);
-  }
-
-  return json({ plant }, 201);
-}
-
-function resourceId(value: string): number | null {
-  const id = Number(value);
-  return Number.isSafeInteger(id) && id > 0 ? id : null;
-}
-
-async function plantExists(id: number, env: Env): Promise<boolean> {
-  const plant = await env.DB.prepare("SELECT id FROM plants WHERE id = ? LIMIT 1")
-    .bind(id)
-    .first<Pick<Plant, "id">>();
-  return plant !== null;
-}
-
-async function listMetrics(plantId: number, env: Env): Promise<Response> {
-  if (!(await plantExists(plantId, env))) return error("Plant not found.", 404);
-
-  const result = await env.DB.prepare(
-    `SELECT id, plant_id, metric_type, value, created_at
-     FROM metrics WHERE plant_id = ? ORDER BY id DESC LIMIT 100`,
-  )
-    .bind(plantId)
-    .all<Metric>();
-  return json({ metrics: result.results });
-}
-
-async function createMetric(plantId: number, request: Request, env: Env): Promise<Response> {
-  let input: CreateMetricInput;
-
-  try {
-    input = await request.json();
-  } catch {
-    return error("Request body must be valid JSON.", 400);
-  }
-
-  if (typeof input.metric_type !== "string" || !/^[a-z][a-z0-9_]{0,49}$/.test(input.metric_type)) {
-    return error("metric_type must be 1 to 50 lowercase letters, numbers, or underscores.", 400);
-  }
-  if (typeof input.value !== "number" || !Number.isFinite(input.value)) {
-    return error("value must be a finite number.", 400);
-  }
-  if (!(await plantExists(plantId, env))) return error("Plant not found.", 404);
-
-  const result = await env.DB.prepare(
-    `INSERT INTO metrics (plant_id, metric_type, value, created_at)
-     VALUES (?, ?, ?, CURRENT_TIMESTAMP)
-     RETURNING id, plant_id, metric_type, value, created_at`,
-  )
-    .bind(plantId, input.metric_type, input.value)
-    .all<Metric>();
-
-  const metric = result.results[0];
-  if (!metric) return error("Could not create metric.", 500);
-  return json({ metric }, 201);
-}
-
-async function login(request: Request, env: Env): Promise<Response> {
-  let credentials: { username?: unknown; password?: unknown };
-  try {
-    credentials = await request.json();
-  } catch {
-    return error("Request body must be valid JSON.", 400);
-  }
-
-  if (typeof credentials.username !== "string" || typeof credentials.password !== "string") {
-    return error("username and password are required.", 400);
-  }
-
-  const response = await authFetch(env, "/login", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ username: credentials.username, password: credentials.password }),
-  });
-  if (response.status === 401) return error("Invalid username or password.", 401);
-  if (!response.ok) return error("Authentication service is unavailable.", 502);
-
-  const cookies = tokenPairCookies((await response.json()) as TokenPair, request);
-  if (!cookies) return error("Authentication service returned an invalid response.", 502);
-  return withCookies(json({ authenticated: true }), cookies);
-}
-
-function logout(request: Request): Response {
-  const secure = new URL(request.url).protocol === "https:";
-  return withCookies(json({ authenticated: false }), [
-    expiredCookie(ACCESS_COOKIE, secure),
-    expiredCookie(REFRESH_COOKIE, secure),
-  ]);
-}
-
-async function listApiKeys(env: Env): Promise<Response> {
-  const result = await env.DB.prepare(
-    `SELECT id, name, scope, created_at, last_used_at, revoked_at
-     FROM api_keys ORDER BY id DESC`,
-  ).all<ApiKey>();
-  return json({ apiKeys: result.results });
-}
-
-async function createManagedApiKey(request: Request, env: Env): Promise<Response> {
-  let input: CreateApiKeyInput;
-  try {
-    input = await request.json();
-  } catch {
-    return error("Request body must be valid JSON.", 400);
-  }
-
-  if (typeof input.name !== "string") return error("name is required.", 400);
-  const name = input.name.trim();
-  if (name.length === 0 || name.length > 100) {
-    return error("name must contain 1 to 100 characters.", 400);
-  }
-  if (input.scope !== "read" && input.scope !== "write") {
-    return error("scope must be read or write.", 400);
-  }
-
-  const key = createApiKeyValue();
-  const keyHash = await hashApiKey(key, env);
-  const result = await env.DB.prepare(
-    `INSERT INTO api_keys (name, key_hash, scope)
-     VALUES (?, ?, ?)
-     RETURNING id, name, scope, created_at, last_used_at, revoked_at`,
-  )
-    .bind(name, keyHash, input.scope)
-    .all<ApiKey>();
-
-  const apiKey = result.results[0];
-  if (!apiKey) return error("Could not create API key.", 500);
-  return json({ apiKey, key }, 201);
-}
-
-async function revokeApiKey(id: number, env: Env): Promise<Response> {
-  const result = await env.DB.prepare(
-    "UPDATE api_keys SET revoked_at = CURRENT_TIMESTAMP WHERE id = ? AND revoked_at IS NULL",
-  )
-    .bind(id)
-    .run();
-  return result.meta.changes === 0 ? error("API key not found or already revoked.", 404) : json({ revoked: true });
-}
-
-async function deleteRevokedApiKey(id: number, env: Env): Promise<Response> {
-  const result = await env.DB.prepare(
-    "DELETE FROM api_keys WHERE id = ? AND revoked_at IS NOT NULL",
-  )
-    .bind(id)
-    .run();
-  return result.meta.changes === 0 ? error("Revoked API key not found.", 404) : json({ deleted: true });
-}
-
-async function protectedAsset(path: string, request: Request, env: Env): Promise<Response> {
-  const url = new URL(request.url);
-  url.pathname = path;
-  return env.ASSETS.fetch(new Request(url.toString(), request));
-}
-
-function redirectToLogin(request: Request, cookies: string[]): Response {
-  const currentUrl = new URL(request.url);
-  const url = new URL("/login", request.url);
-  url.searchParams.set("next", `${currentUrl.pathname}${currentUrl.search}`);
-  return withCookies(Response.redirect(url.toString(), 302), cookies);
-}
-
-function loginDestination(request: Request): string {
-  const next = new URL(request.url).searchParams.get("next");
-  return next?.startsWith("/") && !next.startsWith("//") ? next : "/";
+async function handleApiKeysApi(request: Request, env: Env): Promise<Response> {
+  if (request.method === "GET") return sessionApiResponse(request, env, () => listApiKeys(env));
+  if (request.method === "POST") return sessionApiResponse(request, env, () => createManagedApiKey(request, env));
+  return methodNotAllowed("GET, POST");
 }
 
 export default {
@@ -441,105 +75,61 @@ export default {
     const { pathname } = new URL(request.url);
 
     try {
-      if (pathname === "/api/auth/login" && request.method === "POST") {
-        return login(request, env);
-      }
+      if (pathname === "/api/auth/login" && request.method === "POST") return login(request, env);
+      if (pathname === "/api/auth/logout" && request.method === "POST") return logout(request);
 
-      if (pathname === "/api/auth/logout" && request.method === "POST") {
-        return logout(request);
-      }
-
-      if (pathname === "/plants" || pathname === "/settings/api-keys") {
+      const protectedPage = protectedPages.get(pathname);
+      if (protectedPage) {
         const session = await authenticateSession(request, env);
-        if (!session) return redirectToLogin(request, []);
-        const asset = pathname === "/plants" ? "/plants.html" : "/api-keys.html";
-        return withCookies(await protectedAsset(asset, request, env), session.cookies);
+        return session
+          ? withCookies(await protectedAsset(protectedPage, request, env), session.cookies)
+          : redirectToLogin(request);
       }
 
       if (pathname === "/") {
         const session = await authenticateSession(request, env);
-        if (session) {
-          return withCookies(await protectedAsset("/index-authenticated.html", request, env), session.cookies);
-        }
-        return protectedAsset("/index.html", request, env);
+        const asset = session ? "/index-authenticated.html" : "/index.html";
+        return withCookies(await protectedAsset(asset, request, env), session?.cookies ?? []);
       }
 
-      if (pathname === "/api/plants") {
-        const requiredScope = request.method === "GET" ? "read" : "write";
-        const authentication = await authenticate(request, env, requiredScope, ctx);
-        if (!authentication) return unauthorized();
-        const cookies = authentication.kind === "session" ? authentication.cookies : [];
-
-        if (request.method === "GET") {
-          return withCookies(await listPlants(env), cookies);
-        }
-
-        if (request.method === "POST") {
-          return withCookies(await createPlant(request, env), cookies);
-        }
-
-        return new Response(null, {
-          status: 405,
-          headers: { Allow: "GET, POST" },
-        });
-      }
+      if (pathname === "/api/plants") return handlePlantsApi(request, env, ctx);
 
       const metricsMatch = pathname.match(/^\/api\/plants\/(\d+)\/metrics$/);
       if (metricsMatch) {
         const plantId = resourceId(metricsMatch[1]);
-        if (!plantId) return error("Plant not found.", 404);
-        const requiredScope = request.method === "GET" ? "read" : "write";
-        const authentication = await authenticate(request, env, requiredScope, ctx);
-        if (!authentication) return unauthorized();
-        const cookies = authentication.kind === "session" ? authentication.cookies : [];
-
-        if (request.method === "GET") {
-          return withCookies(await listMetrics(plantId, env), cookies);
-        }
-        if (request.method === "POST") {
-          return withCookies(await createMetric(plantId, request, env), cookies);
-        }
-        return new Response(null, { status: 405, headers: { Allow: "GET, POST" } });
+        return plantId ? handleMetricsApi(request, env, ctx, plantId) : error("Plant not found.", 404);
       }
 
-      if (pathname === "/api/api-keys") {
-        const session = await authenticateSession(request, env);
-        if (!session) return unauthorized();
-        if (request.method === "GET") return withCookies(await listApiKeys(env), session.cookies);
-        if (request.method === "POST") return withCookies(await createManagedApiKey(request, env), session.cookies);
-        return new Response(null, { status: 405, headers: { Allow: "GET, POST" } });
-      }
+      if (pathname === "/api/api-keys") return handleApiKeysApi(request, env);
 
       const revokeMatch = pathname.match(/^\/api\/api-keys\/(\d+)\/revoke$/);
       if (revokeMatch && request.method === "POST") {
         const apiKeyId = resourceId(revokeMatch[1]);
-        if (!apiKeyId) return error("API key not found.", 404);
-        const session = await authenticateSession(request, env);
-        if (!session) return unauthorized();
-        return withCookies(await revokeApiKey(apiKeyId, env), session.cookies);
+        return apiKeyId
+          ? sessionApiResponse(request, env, () => revokeApiKey(apiKeyId, env))
+          : error("API key not found.", 404);
       }
 
       const apiKeyMatch = pathname.match(/^\/api\/api-keys\/(\d+)$/);
       if (apiKeyMatch && request.method === "DELETE") {
         const apiKeyId = resourceId(apiKeyMatch[1]);
-        if (!apiKeyId) return error("API key not found.", 404);
-        const session = await authenticateSession(request, env);
-        if (!session) return unauthorized();
-        return withCookies(await deleteRevokedApiKey(apiKeyId, env), session.cookies);
+        return apiKeyId
+          ? sessionApiResponse(request, env, () => deleteRevokedApiKey(apiKeyId, env))
+          : error("API key not found.", 404);
       }
 
       if (pathname === "/login") {
         const session = await authenticateSession(request, env);
-        return session ? withCookies(Response.redirect(new URL(loginDestination(request), request.url).toString(), 302), session.cookies) : protectedAsset("/login.html", request, env);
-      }
-      if (["/styles.css", "/chart.umd.min.js", "/login.js", "/plants.js", "/api-keys.js", "/authenticated-header.js"].includes(pathname)) {
-        return protectedAsset(pathname, request, env);
+        return session
+          ? withCookies(Response.redirect(new URL(loginDestination(request), request.url).toString(), 302), session.cookies)
+          : protectedAsset("/login.html", request, env);
       }
 
+      if (staticAssets.has(pathname)) return protectedAsset(pathname, request, env);
       return error("Not found.", 404);
     } catch (cause) {
       console.error("Plantory request failed", cause);
       return error("Internal server error.", 500);
     }
   },
-};
+} satisfies ExportedHandler<Env>;
