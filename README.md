@@ -43,3 +43,34 @@ npx wrangler d1 migrations apply plantory --remote
 - `npm run dev` — ローカル Worker を起動
 - `npm run check` — TypeScript を検証
 - `npm run deploy` — Worker をデプロイ
+
+## API
+
+### 植物一覧
+
+`GET /api/plants`
+
+```json
+{
+  "plants": [
+    {
+      "id": 1,
+      "name": "モンステラ",
+      "created_at": "2026-09-04 10:00:00",
+      "updated_at": "2026-09-04 10:00:00"
+    }
+  ]
+}
+```
+
+### 植物を登録
+
+`POST /api/plants`
+
+```json
+{
+  "name": "モンステラ"
+}
+```
+
+成功時は `201 Created` と登録済みの植物を返します。`name` は前後の空白を除いた 1〜100 文字で指定します。
