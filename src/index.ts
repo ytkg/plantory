@@ -409,6 +409,15 @@ async function revokeApiKey(id: number, env: Env): Promise<Response> {
   return result.meta.changes === 0 ? error("API key not found or already revoked.", 404) : json({ revoked: true });
 }
 
+async function deleteRevokedApiKey(id: number, env: Env): Promise<Response> {
+  const result = await env.DB.prepare(
+    "DELETE FROM api_keys WHERE id = ? AND revoked_at IS NOT NULL",
+  )
+    .bind(id)
+    .run();
+  return result.meta.changes === 0 ? error("Revoked API key not found.", 404) : json({ deleted: true });
+}
+
 async function protectedAsset(path: string, request: Request, env: Env): Promise<Response> {
   const url = new URL(request.url);
   url.pathname = path;
@@ -503,9 +512,20 @@ export default {
 
       const revokeMatch = pathname.match(/^\/api\/api-keys\/(\d+)\/revoke$/);
       if (revokeMatch && request.method === "POST") {
+        const apiKeyId = resourceId(revokeMatch[1]);
+        if (!apiKeyId) return error("API key not found.", 404);
         const session = await authenticateSession(request, env);
         if (!session) return unauthorized();
-        return withCookies(await revokeApiKey(Number(revokeMatch[1]), env), session.cookies);
+        return withCookies(await revokeApiKey(apiKeyId, env), session.cookies);
+      }
+
+      const apiKeyMatch = pathname.match(/^\/api\/api-keys\/(\d+)$/);
+      if (apiKeyMatch && request.method === "DELETE") {
+        const apiKeyId = resourceId(apiKeyMatch[1]);
+        if (!apiKeyId) return error("API key not found.", 404);
+        const session = await authenticateSession(request, env);
+        if (!session) return unauthorized();
+        return withCookies(await deleteRevokedApiKey(apiKeyId, env), session.cookies);
       }
 
       if (pathname === "/login") {
