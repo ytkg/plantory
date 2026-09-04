@@ -62,10 +62,6 @@ export default {
     const { pathname } = new URL(request.url);
 
     try {
-      if (pathname === "/") {
-        return json({ name: "Plantory", status: "ok" });
-      }
-
       if (pathname === "/api/plants") {
         if (request.method === "GET") {
           return listPlants(env);

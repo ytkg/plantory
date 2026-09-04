@@ -5,11 +5,16 @@
   "description": "Indoor plant monitoring and daily reports.",
   "scripts": {
     "dev": "wrangler dev",
-    "deploy": "wrangler deploy",
+    "predev": "npm run build:css",
+    "build:css": "tailwindcss -i ./src/styles.css -o ./public/styles.css --minify",
+    "build": "npm run build:css && npm run check",
+    "deploy": "npm run build && wrangler deploy",
     "cf-typegen": "wrangler types",
     "check": "tsc --noEmit"
   },
   "devDependencies": {
+    "@tailwindcss/cli": "^4.3.3",
+    "tailwindcss": "^4.3.3",
     "typescript": "^5.9.3",
     "wrangler": "^4.58.0"
   }

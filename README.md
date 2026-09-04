@@ -6,6 +6,7 @@
 
 - Cloudflare Workers（TypeScript）
 - Cloudflare D1
+- Tailwind CSS v4
 - D1 migration: `migrations/0001_initial_schema.sql`
 
 ## データモデル
@@ -41,6 +42,7 @@ npx wrangler d1 migrations apply plantory --remote
 ## 利用可能なスクリプト
 
 - `npm run dev` — ローカル Worker を起動
+- `npm run build` — Tailwind CSS と TypeScript を検証
 - `npm run check` — TypeScript を検証
 - `npm run deploy` — Worker をデプロイ
 
@@ -74,3 +76,7 @@ npx wrangler d1 migrations apply plantory --remote
 ```
 
 成功時は `201 Created` と登録済みの植物を返します。`name` は前後の空白を除いた 1〜100 文字で指定します。
+
+## トップページ
+
+`/` では登録済みの植物をカードで一覧表示します。画面は `GET /api/plants` からデータを読み込み、Tailwind CSS でビルドした静的アセットを Cloudflare Workers から配信します。

@@ -1,0 +1,31 @@
+<!doctype html>
+<html lang="ja">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#f4faf5" />
+    <title>Plantory | 植物一覧</title>
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body class="min-h-screen bg-leaf-50 text-ink antialiased">
+    <main class="mx-auto min-h-screen max-w-2xl px-5 py-12 sm:px-8 sm:py-20">
+      <header class="mb-12">
+        <p class="mb-3 text-sm font-semibold tracking-[0.2em] text-leaf-700">PLANTORY</p>
+        <h1 class="text-3xl font-semibold tracking-tight sm:text-4xl">わたしの植物</h1>
+        <p class="mt-3 text-base leading-7 text-stone-600">日々の変化を、ゆっくり記録していこう。</p>
+      </header>
+
+      <section aria-labelledby="plants-heading">
+        <div class="mb-5 flex items-center justify-between">
+          <h2 id="plants-heading" class="text-lg font-semibold">植物一覧</h2>
+          <span id="plant-count" class="rounded-full bg-leaf-100 px-3 py-1 text-sm font-medium text-leaf-700">—</span>
+        </div>
+
+        <div id="plants" class="grid gap-3" aria-live="polite">
+          <p class="rounded-2xl border border-leaf-100 bg-white px-5 py-6 text-stone-500 shadow-sm">植物を読み込んでいます…</p>
+        </div>
+      </section>
+    </main>
+    <script type="module" src="/app.js"></script>
+  </body>
+</html>
