@@ -105,7 +105,7 @@ function createPlantCard(plant, metrics) {
   }
   if (groupedMetrics.size) {
     const charts = document.createElement("div");
-    charts.className = "mt-5 grid gap-3 sm:grid-cols-2";
+    charts.className = "mt-5 grid gap-3";
     for (const [type, values] of groupedMetrics) charts.append(createMetricChart(type, values));
     item.append(charts);
   }
