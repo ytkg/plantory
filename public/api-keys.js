@@ -11,6 +11,12 @@ const keyBox = document.querySelector("#new-key");
 const keyValue = document.querySelector("#new-key-value");
 const copyButton = document.querySelector("#copy-new-key");
 const feedback = document.querySelector("#key-feedback");
+const confirmDialog = document.querySelector("#confirm-key-dialog");
+const confirmForm = document.querySelector("#confirm-key-form");
+const confirmTitle = document.querySelector("#confirm-key-title");
+const confirmMessage = document.querySelector("#confirm-key-message");
+const confirmSubmit = document.querySelector("#submit-confirm-key");
+let pendingAction = null;
 
 function showFeedback(text, error = false) {
   feedback.textContent = text;
@@ -68,32 +74,53 @@ function render(keys) {
     if (key.revoked_at) {
       button.textContent = "削除";
       button.onclick = async () => {
-        if (!window.confirm(`「${key.name}」を削除しますか？`)) return;
-        try {
-          await requestJson(`/api/api-keys/${key.id}`, { method: "DELETE" });
-          await load();
-          showFeedback(`「${key.name}」を削除しました。`);
-        } catch (error) {
-          showFeedback(error instanceof Error ? error.message : "API キーを削除できませんでした。", true);
-        }
+        openConfirmation({ title: "APIキーを削除", message: `「${key.name}」を削除しますか？この操作は取り消せません。`, label: "削除する", run: () => requestJson(`/api/api-keys/${key.id}`, { method: "DELETE" }), success: `「${key.name}」を削除しました。`, failure: "API キーを削除できませんでした。" });
       };
     } else {
       button.textContent = "無効化";
       button.onclick = async () => {
-        if (!window.confirm(`「${key.name}」を無効化しますか？`)) return;
-        try {
-          await requestJson(`/api/api-keys/${key.id}/revoke`, { method: "POST" });
-          await load();
-          showFeedback(`「${key.name}」を無効化しました。`);
-        } catch (error) {
-          showFeedback(error instanceof Error ? error.message : "API キーを無効化できませんでした。", true);
-        }
+        openConfirmation({ title: "APIキーを無効化", message: `「${key.name}」を無効化しますか？`, label: "無効化する", run: () => requestJson(`/api/api-keys/${key.id}/revoke`, { method: "POST" }), success: `「${key.name}」を無効化しました。`, failure: "API キーを無効化できませんでした。" });
       };
     }
     item.append(button);
     list.append(item);
   }
 }
+
+function openConfirmation(action) {
+  pendingAction = action;
+  confirmTitle.textContent = action.title;
+  confirmMessage.textContent = action.message;
+  confirmSubmit.textContent = action.label;
+  confirmDialog.showModal();
+}
+
+function closeConfirmation() {
+  pendingAction = null;
+  confirmDialog.close();
+}
+
+document.querySelector("#close-confirm-key").addEventListener("click", closeConfirmation);
+document.querySelector("#cancel-confirm-key").addEventListener("click", closeConfirmation);
+
+confirmForm.addEventListener("submit", async (event) => {
+  event.preventDefault();
+  if (!pendingAction) return;
+  const action = pendingAction;
+  confirmSubmit.disabled = true;
+  confirmSubmit.textContent = "処理中…";
+  try {
+    await action.run();
+    closeConfirmation();
+    await load();
+    showFeedback(action.success);
+  } catch {
+    showFeedback(action.failure, true);
+  } finally {
+    confirmSubmit.disabled = false;
+    confirmSubmit.textContent = action.label;
+  }
+});
 
 async function load() {
   try {
