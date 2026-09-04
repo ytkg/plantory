@@ -512,7 +512,7 @@ export default {
         const session = await authenticateSession(request, env);
         return session ? withCookies(Response.redirect(new URL(loginDestination(request), request.url).toString(), 302), session.cookies) : protectedAsset("/login.html", request, env);
       }
-      if (["/styles.css", "/login.js", "/plants.js", "/api-keys.js", "/authenticated-header.js"].includes(pathname)) {
+      if (["/styles.css", "/chart.umd.min.js", "/login.js", "/plants.js", "/api-keys.js", "/authenticated-header.js"].includes(pathname)) {
         return protectedAsset(pathname, request, env);
       }
 

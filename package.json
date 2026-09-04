@@ -5,9 +5,11 @@
   "description": "Indoor plant monitoring and daily reports.",
   "scripts": {
     "dev": "wrangler dev",
-    "predev": "npm run build:css",
+    "predev": "npm run build:assets",
     "build:css": "tailwindcss -i ./src/styles.css -o ./public/styles.css --minify",
-    "build": "npm run build:css && npm run check",
+    "build:chart": "cp ./node_modules/chart.js/dist/chart.umd.min.js ./public/chart.umd.min.js",
+    "build:assets": "npm run build:css && npm run build:chart",
+    "build": "npm run build:assets && npm run check",
     "deploy": "npm run build && wrangler deploy",
     "cf-typegen": "wrangler types",
     "check": "tsc --noEmit"
@@ -17,5 +19,8 @@
     "tailwindcss": "^4.3.3",
     "typescript": "^5.9.3",
     "wrangler": "^4.58.0"
+  },
+  "dependencies": {
+    "chart.js": "4.5.1"
   }
 }

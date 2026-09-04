@@ -34,18 +34,7 @@ function formatValue(value) {
 
 function createMetricChart(type, metrics) {
   const latest = metrics[0];
-  const values = metrics.slice(0, 30).reverse().map((metric) => metric.value);
-  const width = 240;
-  const height = 72;
-  const padding = 6;
-  const minimum = Math.min(...values);
-  const maximum = Math.max(...values);
-  const range = maximum - minimum || 1;
-  const points = values.map((value, index) => {
-    const x = values.length === 1 ? width / 2 : padding + ((width - padding * 2) * index) / (values.length - 1);
-    const y = height - padding - ((value - minimum) / range) * (height - padding * 2);
-    return `${x},${y}`;
-  }).join(" ");
+  const history = metrics.slice(0, 30).reverse();
 
   const chart = document.createElement("section");
   chart.className = "rounded-xl bg-leaf-50 p-3";
@@ -59,27 +48,58 @@ function createMetricChart(type, metrics) {
   value.textContent = formatValue(latest.value);
   header.append(title, value);
 
-  const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
-  svg.setAttribute("viewBox", `0 0 ${width} ${height}`);
-  svg.setAttribute("class", "mt-3 h-18 w-full overflow-visible");
-  svg.setAttribute("role", "img");
-  svg.setAttribute("aria-label", `${metricLabel(type)}の直近${values.length}件の推移。最新値は${formatValue(latest.value)}。`);
-  const baseline = document.createElementNS("http://www.w3.org/2000/svg", "line");
-  baseline.setAttribute("x1", String(padding));
-  baseline.setAttribute("x2", String(width - padding));
-  baseline.setAttribute("y1", String(height - padding));
-  baseline.setAttribute("y2", String(height - padding));
-  baseline.setAttribute("stroke", "#cfe6d4");
-  baseline.setAttribute("stroke-width", "1");
-  const line = document.createElementNS("http://www.w3.org/2000/svg", "polyline");
-  line.setAttribute("points", points);
-  line.setAttribute("fill", "none");
-  line.setAttribute("stroke", "#27613a");
-  line.setAttribute("stroke-width", "2.5");
-  line.setAttribute("stroke-linecap", "round");
-  line.setAttribute("stroke-linejoin", "round");
-  svg.append(baseline, line);
-  chart.append(header, svg);
+  const graph = document.createElement("div");
+  graph.className = "mt-3 h-32";
+  const canvas = document.createElement("canvas");
+  canvas.setAttribute("role", "img");
+  canvas.setAttribute("aria-label", `${metricLabel(type)}の直近${history.length}件の推移。最新値は${formatValue(latest.value)}。`);
+  graph.append(canvas);
+  chart.append(header, graph);
+
+  if (typeof window.Chart !== "function") {
+    graph.textContent = "グラフを読み込めませんでした。";
+    graph.className = "mt-3 flex h-32 items-center text-sm text-stone-500";
+    return chart;
+  }
+
+  new window.Chart(canvas, {
+    type: "line",
+    data: {
+      labels: history.map((metric) => metric.created_at),
+      datasets: [{
+        data: history.map((metric) => metric.value),
+        borderColor: "#27613a",
+        borderWidth: 2,
+        pointBackgroundColor: "#27613a",
+        pointRadius: history.length === 1 ? 3 : 0,
+        pointHoverRadius: 4,
+        tension: 0.25,
+      }],
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          displayColors: false,
+          callbacks: {
+            label(context) {
+              return `${metricLabel(type)}: ${formatValue(context.parsed.y)}`;
+            },
+          },
+        },
+      },
+      scales: {
+        x: { display: false },
+        y: {
+          border: { display: false },
+          grid: { color: "#e5f3e8" },
+          ticks: { color: "#78716c", maxTicksLimit: 3 },
+        },
+      },
+    },
+  });
   return chart;
 }
 
