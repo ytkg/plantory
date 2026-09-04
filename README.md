@@ -11,6 +11,7 @@
 - Tailwind CSS v4
 - auth.takagi.dev（ログインとトークン検証）
 - D1 migrations: `migrations/0001_initial_schema.sql`、`migrations/0002_create_api_keys.sql`
+- `firmware/`（M5Stackからmetricsを送るファームウェアと送信仕様）
 
 ## データモデル
 
@@ -58,6 +59,8 @@ npx wrangler secret put API_KEY_PEPPER
 - `npm run deploy` — Worker をデプロイ
 
 ## API
+
+M5Stackなどの端末からmetricsを送る方法は、[firmware/metrics-api.md](firmware/metrics-api.md)にまとめています。
 
 ### 植物一覧
 

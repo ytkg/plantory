@@ -76,6 +76,7 @@ APIキー管理APIはログインCookieでのみ利用できる。
 - 実際のキー値は発行時に一度だけ表示する。
 - D1にはキー値ではなく、`API_KEY_PEPPER` を加えたSHA-256ハッシュだけを保存する。
 - 有効なキーは削除できない。先に無効化してから削除する。
+- M5Stackなどの端末には、端末ごとに専用の `write` APIキーを発行する。端末用のキー値はリポジトリに保存しない。
 
 ## 認証
 
@@ -91,6 +92,7 @@ APIキー管理APIはログインCookieでのみ利用できる。
 - `npm test` でVitestとCloudflare Workers用テスト環境を使い、ローカルD1に対するAPIの認証・登録・取得・APIキー管理を検証する。
 - 本番反映は `npx wrangler deploy` を実行する。
 - D1のマイグレーションは `migrations/` で管理する。既存の本番環境には `0001_initial_schema.sql` と `0002_create_api_keys.sql` が適用済みである。
+- `firmware/` にはPlantory専用のM5Stackファームウェアを置く。機種が未決定の間は、機種に依存しない送信仕様とセットアップ方針だけを管理する。
 
 ## 仕様更新ルール
 
