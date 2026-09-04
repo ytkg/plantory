@@ -20,3 +20,11 @@ export function listStateCard(text, { error = false } = {}) {
 export function replaceWithListState(container, text, options) {
   container.replaceChildren(listStateCard(text, options));
 }
+
+export function setupMobileMenu() {
+  const menu = document.querySelector("header details");
+  if (!menu) return;
+  document.addEventListener("click", (event) => {
+    if (menu.open && !menu.contains(event.target)) menu.open = false;
+  });
+}

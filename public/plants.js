@@ -1,5 +1,5 @@
 import { logout, requestJson } from "./api-client.js";
-import { formatDateTime, replaceWithListState } from "./ui.js";
+import { formatDateTime, replaceWithListState, setupMobileMenu } from "./ui.js";
 
 const plantsElement = document.querySelector("#plants");
 const plantCountElement = document.querySelector("#plant-count");
@@ -292,5 +292,6 @@ form.addEventListener("submit", async (event) => {
 });
 
 document.querySelectorAll(".logout").forEach((button) => button.addEventListener("click", logout));
+setupMobileMenu();
 
 void loadPlants();

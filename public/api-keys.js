@@ -1,5 +1,5 @@
 import { logout, requestJson } from "./api-client.js";
-import { formatDateTime, replaceWithListState } from "./ui.js";
+import { formatDateTime, replaceWithListState, setupMobileMenu } from "./ui.js";
 
 const form = document.querySelector("#key-form");
 const list = document.querySelector("#key-list");
@@ -182,5 +182,6 @@ document.querySelector("#cancel-create-key").addEventListener("click", closeDial
 document.querySelector("#close-issued-key").addEventListener("click", closeDialog);
 
 document.querySelectorAll(".logout").forEach((button) => button.addEventListener("click", logout));
+setupMobileMenu();
 
 void load();
