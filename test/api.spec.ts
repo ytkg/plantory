@@ -98,6 +98,38 @@ describe("Plantory API", () => {
     await expect(response.json()).resolves.toEqual({ error: "Authentication is required." });
   });
 
+  it("returns public moisture status using soil moisture first and weight as fallback", async () => {
+    await env.DB.batch([
+      env.DB.prepare("INSERT INTO plants (name) VALUES (?)").bind("カランコエ"),
+      env.DB.prepare("INSERT INTO plants (name) VALUES (?)").bind("苔玉"),
+      env.DB.prepare("INSERT INTO plants (name) VALUES (?)").bind("記録なし"),
+      env.DB.prepare("INSERT INTO plants (name) VALUES (?)").bind("丸葉"),
+      env.DB.prepare("INSERT INTO metrics (plant_id, metric_type, value) VALUES (?, ?, ?)").bind(1, "soil_moisture", 20),
+      env.DB.prepare("INSERT INTO metrics (plant_id, metric_type, value) VALUES (?, ?, ?)").bind(1, "soil_moisture", 80),
+      env.DB.prepare("INSERT INTO metrics (plant_id, metric_type, value) VALUES (?, ?, ?)").bind(1, "weight", 10),
+      env.DB.prepare("INSERT INTO metrics (plant_id, metric_type, value) VALUES (?, ?, ?)").bind(1, "weight", 90),
+      env.DB.prepare("INSERT INTO metrics (plant_id, metric_type, value) VALUES (?, ?, ?)").bind(2, "weight", 81),
+      env.DB.prepare("INSERT INTO metrics (plant_id, metric_type, value) VALUES (?, ?, ?)").bind(2, "weight", 89),
+      env.DB.prepare("INSERT INTO metrics (plant_id, metric_type, value) VALUES (?, ?, ?)").bind(4, "weight", 1),
+      env.DB.prepare("INSERT INTO metrics (plant_id, metric_type, value) VALUES (?, ?, ?)").bind(4, "weight", 4),
+      env.DB.prepare("INSERT INTO metrics (plant_id, metric_type, value) VALUES (?, ?, ?)").bind(4, "weight", 2),
+    ]);
+
+    const response = await request("/api/status");
+    expect(response.status).toBe(200);
+    await expect(response.json()).resolves.toEqual([
+      { name: "丸葉", moisture: 33 },
+      { name: "苔玉", moisture: 100 },
+      { name: "カランコエ", moisture: 100 },
+    ]);
+  });
+
+  it("rejects non-GET requests to public status", async () => {
+    const response = await request("/api/status", { method: "POST" });
+    expect(response.status).toBe(405);
+    expect(response.headers.get("Allow")).toBe("GET");
+  });
+
   it("serves shared browser UI modules as static assets", async () => {
     const response = await request("/api-client.js");
 

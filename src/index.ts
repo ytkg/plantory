@@ -9,6 +9,7 @@ import { error, methodNotAllowed, resourceId } from "./http";
 import { loginDestination, protectedAsset, redirectToLogin, withCookies } from "./pages";
 import { createMetric, createPlant, listMetrics, listPlants } from "./plants";
 import { listReports, upsertReport } from "./reports";
+import { listStatus } from "./status";
 
 const protectedPages = new Map([
   ["/plants", "/plants.html"],
@@ -104,6 +105,11 @@ export default {
       }
 
       if (pathname === "/api/plants") return handlePlantsApi(request, env, ctx);
+
+      if (pathname === "/api/status") {
+        if (request.method !== "GET") return methodNotAllowed("GET");
+        return listStatus(env);
+      }
 
       const metricsMatch = pathname.match(/^\/api\/plants\/(\d+)\/metrics$/);
       if (metricsMatch) {

@@ -37,7 +37,6 @@ function differenceText(values, suffix = "") {
 }
 
 function normalizeToPercentage(value, range) {
-  if (range.max === range.min) return 50;
   return ((value - range.min) / (range.max - range.min)) * 100;
 }
 
@@ -150,13 +149,17 @@ function createPlantCard(plant, metrics, metricRanges) {
   }
   const waterSource = groupedMetrics.has("soil_moisture") ? "soil_moisture" : groupedMetrics.has("weight") ? "weight" : null;
   const waterMetrics = waterSource ? groupedMetrics.get(waterSource) : null;
-  const latest = waterMetrics?.[0] ?? metrics[0];
+  const waterRange = waterSource ? metricRanges[waterSource] : null;
+  const hasWaterStatus = Boolean(waterMetrics?.length && waterRange && waterRange.max !== waterRange.min);
+  const latest = hasWaterStatus ? waterMetrics[0] : metrics.find((metric) => !waterSourceTypes.has(metric.metric_type));
   const status = document.createElement("p");
   status.className = "mt-1 text-sm text-stone-600";
-  status.textContent = latest && waterMetrics
-    ? `最新: 水分量 ${formatValue(normalizeToPercentage(latest.value, metricRanges[waterSource]))}% · ${formatDateTime(latest.created_at)}`
+  status.textContent = latest && hasWaterStatus
+    ? `最新: 水分量 ${formatValue(normalizeToPercentage(latest.value, waterRange))}% · ${formatDateTime(latest.created_at)}`
     : latest
     ? `最新: ${metricLabel(latest.metric_type)} ${formatValue(latest.value)} · ${formatDateTime(latest.created_at)}`
+    : waterSource
+    ? "水分量を算出できるデータがありません"
     : "まだ測定がありません";
   summary.append(status);
   heading.append(icon, summary);
@@ -167,6 +170,7 @@ function createPlantCard(plant, metrics, metricRanges) {
     charts.className = "mt-5 grid gap-3";
     for (const [type, values] of groupedMetrics) {
       if (waterSourceTypes.has(type) && type !== waterSource) continue;
+      if (type === waterSource && !hasWaterStatus) continue;
       charts.append(createMetricChart(type, values, metricRanges[type]));
     }
     item.append(charts);

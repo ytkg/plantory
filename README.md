@@ -115,6 +115,16 @@ curl -X POST https://plantory.ytkg.workers.dev/api/plants/2/metrics \
 
 `metric_type` は1〜50文字の小文字・数字・アンダースコアで指定します。`value` は有限の数値です。`created_at` はWorkerが受信時に自動で記録します。
 
+### 公開ステータス
+
+`GET /api/status` は認証なしで、植物IDの新しい順に相対水分量を返します。`soil_moisture` を優先し、なければ `weight` を使います。選択した種類の全期間の最小値を0%、最大値を100%として、最新値を整数に丸めます。記録がない植物や最小値と最大値が同じ植物は含まれません。
+
+```json
+[
+  { "name": "カランコエ", "moisture": 42 }
+]
+```
+
 ## トップページ
 
 `/` は公開の観察日記トップページです。全植物をまとめた観察日記を新しい順に表示します。植物一覧は認証必須の `/plants` にあり、Tailwind CSS でビルドした静的アセットを Cloudflare Workers から配信します。
