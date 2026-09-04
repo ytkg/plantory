@@ -13,6 +13,11 @@ const metricLabels = {
   temperature: "温度",
   humidity: "湿度",
   light: "照度",
+  weight: "重量",
+};
+const relativePercentageLabels = {
+  soil_moisture: "水分量",
+  weight: "重量",
 };
 
 function showMessage(message, error = false) {
@@ -46,7 +51,8 @@ function createMetricChart(type, metrics, metricRange) {
     min: Math.min(...metrics.map((metric) => metric.value)),
     max: Math.max(...metrics.map((metric) => metric.value)),
   };
-  const showRelativeMoisture = type === "soil_moisture" && range.max !== range.min;
+  const relativePercentageLabel = relativePercentageLabels[type];
+  const showRelativePercentage = relativePercentageLabel && range.max !== range.min;
 
   const chart = document.createElement("section");
   chart.className = "rounded-xl bg-leaf-50 p-3";
@@ -62,13 +68,13 @@ function createMetricChart(type, metrics, metricRange) {
 
   const detail = document.createElement("p");
   detail.className = "mt-1 text-xs text-stone-500";
-  detail.textContent = `${formatDateTime(latest.created_at)} 受信 · ${differenceText(metrics)}${showRelativeMoisture ? ` · ${formatValue(range.min)}–${formatValue(range.max)} を0–100%換算` : ""}`;
+  detail.textContent = `${formatDateTime(latest.created_at)} 受信 · ${differenceText(metrics)}${showRelativePercentage ? ` · ${formatValue(range.min)}–${formatValue(range.max)} を0–100%換算` : ""}`;
 
   const graph = document.createElement("div");
   graph.className = "mt-3 h-32";
   const canvas = document.createElement("canvas");
   canvas.setAttribute("role", "img");
-  canvas.setAttribute("aria-label", `${metricLabel(type)}の直近${history.length}件の推移。最新値は${formatValue(latest.value)}。${showRelativeMoisture ? "水分量を過去の最小値0%、最大値100%として併記。" : ""}`);
+  canvas.setAttribute("aria-label", `${metricLabel(type)}の直近${history.length}件の推移。最新値は${formatValue(latest.value)}。${showRelativePercentage ? `${relativePercentageLabel}を過去の最小値0%、最大値100%として併記。` : ""}`);
   graph.append(canvas);
   chart.append(header, detail, graph);
 
@@ -93,9 +99,9 @@ function createMetricChart(type, metrics, metricRange) {
           pointHoverRadius: 4,
           tension: 0.25,
         },
-        ...(showRelativeMoisture
+        ...(showRelativePercentage
           ? [{
-              label: "水分量（相対%）",
+              label: `${relativePercentageLabel}（相対%）`,
               data: history.map((metric) => normalizeToPercentage(metric.value, range)),
               yAxisID: "percentage",
               borderColor: "#5b6db1",
@@ -113,7 +119,7 @@ function createMetricChart(type, metrics, metricRange) {
       maintainAspectRatio: false,
       plugins: {
         legend: {
-          display: showRelativeMoisture,
+          display: showRelativePercentage,
           labels: { boxWidth: 10, boxHeight: 2, color: "#57534e", font: { size: 11 } },
         },
         tooltip: {
@@ -137,7 +143,7 @@ function createMetricChart(type, metrics, metricRange) {
           grid: { color: "#e5f3e8" },
           ticks: { color: "#78716c", maxTicksLimit: 3 },
         },
-        ...(showRelativeMoisture
+        ...(showRelativePercentage
           ? {
               percentage: {
                 position: "right",
