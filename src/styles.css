@@ -2,6 +2,12 @@
 
 @source "../public";
 
+@layer base {
+  button:not(:disabled) {
+    cursor: pointer;
+  }
+}
+
 @theme {
   --color-leaf-50: #f4faf5;
   --color-leaf-100: #e5f3e8;
