@@ -66,10 +66,17 @@ const error = (message: string, status: number): Response =>
   json({ error: message }, status);
 
 function withCookies(response: Response, cookies: string[]): Response {
+  if (cookies.length === 0) return response;
+
+  const headers = new Headers(response.headers);
   for (const cookie of cookies) {
-    response.headers.append("Set-Cookie", cookie);
+    headers.append("Set-Cookie", cookie);
   }
-  return response;
+  return new Response(response.body, {
+    status: response.status,
+    statusText: response.statusText,
+    headers,
+  });
 }
 
 function parseCookies(request: Request): Map<string, string> {
