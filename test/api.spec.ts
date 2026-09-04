@@ -269,7 +269,7 @@ describe("Plantory API", () => {
         { plant_id: createdPlant.id, metric_type: "soil_moisture", value: 48 },
         { plant_id: createdPlant.id, metric_type: "soil_moisture", value: 62.4 },
       ],
-      metricRanges: { soil_moisture: { min: 48, max: 62.4 } },
+      moistureRanges: { soil_moisture: { lower: 48.72, upper: 61.68 } },
     });
   });
 

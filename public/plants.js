@@ -52,7 +52,7 @@ function differenceText(values, suffix = "") {
 }
 
 function normalizeToPercentage(value, range) {
-  return ((value - range.min) / (range.max - range.min)) * 100;
+  return Math.max(0, Math.min(100, ((value - range.lower) / (range.upper - range.lower)) * 100));
 }
 
 function createMetricChart(type, metrics, metricRange) {
@@ -143,7 +143,7 @@ function createMetricChart(type, metrics, metricRange) {
   return chart;
 }
 
-function createPlantCard(plant, metrics, metricRanges, totalCount) {
+function createPlantCard(plant, metrics, moistureRanges, totalCount) {
   const item = document.createElement("article");
   item.className = "rounded-2xl border border-leaf-100 bg-white px-5 py-5 shadow-sm";
   const heading = document.createElement("div");
@@ -164,8 +164,8 @@ function createPlantCard(plant, metrics, metricRanges, totalCount) {
   }
   const waterSource = groupedMetrics.has("soil_moisture") ? "soil_moisture" : groupedMetrics.has("weight") ? "weight" : null;
   const waterMetrics = waterSource ? groupedMetrics.get(waterSource) : null;
-  const waterRange = waterSource ? metricRanges[waterSource] : null;
-  const hasWaterStatus = Boolean(waterMetrics?.length && waterRange && waterRange.max !== waterRange.min);
+  const waterRange = waterSource ? moistureRanges[waterSource] : null;
+  const hasWaterStatus = Boolean(waterMetrics?.length && waterRange && waterRange.upper !== waterRange.lower);
   const hasOtherMetrics = metrics.some((metric) => !waterSourceTypes.has(metric.metric_type));
   if (!metrics.length || (waterSource && !hasWaterStatus && !hasOtherMetrics)) {
     const status = document.createElement("p");
@@ -194,7 +194,7 @@ function createPlantCard(plant, metrics, metricRanges, totalCount) {
     for (const [type, values] of groupedMetrics) {
       if (waterSourceTypes.has(type) && type !== waterSource) continue;
       if (type === waterSource && !hasWaterStatus) continue;
-      charts.append(createMetricChart(type, values, metricRanges[type]));
+      charts.append(createMetricChart(type, values, moistureRanges[type]));
     }
     item.append(charts);
   }
@@ -211,7 +211,7 @@ async function loadPlants() {
     plantCountElement.textContent = `${plants.length} 鉢`;
     if (!plants.length) return showMessage("まだ植物が登録されていません。");
     const plantsWithMetrics = await Promise.all(plants.map(async (plant) => ({ plant, ...(await loadMetrics(plant.id)) })));
-    plantsElement.replaceChildren(...plantsWithMetrics.map(({ plant, metrics, metricRanges, totalCount }) => createPlantCard(plant, metrics, metricRanges, totalCount)));
+    plantsElement.replaceChildren(...plantsWithMetrics.map(({ plant, metrics, moistureRanges, totalCount }) => createPlantCard(plant, metrics, moistureRanges, totalCount)));
   } catch {
     plantCountElement.textContent = "—";
     showMessage("植物を読み込めませんでした。", true);

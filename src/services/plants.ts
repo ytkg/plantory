@@ -1,9 +1,9 @@
 import { error, json } from "../http";
+import { calculateMoistureRange } from "../moisture";
 import type { Metric, Plant } from "../types";
 
 type CreatePlantInput = { name?: unknown };
 type CreateMetricInput = { metric_type?: unknown; value?: unknown };
-type MetricRange = { metric_type: string; min_value: number; max_value: number };
 
 export async function listPlants(env: Env): Promise<Response> {
   const result = await env.DB.prepare("SELECT id, name, created_at, updated_at FROM plants ORDER BY id ASC").all<Plant>();
@@ -42,16 +42,16 @@ export async function listMetrics(plantId: number, env: Env): Promise<Response> 
       `SELECT id, plant_id, metric_type, value, created_at
        FROM metrics WHERE plant_id = ? ORDER BY created_at DESC, id DESC LIMIT 100`,
     ).bind(plantId).all<Metric>(),
-    env.DB.prepare(
-      `SELECT metric_type, MIN(value) AS min_value, MAX(value) AS max_value
-       FROM metrics WHERE plant_id = ? GROUP BY metric_type`,
-    ).bind(plantId).all<MetricRange>(),
+    env.DB.prepare("SELECT metric_type, value FROM metrics WHERE plant_id = ? AND metric_type IN ('soil_moisture', 'weight')").bind(plantId).all<{ metric_type: string; value: number }>(),
     env.DB.prepare("SELECT COUNT(*) AS total_count FROM metrics WHERE plant_id = ?").bind(plantId).first<{ total_count: number }>(),
   ]);
-  const metricRanges = Object.fromEntries(
-    rangeResult.results.map((range) => [range.metric_type, { min: range.min_value, max: range.max_value }]),
+  const moistureRanges = Object.fromEntries(
+    ["soil_moisture", "weight"].flatMap((type) => {
+      const range = calculateMoistureRange(rangeResult.results.filter((metric) => metric.metric_type === type).map((metric) => metric.value));
+      return range ? [[type, range]] : [];
+    }),
   );
-  return json({ metrics: result.results, metricRanges, totalCount: countResult?.total_count ?? 0 });
+  return json({ metrics: result.results, moistureRanges, totalCount: countResult?.total_count ?? 0 });
 }
 
 export async function deleteMetrics(plantId: number, env: Env): Promise<Response> {

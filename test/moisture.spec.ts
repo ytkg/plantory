@@ -1,16 +1,22 @@
 import { describe, expect, it } from "vitest";
-import { buildMoistureStatuses } from "../src/moisture";
+import { buildMoistureStatuses, calculateMoistureRange, toMoistureStatus } from "../src/moisture";
 
-const metric = (plant_id: number, name: string, metric_type: "soil_moisture" | "weight", value: number, min_value: number, max_value: number) => ({
+const metric = (plant_id: number, name: string, metric_type: "soil_moisture" | "weight", value: number, lower: number, upper: number) => ({
   plant_id,
   name,
   metric_type,
   value,
-  min_value,
-  max_value,
+  lower,
+  upper,
 });
 
 describe("moisture status calculation", () => {
+  it("calculates linearly interpolated P5 and P95 ranges", () => {
+    expect(calculateMoistureRange([0, 10, 20, 30, 40])).toEqual({ lower: 2, upper: 38 });
+    expect(toMoistureStatus(metric(1, "鉢", "weight", -10, 2, 38))).toEqual({ name: "鉢", moisture: 0 });
+    expect(toMoistureStatus(metric(1, "鉢", "weight", 50, 2, 38))).toEqual({ name: "鉢", moisture: 100 });
+  });
+
   it("prioritizes soil moisture and rounds the relative value", () => {
     expect(buildMoistureStatuses([
       metric(1, "カランコエ", "weight", 90, 10, 90),

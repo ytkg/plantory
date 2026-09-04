@@ -75,13 +75,13 @@ APIキーは `Authorization: Bearer plnt_...` で送る。`read` は取得のみ
 
 | メソッド | URL | 権限 | 内容 |
 | --- | --- | --- | --- |
-| `GET` | `/api/plants/:plantId/metrics` | read | 指定した植物のmetricsを新しい順に最大100件と、種類ごとの全期間最小値・最大値を返す。植物がなければ404。 |
+| `GET` | `/api/plants/:plantId/metrics` | read | 指定した植物のmetricsを新しい順に最大100件と、水分量計算用のP5/P95レンジを返す。植物がなければ404。 |
 | `POST` | `/api/plants/:plantId/metrics` | write | `{ "metric_type": "soil_moisture", "value": 62.4 }` で記録する。 |
 | `DELETE` | `/api/plants/:plantId/metrics` | write | 指定した植物のmetricsをすべて削除する。植物は残し、成功時は204。 |
 
 - `metric_type` は先頭を小文字にした1〜50文字の小文字・数字・アンダースコアで指定する。
 - `value` は有限の数値で指定する。
-- `GET /api/plants/:plantId/metrics` の `totalCount` は、その植物に紐づくmetricsの総件数を返す。
+- `GET /api/plants/:plantId/metrics` の `moistureRanges` は種類ごとのP5（`lower`）／P95（`upper`）、`totalCount`はmetricsの総件数を返す。
 - metricsの削除は対象が0件でも204を返す。存在しない植物は404。
 
 ### 観察日記

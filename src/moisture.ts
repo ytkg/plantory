@@ -3,9 +3,27 @@ export type MoistureMetric = {
   name: string;
   metric_type: "soil_moisture" | "weight";
   value: number;
-  min_value: number;
-  max_value: number;
+  lower: number;
+  upper: number;
 };
+
+export type MoistureRange = { lower: number; upper: number };
+
+export function percentile(values: number[], p: number): number | null {
+  if (!values.length) return null;
+  const sorted = [...values].sort((a, b) => a - b);
+  const position = (sorted.length - 1) * p;
+  const lower = Math.floor(position);
+  const upper = Math.ceil(position);
+  if (lower === upper) return sorted[lower];
+  return sorted[lower] + (sorted[upper] - sorted[lower]) * (position - lower);
+}
+
+export function calculateMoistureRange(values: number[]): MoistureRange | null {
+  const lower = percentile(values, 0.05);
+  const upper = percentile(values, 0.95);
+  return lower === null || upper === null || lower === upper ? null : { lower, upper };
+}
 
 export type MoistureStatus = {
   name: string;
@@ -18,10 +36,11 @@ export function selectMoistureMetric(metrics: MoistureMetric[]): MoistureMetric 
 }
 
 export function toMoistureStatus(metric: MoistureMetric): MoistureStatus | null {
-  if (metric.min_value === metric.max_value) return null;
+  if (metric.lower === metric.upper) return null;
+  const raw = ((metric.value - metric.lower) / (metric.upper - metric.lower)) * 100;
   return {
     name: metric.name,
-    moisture: Math.round(((metric.value - metric.min_value) / (metric.max_value - metric.min_value)) * 100),
+    moisture: Math.round(Math.max(0, Math.min(100, raw))),
   };
 }
 
