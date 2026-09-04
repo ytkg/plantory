@@ -1,0 +1,32 @@
+<!doctype html>
+<html lang="ja">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#f4faf5" />
+    <title>Plantory | 日報</title>
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body class="flex min-h-screen flex-col bg-leaf-50 text-ink antialiased">
+    <header class="fixed inset-x-0 top-0 z-10 border-b border-leaf-100/80 bg-white/80 backdrop-blur">
+      <div class="mx-auto flex h-16 max-w-2xl items-center gap-4 px-5 sm:px-8">
+        <a class="mr-auto text-sm font-semibold tracking-[0.2em] text-leaf-700" href="/">PLANTORY</a>
+        <nav class="flex items-center gap-4" aria-label="管理ナビゲーション">
+          <a class="text-sm font-semibold text-leaf-700" href="/">日報</a>
+          <a class="text-sm font-semibold text-stone-600" href="/plants">植物一覧</a>
+          <a class="text-sm font-semibold text-stone-600" href="/settings/api-keys">API キー管理</a>
+        </nav>
+        <button id="logout" class="text-sm font-semibold text-leaf-700">ログアウト</button>
+      </div>
+    </header>
+    <main class="mx-auto w-full max-w-2xl flex-1 px-5 pb-12 pt-28 sm:px-8 sm:pb-20 sm:pt-36">
+      <section class="rounded-3xl border border-leaf-100 bg-white p-7 shadow-sm">
+        <p class="text-sm font-semibold text-leaf-700">COMING SOON</p>
+        <h1 class="mt-3 text-xl font-semibold">公開日報を準備しています</h1>
+        <p class="mt-3 leading-7 text-stone-600">日々の植物の変化を、誰でも読めるかたちでお届けします。</p>
+      </section>
+    </main>
+    <footer class="border-t border-leaf-100/80 py-6 text-center text-sm text-stone-500">© 2026 Plantory</footer>
+    <script type="module" src="/authenticated-header.js"></script>
+  </body>
+</html>

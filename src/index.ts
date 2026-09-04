@@ -368,6 +368,14 @@ export default {
         return withCookies(await protectedAsset(asset, request, env), session.cookies);
       }
 
+      if (pathname === "/") {
+        const session = await authenticateSession(request, env);
+        if (session) {
+          return withCookies(await protectedAsset("/index-authenticated.html", request, env), session.cookies);
+        }
+        return protectedAsset("/index.html", request, env);
+      }
+
       if (pathname === "/api/plants") {
         const requiredScope = request.method === "GET" ? "read" : "write";
         const authentication = await authenticate(request, env, requiredScope, ctx);
@@ -403,9 +411,11 @@ export default {
         return withCookies(await revokeApiKey(Number(revokeMatch[1]), env), session.cookies);
       }
 
-      if (pathname === "/login") return protectedAsset("/login.html", request, env);
-      if (pathname === "/") return protectedAsset("/index.html", request, env);
-      if (["/styles.css", "/login.js", "/plants.js", "/api-keys.js"].includes(pathname)) {
+      if (pathname === "/login") {
+        const session = await authenticateSession(request, env);
+        return session ? withCookies(Response.redirect(new URL("/plants", request.url).toString(), 302), session.cookies) : protectedAsset("/login.html", request, env);
+      }
+      if (["/styles.css", "/login.js", "/plants.js", "/api-keys.js", "/authenticated-header.js"].includes(pathname)) {
         return protectedAsset(pathname, request, env);
       }
 
