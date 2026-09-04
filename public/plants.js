@@ -166,17 +166,13 @@ function createPlantCard(plant, metrics, metricRanges, totalCount) {
   const waterMetrics = waterSource ? groupedMetrics.get(waterSource) : null;
   const waterRange = waterSource ? metricRanges[waterSource] : null;
   const hasWaterStatus = Boolean(waterMetrics?.length && waterRange && waterRange.max !== waterRange.min);
-  const latest = hasWaterStatus ? waterMetrics[0] : metrics.find((metric) => !waterSourceTypes.has(metric.metric_type));
-  const status = document.createElement("p");
-  status.className = "mt-1 text-sm text-stone-600";
-  status.textContent = latest && hasWaterStatus
-    ? `最新: 水分量 ${formatMoisture(normalizeToPercentage(latest.value, waterRange))}% · ${formatDateTime(latest.created_at)}`
-    : latest
-    ? `最新: ${metricLabel(latest.metric_type)} ${formatValue(latest.value)} · ${formatDateTime(latest.created_at)}`
-    : waterSource
-    ? "水分量を算出できるデータがありません"
-    : "まだ測定がありません";
-  summary.append(status);
+  const hasOtherMetrics = metrics.some((metric) => !waterSourceTypes.has(metric.metric_type));
+  if (!metrics.length || (waterSource && !hasWaterStatus && !hasOtherMetrics)) {
+    const status = document.createElement("p");
+    status.className = "mt-1 text-sm text-stone-600";
+    status.textContent = !metrics.length ? "まだ測定がありません" : "水分量を算出できるデータがありません";
+    summary.append(status);
+  }
   heading.append(icon, summary);
   item.append(heading);
 
