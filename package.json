@@ -1,0 +1,16 @@
+{
+  "name": "plantory",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Indoor plant monitoring and daily reports.",
+  "scripts": {
+    "dev": "wrangler dev",
+    "deploy": "wrangler deploy",
+    "cf-typegen": "wrangler types",
+    "check": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "typescript": "^5.9.3",
+    "wrangler": "^4.58.0"
+  }
+}
