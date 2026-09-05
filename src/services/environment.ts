@@ -7,6 +7,10 @@ type EnvironmentReading = {
   value: number;
 };
 
+type EnvironmentSnapshot = Record<EnvironmentMetricType, number> & {
+  created_at: string;
+};
+
 type SwitchBotStatus = {
   statusCode?: unknown;
   body?: {
@@ -73,4 +77,33 @@ export async function collectEnvironmentMetrics(env: Env): Promise<boolean> {
     ),
   );
   return true;
+}
+
+export async function latestEnvironmentMetrics(env: Env): Promise<EnvironmentSnapshot | null> {
+  const { results } = await env.DB.prepare(
+    `SELECT metric_type, value, created_at
+     FROM (
+       SELECT metric_type, value, created_at, id,
+              ROW_NUMBER() OVER (PARTITION BY metric_type ORDER BY created_at DESC, id DESC) AS rank
+       FROM environment_metrics
+     )
+     WHERE rank = 1`,
+  ).all<{ metric_type: EnvironmentMetricType; value: number; created_at: string }>();
+
+  const readings = new Map(results.map((row) => [row.metric_type, row]));
+  const temperature = readings.get("temperature");
+  const humidity = readings.get("humidity");
+  const co2 = readings.get("co2");
+  if (!temperature || !humidity || !co2) return null;
+
+  const createdAt = [temperature, humidity, co2]
+    .map((reading) => reading.created_at)
+    .sort()
+    .at(-1)!;
+  return {
+    temperature: temperature.value,
+    humidity: humidity.value,
+    co2: co2.value,
+    created_at: createdAt,
+  };
 }

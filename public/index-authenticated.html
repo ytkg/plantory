@@ -14,6 +14,11 @@
         <h2 id="plant-status-heading" class="text-sm font-semibold tracking-[0.12em] text-leaf-700">植物のようす</h2>
         <div id="plant-status-cards" class="mt-3 grid grid-cols-2 gap-3 sm:grid-cols-4" aria-live="polite"></div>
       </section>
+      <section id="environment-status" class="mt-8 hidden" aria-labelledby="environment-status-heading">
+        <h2 id="environment-status-heading" class="text-sm font-semibold tracking-[0.12em] text-leaf-700">お部屋の環境</h2>
+        <div id="environment-status-cards" class="mt-3 grid grid-cols-3 gap-3" aria-live="polite"></div>
+        <p id="environment-status-updated-at" class="mt-3 text-xs text-stone-500"></p>
+      </section>
       <section class="mt-8" aria-labelledby="reports-heading">
         <h1 id="reports-heading" class="text-3xl font-semibold tracking-tight sm:text-4xl">観察日記</h1>
         <p class="mt-3 leading-7 text-stone-600">植物たちの、いまの様子を記録しています。</p>
@@ -24,5 +29,6 @@
     <script type="module" src="/authenticated-header.js"></script>
     <script type="module" src="/reports.js"></script>
     <script type="module" src="/status.js"></script>
+    <script type="module" src="/environment.js"></script>
   </body>
 </html>
