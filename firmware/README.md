@@ -2,7 +2,7 @@
 
 Plantoryへmetricsを送るM5Stack用ファームウェアを管理する場所です。
 
-現在は`m5stack-atom-s3/`に、PlatformIOで動かすHelloサンプルを置いています。センサー送信処理はまだ含めません。
+現在は`sample/`に、PlatformIOで動かすATOM S3のサンプルを置いています。センサー送信処理はまだ含めません。
 
 送信するHTTP APIの契約は [metrics-api.md](metrics-api.md) を参照してください。
 
