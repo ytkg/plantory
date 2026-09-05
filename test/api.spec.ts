@@ -106,6 +106,31 @@ describe("Plantory API", () => {
     await expect(response.json()).resolves.toEqual({ error: "Authentication is required." });
   });
 
+  it("sets session cookies when logging in and clears both when logging out", async () => {
+    vi.stubGlobal("fetch", (input: RequestInfo | URL) => {
+      const url = new URL(input instanceof Request ? input.url : input.toString());
+      if (url.href === "https://auth.takagi.dev/login") {
+        return Promise.resolve(Response.json({ accessToken: "access-token", refreshToken: "refresh-token", expiresIn: 900 }));
+      }
+      return Promise.reject(new Error(`Unexpected outbound request: ${url}`));
+    });
+
+    const login = await request("/api/auth/login", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ username: "ytkg", password: "password" }),
+    });
+    expect(login.status).toBe(200);
+    expect(login.headers.get("Set-Cookie")).toContain("plantory_access=access-token");
+    expect(login.headers.get("Set-Cookie")).toContain("plantory_refresh=refresh-token");
+
+    const logout = await request("/api/auth/logout", { method: "POST" });
+    expect(logout.status).toBe(200);
+    expect(logout.headers.get("Set-Cookie")).toContain("plantory_access=");
+    expect(logout.headers.get("Set-Cookie")).toContain("plantory_refresh=");
+    expect(logout.headers.get("Set-Cookie")).toContain("Max-Age=0");
+  });
+
   it("collects SwitchBot temperature, humidity, and CO2 together on a scheduled run", async () => {
     vi.stubGlobal("fetch", () =>
       Promise.resolve(

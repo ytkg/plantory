@@ -153,6 +153,7 @@ APIキー管理APIはログインCookieでのみ利用できる。
 - 認証サービスは `auth.takagi.dev` を使用する。
 - アクセストークンは `plantory_access` Cookie、リフレッシュトークンは `plantory_refresh` Cookieに保存する。どちらも `HttpOnly`、`SameSite=Lax` とする。HTTPSでは `Secure` も付ける。
 - アクセストークンの検証に失敗した場合はリフレッシュを試みる。更新したCookieは、静的アセットを複製したレスポンスに付与する。
+- ログアウト時はアクセストークンとリフレッシュトークンの両方のCookieを削除する。
 - `API_KEY_PEPPER` はCloudflare Secretとして設定し、リポジトリには保存しない。
 - SwitchBot連携の `SWITCHBOT_TOKEN`、`SWITCHBOT_SECRET`、`SWITCHBOT_DEVICE_ID` はCloudflare Secretとして設定し、リポジトリには保存しない。
 

@@ -2,7 +2,6 @@ import type { ApiKey, ApiKeyAuth, Authentication, Scope, SessionAuth, TokenPair 
 import type { AppContext } from "./routes/context";
 
 const error = (message: string, status: number) => Response.json({ error: message }, { status });
-const json = (body: unknown, status = 200) => Response.json(body, { status });
 
 const ACCESS_COOKIE = "plantory_access";
 const REFRESH_COOKIE = "plantory_refresh";
@@ -149,12 +148,12 @@ export async function login(c: AppContext): Promise<Response> {
   const cookies = tokenPairCookies((await response.json()) as TokenPair, request);
   if (!cookies) return error("Authentication service returned an invalid response.", 502);
   for (const cookie of cookies) c.header("Set-Cookie", cookie, { append: true });
-  return json({ authenticated: true });
+  return c.json({ authenticated: true });
 }
 
 export function logout(c: AppContext): Response {
   const request = c.req.raw;
   const secure = new URL(request.url).protocol === "https:";
   for (const value of [cookie(ACCESS_COOKIE, "", 0, secure), cookie(REFRESH_COOKIE, "", 0, secure)]) c.header("Set-Cookie", value, { append: true });
-  return json({ authenticated: false });
+  return c.json({ authenticated: false });
 }
