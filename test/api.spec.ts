@@ -118,7 +118,7 @@ describe("Plantory API", () => {
     const response = await request("/api/status");
     expect(response.status).toBe(200);
     await expect(response.json()).resolves.toEqual([
-      { name: "カランコエ", moisture: 100 },
+      { name: "カランコエ", moisture: 0 },
       { name: "苔玉", moisture: 100 },
       { name: "丸葉", moisture: 33 },
     ]);
@@ -273,7 +273,7 @@ describe("Plantory API", () => {
         { plant_id: createdPlant.id, metric_type: "soil_moisture", value: 48 },
         { plant_id: createdPlant.id, metric_type: "soil_moisture", value: 62.4 },
       ],
-      moistureRanges: { soil_moisture: { lower: 48.72, upper: 61.68 } },
+      moistureRanges: { soil_moisture: { lower: 48.72, upper: 61.68, direction: "decreasing" } },
     });
   });
 

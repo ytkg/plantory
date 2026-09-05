@@ -1,4 +1,4 @@
-import { calculateMoistureRange } from "../moisture";
+import { calculateMoistureRange, getMoistureDirection } from "../moisture";
 import type { AppContext } from "../routes/context";
 import type { Metric, Plant } from "../types";
 
@@ -48,7 +48,8 @@ export async function listMetrics(plantId: number, c: AppContext): Promise<Respo
   const moistureRanges = Object.fromEntries(
     ["soil_moisture", "weight"].flatMap((type) => {
       const range = calculateMoistureRange(rangeResult.results.filter((metric) => metric.metric_type === type).map((metric) => metric.value));
-      return range ? [[type, range]] : [];
+      const direction = getMoistureDirection(type);
+      return range && direction ? [[type, { ...range, direction }]] : [];
     }),
   );
   return c.json({ metrics: result.results, moistureRanges, totalCount: countResult?.total_count ?? 0 });

@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
-import { buildMoistureStatuses, calculateMoistureRange, toMoistureStatus } from "../src/moisture";
+import { buildMoistureStatuses, calculateMoisturePercentage, calculateMoistureRange, toMoistureStatus } from "../src/moisture";
 
-const metric = (plant_id: number, name: string, metric_type: "soil_moisture" | "weight", value: number, lower: number, upper: number) => ({
+const metric = (plant_id: number, name: string, metric_type: string, value: number, lower: number, upper: number) => ({
   plant_id,
   name,
   metric_type,
@@ -17,11 +17,30 @@ describe("moisture status calculation", () => {
     expect(toMoistureStatus(metric(1, "鉢", "weight", 50, 2, 38))).toEqual({ name: "鉢", moisture: 100 });
   });
 
-  it("prioritizes soil moisture and rounds the relative value", () => {
+  it("inverts soil moisture and rounds the relative value", () => {
     expect(buildMoistureStatuses([
       metric(1, "カランコエ", "weight", 90, 10, 90),
       metric(1, "カランコエ", "soil_moisture", 17, 10, 31),
-    ])).toEqual([{ name: "カランコエ", moisture: 33 }]);
+    ])).toEqual([{ name: "カランコエ", moisture: 67 }]);
+  });
+
+  it("maps soil moisture P5 to 100% and P95 to 0%, including clamping", () => {
+    const range = { lower: 10, upper: 90 };
+    expect(calculateMoisturePercentage(10, range, "soil_moisture")).toBe(100);
+    expect(calculateMoisturePercentage(90, range, "soil_moisture")).toBe(0);
+    expect(calculateMoisturePercentage(50, range, "soil_moisture")).toBe(50);
+    expect(calculateMoisturePercentage(0, range, "soil_moisture")).toBe(100);
+    expect(calculateMoisturePercentage(100, range, "soil_moisture")).toBe(0);
+    expect(calculateMoisturePercentage(43.2, range, "soil_moisture")).toBe(59);
+  });
+
+  it("keeps weight increasing and omits undefined moisture directions", () => {
+    const range = { lower: 10, upper: 90 };
+    expect(calculateMoisturePercentage(10, range, "weight")).toBe(0);
+    expect(calculateMoisturePercentage(90, range, "weight")).toBe(100);
+    expect(calculateMoisturePercentage(50, range, "weight")).toBe(50);
+    expect(calculateMoisturePercentage(50, range, "unknown_water_metric")).toBeNull();
+    expect(calculateMoisturePercentage(50, { lower: 10, upper: 10 }, "soil_moisture")).toBeNull();
   });
 
   it("falls back to weight, preserves duplicate names, and omits unavailable values", () => {

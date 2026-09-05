@@ -52,7 +52,11 @@ function differenceText(values, suffix = "") {
 }
 
 function normalizeToPercentage(value, range) {
-  return Math.max(0, Math.min(100, ((value - range.lower) / (range.upper - range.lower)) * 100));
+  if (!range || range.lower === range.upper) return null;
+  const raw = range.direction === "decreasing"
+    ? ((range.upper - value) / (range.upper - range.lower)) * 100
+    : ((value - range.lower) / (range.upper - range.lower)) * 100;
+  return Math.max(0, Math.min(100, raw));
 }
 
 function createMetricChart(type, metrics, metricRange) {
