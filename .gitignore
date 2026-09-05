@@ -1,4 +1,5 @@
 node_modules/
 .wrangler/
 .pio/
+firmware/**/include/secrets.h
 .dev.vars
