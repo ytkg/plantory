@@ -8,6 +8,9 @@ export default defineConfig({
       miniflare: {
         bindings: {
           API_KEY_PEPPER: "test-api-key-pepper",
+          SWITCHBOT_TOKEN: "test-switchbot-token",
+          SWITCHBOT_SECRET: "test-switchbot-secret",
+          SWITCHBOT_DEVICE_ID: "test-switchbot-device-id",
         },
       },
     }),

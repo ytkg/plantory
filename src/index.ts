@@ -5,6 +5,7 @@ import { pageRoutes } from "./routes/pages";
 import { plantRoutes } from "./routes/plants";
 import { reportRoutes } from "./routes/reports";
 import { statusRoutes } from "./routes/status";
+import { collectEnvironmentMetrics } from "./services/environment";
 
 const app = new Hono<{ Bindings: Env }>();
 
@@ -21,4 +22,13 @@ app.onError((cause) => {
   return new Response(JSON.stringify({ error: "Internal server error." }), { status: 500, headers: { "Content-Type": "application/json" } });
 });
 
-export default app;
+export default {
+  fetch: app.fetch,
+  async scheduled(_controller, env): Promise<void> {
+    try {
+      await collectEnvironmentMetrics(env);
+    } catch (error) {
+      console.error("Plantory environment collection failed", error);
+    }
+  },
+} satisfies ExportedHandler<Env>;

@@ -10,7 +10,7 @@
 - Cloudflare D1
 - Tailwind CSS v4
 - auth.takagi.dev（ログインとトークン検証）
-- D1 migrations: `migrations/0001_initial_schema.sql`、`migrations/0002_create_api_keys.sql`、`migrations/0003_make_daily_reports_aggregate.sql`
+- D1 migrations: `migrations/0001_initial_schema.sql`〜`migrations/0004_create_environment_metrics.sql`
 - `firmware/`（M5Stackからmetricsを送るファームウェアと送信仕様）
 
 ## データモデル
@@ -19,6 +19,7 @@
 plants(id INTEGER PRIMARY KEY, name TEXT, created_at DATETIME, updated_at DATETIME)
 metrics(id INTEGER PRIMARY KEY, plant_id INTEGER, metric_type TEXT, value REAL, created_at DATETIME)
 daily_reports(id INTEGER PRIMARY KEY, date DATE UNIQUE, content TEXT, created_at DATETIME, updated_at DATETIME)
+environment_metrics(id INTEGER PRIMARY KEY, metric_type TEXT, value REAL, created_at DATETIME)
 ```
 
 `metrics.plant_id` は `plants.id` を参照します。`daily_reports` は全植物をまとめた日付ごとの観察日記です。現段階では、センサー自体を管理するテーブル、`species`、`unit`、`measured_at` は設けません。
@@ -48,6 +49,16 @@ API キーを使う前に、キーのハッシュ化に使う秘密値を Cloudf
 ```bash
 npx wrangler secret put API_KEY_PEPPER
 ```
+
+SwitchBot CO₂センサーの環境データを1時間ごとに記録する場合は、次の3つも設定します。値はリポジトリに保存しません。
+
+```bash
+npx wrangler secret put SWITCHBOT_TOKEN
+npx wrangler secret put SWITCHBOT_SECRET
+npx wrangler secret put SWITCHBOT_DEVICE_ID
+```
+
+設定後にデプロイすると、毎時0分（UTC）に温度・湿度・CO₂濃度をまとめてD1へ保存します。3値のどれかが取得できない場合は保存しません。
 
 ## 利用可能なスクリプト
 
