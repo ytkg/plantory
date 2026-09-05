@@ -14,6 +14,10 @@ cp include/secrets.example.h include/secrets.h
 
 `include/secrets.h`に自分のSSIDとパスワードを設定します。このファイルはGit管理対象外です。
 
+## Earth Unitの接続
+
+Earth UnitをATOM S3のHY2.0-4Pポートへ接続すると、白線（Analog Output）がG1（GPIO1）に入ります。画面下部に12bit ADCの生値（0〜4095）を表示します。
+
 ## PlatformIO
 
 このディレクトリでビルド・書き込みを実行します。
