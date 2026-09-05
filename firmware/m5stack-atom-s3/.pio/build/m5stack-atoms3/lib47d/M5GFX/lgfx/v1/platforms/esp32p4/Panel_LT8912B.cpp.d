@@ -1,0 +1,10 @@
+.pio/build/m5stack-atoms3/lib47d/M5GFX/lgfx/v1/platforms/esp32p4/Panel_LT8912B.cpp.o: \
+ .pio/libdeps/m5stack-atoms3/M5GFX/src/lgfx/v1/platforms/esp32p4/Panel_LT8912B.cpp \
+ .pio/libdeps/m5stack-atoms3/M5GFX/src/lgfx/v1/platforms/esp32p4/Panel_LT8912B.hpp \
+ /Users/ytkg/.platformio/packages/framework-arduinoespressif32/tools/sdk/esp32s3/include/soc/esp32s3/include/soc/soc_caps.h \
+ /Users/ytkg/.platformio/packages/framework-arduinoespressif32/tools/sdk/esp32s3/include/soc/esp32s3/include/soc/brownout_caps.h \
+ /Users/ytkg/.platformio/packages/framework-arduinoespressif32/tools/sdk/esp32s3/include/soc/esp32s3/include/soc/cpu_caps.h \
+ /Users/ytkg/.platformio/packages/framework-arduinoespressif32/tools/sdk/esp32s3/include/soc/esp32s3/include/soc/i2c_caps.h \
+ /Users/ytkg/.platformio/packages/framework-arduinoespressif32/tools/sdk/esp32s3/include/soc/esp32s3/include/soc/ledc_caps.h \
+ /Users/ytkg/.platformio/packages/framework-arduinoespressif32/tools/sdk/esp32s3/include/soc/esp32s3/include/soc/mpu_caps.h \
+ /Users/ytkg/.platformio/packages/framework-arduinoespressif32/tools/sdk/esp32s3/include/soc/esp32s3/include/soc/twai_caps.h

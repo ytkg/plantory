@@ -1,0 +1,34 @@
+.pio/build/m5stack-atoms3/lib513/FastLED/fl/allocator.cpp.o: \
+ .pio/libdeps/m5stack-atoms3/FastLED/src/fl/allocator.cpp \
+ .pio/libdeps/m5stack-atoms3/FastLED/src/fl/allocator.h \
+ .pio/libdeps/m5stack-atoms3/FastLED/src/fl/inplacenew.h \
+ .pio/libdeps/m5stack-atoms3/FastLED/src/fl/stdint.h \
+ .pio/libdeps/m5stack-atoms3/FastLED/src/fl/int.h \
+ .pio/libdeps/m5stack-atoms3/FastLED/src/platforms/int.h \
+ .pio/libdeps/m5stack-atoms3/FastLED/src/platforms/arm/is_arm.h \
+ .pio/libdeps/m5stack-atoms3/FastLED/src/platforms/esp/int.h \
+ .pio/libdeps/m5stack-atoms3/FastLED/src/fl/memfill.h \
+ .pio/libdeps/m5stack-atoms3/FastLED/src/fl/type_traits.h \
+ .pio/libdeps/m5stack-atoms3/FastLED/src/fl/namespace.h \
+ .pio/libdeps/m5stack-atoms3/FastLED/src/fl/move.h \
+ .pio/libdeps/m5stack-atoms3/FastLED/src/fl/unused.h \
+ .pio/libdeps/m5stack-atoms3/FastLED/src/fl/bit_cast.h \
+ .pio/libdeps/m5stack-atoms3/FastLED/src/fl/bitset.h \
+ .pio/libdeps/m5stack-atoms3/FastLED/src/fl/bitset_dynamic.h \
+ .pio/libdeps/m5stack-atoms3/FastLED/src/fl/math_macros.h \
+ .pio/libdeps/m5stack-atoms3/FastLED/src/fl/has_include.h \
+ .pio/libdeps/m5stack-atoms3/FastLED/src/fl/compiler_control.h \
+ .pio/libdeps/m5stack-atoms3/FastLED/src/fl/variant.h \
+ .pio/libdeps/m5stack-atoms3/FastLED/src/fl/thread_local.h \
+ .pio/libdeps/m5stack-atoms3/FastLED/src/fl/thread.h \
+ /Users/ytkg/.platformio/packages/framework-arduinoespressif32/tools/sdk/esp32s3/include/heap/include/esp_heap_caps.h \
+ /Users/ytkg/.platformio/packages/framework-arduinoespressif32/tools/sdk/esp32s3/include/heap/include/multi_heap.h \
+ /Users/ytkg/.platformio/packages/framework-arduinoespressif32/tools/sdk/esp32s3/include/esp_common/include/esp_err.h \
+ /Users/ytkg/.platformio/packages/framework-arduinoespressif32/tools/sdk/esp32s3/include/esp_common/include/esp_compiler.h \
+ /Users/ytkg/.platformio/packages/framework-arduinoespressif32/tools/sdk/esp32s3/include/esp_system/include/esp_system.h \
+ /Users/ytkg/.platformio/packages/framework-arduinoespressif32/tools/sdk/esp32s3/include/esp_common/include/esp_attr.h \
+ /Users/ytkg/.platformio/packages/framework-arduinoespressif32/tools/sdk/esp32s3/include/esp_common/include/esp_bit_defs.h \
+ /Users/ytkg/.platformio/packages/framework-arduinoespressif32/tools/sdk/esp32s3/include/esp_common/include/esp_idf_version.h \
+ /Users/ytkg/.platformio/packages/framework-arduinoespressif32/tools/sdk/esp32s3/include/esp_hw_support/include/esp_mac.h \
+ /Users/ytkg/.platformio/packages/framework-arduinoespressif32/tools/sdk/esp32s3/include/esp_hw_support/include/esp_chip_info.h \
+ /Users/ytkg/.platformio/packages/framework-arduinoespressif32/tools/sdk/esp32s3/include/esp_hw_support/include/esp_random.h

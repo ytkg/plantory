@@ -2,7 +2,7 @@
 
 Plantoryへmetricsを送るM5Stack用ファームウェアを管理する場所です。
 
-M5Stackの機種と開発環境は未決定のため、現時点では機種固有のコードを置きません。機種を決めた後、このディレクトリに実装とビルド手順を追加します。
+現在は`m5stack-atom-s3/`に、PlatformIOで動かすHelloサンプルを置いています。センサー送信処理はまだ含めません。
 
 送信するHTTP APIの契約は [metrics-api.md](metrics-api.md) を参照してください。
 
