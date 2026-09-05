@@ -165,7 +165,7 @@ APIキー管理APIはログインCookieでのみ利用できる。
 - 本番反映は `npx wrangler deploy` を実行する。
 - D1のマイグレーションは `migrations/` で管理する。`0003_make_daily_reports_aggregate.sql` は、既存の植物単位の日報テーブルを日付ごとの集約観察日記へ移行する。
 - 観察日記の定期更新は現在設定しない。M5Stackから十分なmetricsが蓄積してから、D1の情報をもとに作成・更新する仕組みを設定する。
-- 毎時0分（UTC）にWorker CronでSwitchBot CO₂センサーの温度・湿度・CO₂濃度を取得し、`environment_metrics` へ保存する。3値すべてが有限な数値で取得できた場合だけ、同じ `created_at` の3レコードをD1バッチで保存する。取得失敗・不正値・欠損時は保存、通知、リトライを行わない。
+- デバッグ中は毎分、Worker CronでSwitchBot CO₂センサーの温度・湿度・CO₂濃度を取得し、`environment_metrics` へ保存する。3値すべてが有限な数値で取得できた場合だけ、同じ `created_at` の3レコードをD1バッチで保存する。取得失敗・不正値・欠損時は保存、通知、リトライを行わない。
 - `firmware/` にはPlantory専用のM5Stackファームウェアを置く。機種が未決定の間は、機種に依存しない送信仕様とセットアップ方針だけを管理する。
 
 ## 仕様更新ルール
