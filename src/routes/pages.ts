@@ -1,7 +1,7 @@
 import { Hono } from "hono";
 import { authenticateSession } from "../auth";
 import { loginDestination, protectedAsset, redirectToLogin } from "../pages";
-import { withCookies } from "./context";
+import { setCookies } from "./context";
 import type { AppContext } from "./context";
 
 export const pageRoutes = new Hono<{ Bindings: Env }>();
@@ -10,14 +10,19 @@ const staticAssets = new Set(["/styles.css", "/chart.umd.min.js", "/api-client.j
 
 for (const [path, asset] of protectedPages) pageRoutes.get(path, async (c) => {
   const session = await authenticateSession(c.req.raw, c.env);
-  return session ? withCookies(await protectedAsset(asset, c.req.raw, c.env), session.cookies) : redirectToLogin(c.req.raw);
+  if (!session) return redirectToLogin(c.req.raw);
+  setCookies(c, session.cookies);
+  return protectedAsset(asset, c.req.raw, c.env);
 });
 pageRoutes.get("/", async (c) => {
   const session = await authenticateSession(c.req.raw, c.env);
-  return withCookies(await protectedAsset(session ? "/index-authenticated.html" : "/index.html", c.req.raw, c.env), session?.cookies ?? []);
+  setCookies(c, session?.cookies ?? []);
+  return protectedAsset(session ? "/index-authenticated.html" : "/index.html", c.req.raw, c.env);
 });
 pageRoutes.get("/login", async (c) => {
   const session = await authenticateSession(c.req.raw, c.env);
-  return session ? withCookies(Response.redirect(new URL(loginDestination(c.req.raw), c.req.url).toString(), 302), session.cookies) : protectedAsset("/login.html", c.req.raw, c.env);
+  if (!session) return protectedAsset("/login.html", c.req.raw, c.env);
+  setCookies(c, session.cookies);
+  return Response.redirect(new URL(loginDestination(c.req.raw), c.req.url).toString(), 302);
 });
 for (const asset of staticAssets) pageRoutes.get(asset, (c) => protectedAsset(asset, c.req.raw, c.env));

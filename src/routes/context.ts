@@ -3,11 +3,8 @@ import { authenticate, authenticateSession, unauthorized } from "../auth";
 
 export type AppContext = Context<{ Bindings: Env }>;
 
-export function withCookies(response: Response, cookies: string[]): Response {
-  if (!cookies.length) return response;
-  const headers = new Headers(response.headers);
-  for (const cookie of cookies) headers.append("Set-Cookie", cookie);
-  return new Response(response.body, { status: response.status, statusText: response.statusText, headers });
+export function setCookies(c: AppContext, cookies: string[]): void {
+  for (const cookie of cookies) c.header("Set-Cookie", cookie, { append: true });
 }
 
 export function notAllowed(c: AppContext, methods: string): Response {
@@ -19,11 +16,13 @@ export async function authenticated(c: AppContext, scope: "read" | "write", hand
   const authentication = await authenticate(c.req.raw, c.env, scope, c.executionCtx);
   if (!authentication) return unauthorized();
   const response = await handler();
-  return authentication.kind === "session" ? withCookies(response, authentication.cookies) : response;
+  if (authentication.kind === "session") setCookies(c, authentication.cookies);
+  return response;
 }
 
 export async function sessionOnly(c: AppContext, handler: () => Promise<Response>): Promise<Response> {
   const session = await authenticateSession(c.req.raw, c.env);
   if (!session) return unauthorized();
-  return withCookies(await handler(), session.cookies);
+  setCookies(c, session.cookies);
+  return handler();
 }

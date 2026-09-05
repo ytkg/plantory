@@ -1,12 +1,8 @@
 import type { ApiKey, ApiKeyAuth, Authentication, Scope, SessionAuth, TokenPair } from "./types";
+import type { AppContext } from "./routes/context";
 
 const error = (message: string, status: number) => Response.json({ error: message }, { status });
 const json = (body: unknown, status = 200) => Response.json(body, { status });
-function withCookies(response: Response, cookies: string[]): Response {
-  const headers = new Headers(response.headers);
-  for (const cookie of cookies) headers.append("Set-Cookie", cookie);
-  return new Response(response.body, { status: response.status, statusText: response.statusText, headers });
-}
 
 const ACCESS_COOKIE = "plantory_access";
 const REFRESH_COOKIE = "plantory_refresh";
@@ -129,7 +125,9 @@ export function unauthorized(): Response {
   return Response.json({ error: "Authentication is required." }, { status: 401 });
 }
 
-export async function login(request: Request, env: Env): Promise<Response> {
+export async function login(c: AppContext): Promise<Response> {
+  const request = c.req.raw;
+  const env = c.env;
   let credentials: { username?: unknown; password?: unknown };
   try {
     credentials = await request.json();
@@ -149,13 +147,14 @@ export async function login(request: Request, env: Env): Promise<Response> {
   if (!response.ok) return error("Authentication service is unavailable.", 502);
 
   const cookies = tokenPairCookies((await response.json()) as TokenPair, request);
-  return cookies ? withCookies(json({ authenticated: true }), cookies) : error("Authentication service returned an invalid response.", 502);
+  if (!cookies) return error("Authentication service returned an invalid response.", 502);
+  for (const cookie of cookies) c.header("Set-Cookie", cookie, { append: true });
+  return json({ authenticated: true });
 }
 
-export function logout(request: Request): Response {
+export function logout(c: AppContext): Response {
+  const request = c.req.raw;
   const secure = new URL(request.url).protocol === "https:";
-  return withCookies(json({ authenticated: false }), [
-    cookie(ACCESS_COOKIE, "", 0, secure),
-    cookie(REFRESH_COOKIE, "", 0, secure),
-  ]);
+  for (const value of [cookie(ACCESS_COOKIE, "", 0, secure), cookie(REFRESH_COOKIE, "", 0, secure)]) c.header("Set-Cookie", value, { append: true });
+  return json({ authenticated: false });
 }
