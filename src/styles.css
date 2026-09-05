@@ -6,6 +6,18 @@
   button:not(:disabled) {
     cursor: pointer;
   }
+
+  .mobile-menu-toggle {
+    list-style: none;
+  }
+
+  .mobile-menu-toggle::-webkit-details-marker {
+    display: none;
+  }
+
+  .mobile-menu-toggle::marker {
+    content: "";
+  }
 }
 
 @theme {
