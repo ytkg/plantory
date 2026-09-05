@@ -18,6 +18,16 @@ Earth UnitをATOM S3のHY2.0-4Pポートへ接続すると、白線（Analog Out
 
 ```bash
 pio run
-pio run --target upload
+pio run -e usb --target upload
 pio device monitor
 ```
+
+## OTA更新
+
+ATOM S3がWi-Fiに接続した状態で、次のコマンドを実行します。OTAパスワードは設定していません。
+
+```bash
+pio run -e ota --target upload
+```
+
+ホスト名は`soil-moisture-atom-s3.local`です。初回のOTA対応ファームウェアだけは、USBで書き込む必要があります。
