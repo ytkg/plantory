@@ -1,4 +1,5 @@
 #include <ArduinoJson.h>
+#include <ArduinoOTA.h>
 #include <HTTPClient.h>
 #include <M5AtomS3.h>
 #include <WiFi.h>
@@ -15,6 +16,7 @@ constexpr unsigned long MESSAGE_DISPLAY_MS = 2500;
 constexpr size_t MEASUREMENT_COUNT = 10;
 constexpr char PLANTS_URL[] = "https://plantory.ytkg.workers.dev/api/plants";
 constexpr char METRICS_URL[] = "https://plantory.ytkg.workers.dev/api/plants/";
+constexpr char OTA_HOSTNAME[] = "soil-moisture-atom-s3";
 constexpr int SEND_HOURS[] = {0, 6, 12, 18};
 
 String plantName = "Plantory";
@@ -100,6 +102,7 @@ int measureAverage() {
     total += analogRead(SOIL_SENSOR_ANALOG_PIN);
     delay(1000);
     M5.update();
+    ArduinoOTA.handle();
   }
   lastMeasuredValue = static_cast<int>(total / static_cast<long>(MEASUREMENT_COUNT));
   return lastMeasuredValue;
@@ -148,11 +151,16 @@ void setup() {
   while (WiFi.status() == WL_CONNECTED && time(nullptr) < 100000 && millis() - timeStartedAt < TIME_SYNC_TIMEOUT_MS) { delay(250); M5.update(); }
   timeSynced = time(nullptr) >= 100000;
   if (WiFi.status() == WL_CONNECTED) fetchPlantName();
+  if (WiFi.status() == WL_CONNECTED) {
+    ArduinoOTA.setHostname(OTA_HOSTNAME);
+    ArduinoOTA.begin();
+  }
   showMainScreen();
 }
 
 void loop() {
   M5.update();
+  ArduinoOTA.handle();
   const unsigned long now = millis();
   if (now - lastDisplayAt >= DISPLAY_REFRESH_MS && now >= messageUntil) { showMainScreen(); lastDisplayAt = now; }
 
