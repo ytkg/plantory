@@ -10,7 +10,7 @@ const app = new Hono<{ Bindings: Env }>();
 
 app.route("/api/auth", authRoutes);
 app.route("/api/plants", plantRoutes);
-app.get("/api/status", (c) => listStatus(c.env));
+app.get("/api/status", (c) => listStatus(c));
 app.all("/api/status", (c) => {
   c.header("Allow", "GET");
   return c.body(null, 405);

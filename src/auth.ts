@@ -1,5 +1,12 @@
-import { error, json, withCookies } from "./http";
 import type { ApiKey, ApiKeyAuth, Authentication, Scope, SessionAuth, TokenPair } from "./types";
+
+const error = (message: string, status: number) => Response.json({ error: message }, { status });
+const json = (body: unknown, status = 200) => Response.json(body, { status });
+function withCookies(response: Response, cookies: string[]): Response {
+  const headers = new Headers(response.headers);
+  for (const cookie of cookies) headers.append("Set-Cookie", cookie);
+  return new Response(response.body, { status: response.status, statusText: response.statusText, headers });
+}
 
 const ACCESS_COOKIE = "plantory_access";
 const REFRESH_COOKIE = "plantory_refresh";
@@ -119,7 +126,7 @@ export async function authenticate(
 }
 
 export function unauthorized(): Response {
-  return error("Authentication is required.", 401);
+  return Response.json({ error: "Authentication is required." }, { status: 401 });
 }
 
 export async function login(request: Request, env: Env): Promise<Response> {

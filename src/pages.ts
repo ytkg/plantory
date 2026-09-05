@@ -1,5 +1,3 @@
-import { withCookies } from "./http";
-
 export async function protectedAsset(path: string, request: Request, env: Env): Promise<Response> {
   const url = new URL(request.url);
   url.pathname = path;

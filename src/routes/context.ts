@@ -1,8 +1,14 @@
 import type { Context } from "hono";
 import { authenticate, authenticateSession, unauthorized } from "../auth";
-import { withCookies } from "../http";
 
 export type AppContext = Context<{ Bindings: Env }>;
+
+export function withCookies(response: Response, cookies: string[]): Response {
+  if (!cookies.length) return response;
+  const headers = new Headers(response.headers);
+  for (const cookie of cookies) headers.append("Set-Cookie", cookie);
+  return new Response(response.body, { status: response.status, statusText: response.statusText, headers });
+}
 
 export function notAllowed(c: AppContext, methods: string): Response {
   c.header("Allow", methods);
