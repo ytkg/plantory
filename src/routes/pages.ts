@@ -6,7 +6,7 @@ import type { AppContext } from "./context";
 
 export const pageRoutes = new Hono<{ Bindings: Env }>();
 const protectedPages = new Map([["/plants", "/plants.html"], ["/settings/api-keys", "/api-keys.html"]]);
-const staticAssets = new Set(["/styles.css", "/chart.umd.min.js", "/api-client.js", "/ui.js", "/reports.js", "/login.js", "/plants.js", "/api-keys.js", "/authenticated-header.js"]);
+const staticAssets = new Set(["/styles.css", "/chart.umd.min.js", "/api-client.js", "/ui.js", "/reports.js", "/status.js", "/login.js", "/plants.js", "/api-keys.js", "/authenticated-header.js"]);
 
 for (const [path, asset] of protectedPages) pageRoutes.get(path, async (c) => {
   const session = await authenticateSession(c.req.raw, c.env);

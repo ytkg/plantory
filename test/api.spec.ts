@@ -139,6 +139,10 @@ describe("Plantory API", () => {
     const uiResponse = await request("/ui.js");
     expect(uiResponse.status).toBe(200);
     await expect(uiResponse.text()).resolves.toContain("export function listStateCard");
+
+    const statusResponse = await request("/status.js");
+    expect(statusResponse.status).toBe(200);
+    await expect(statusResponse.text()).resolves.toContain("/api/status");
   });
 
   it("publishes one aggregate observation per date and updates it on a rerun", async () => {

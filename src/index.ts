@@ -4,17 +4,13 @@ import { authRoutes } from "./routes/auth";
 import { pageRoutes } from "./routes/pages";
 import { plantRoutes } from "./routes/plants";
 import { reportRoutes } from "./routes/reports";
-import { listStatus } from "./services/status";
+import { statusRoutes } from "./routes/status";
 
 const app = new Hono<{ Bindings: Env }>();
 
 app.route("/api/auth", authRoutes);
 app.route("/api/plants", plantRoutes);
-app.get("/api/status", (c) => listStatus(c));
-app.all("/api/status", (c) => {
-  c.header("Allow", "GET");
-  return c.body(null, 405);
-});
+app.route("/api/status", statusRoutes);
 app.route("/api/reports", reportRoutes);
 app.route("/api/api-keys", apiKeyRoutes);
 app.route("/", pageRoutes);

@@ -131,7 +131,7 @@ curl -X POST https://plantory.ytkg.workers.dev/api/plants/2/metrics \
 
 ## トップページ
 
-`/` は公開の観察日記トップページです。全植物をまとめた観察日記を新しい順に表示します。植物一覧は認証必須の `/plants` にあり、Tailwind CSS でビルドした静的アセットを Cloudflare Workers から配信します。
+`/` は公開の観察日記トップページです。観察日記の上に、公開ステータスAPIを使った「植物のようす」を表示します。植物一覧は認証必須の `/plants` にあり、Tailwind CSS でビルドした静的アセットを Cloudflare Workers から配信します。
 
 ## 認証と API キー
 
