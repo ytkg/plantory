@@ -8,9 +8,11 @@
 namespace {
 constexpr unsigned long WIFI_TIMEOUT_MS = 15000;
 constexpr unsigned long STATUS_REFRESH_MS = 60000;
+constexpr unsigned long ADC_REFRESH_MS = 1000;
 constexpr char STATUS_URL[] = "https://plantory.ytkg.workers.dev/api/status";
 constexpr uint8_t SOIL_SENSOR_ANALOG_PIN = 1;  // ATOM S3 G1 / Earth Unit white wire
 unsigned long lastStatusAt = 0;
+unsigned long lastAdcAt = 0;
 
 void showMessage(const char* message) {
   M5.Display.clear(TFT_BLACK);
@@ -18,6 +20,15 @@ void showMessage(const char* message) {
   M5.Display.setTextDatum(middle_center);
   M5.Display.setTextSize(2);
   M5.Display.drawString(message, M5.Display.width() / 2, M5.Display.height() / 2);
+}
+
+void showAdcValue() {
+  M5.Display.fillRect(0, 94, M5.Display.width(), 34, TFT_BLACK);
+  M5.Display.setTextColor(TFT_WHITE, TFT_BLACK);
+  M5.Display.setTextDatum(middle_left);
+  M5.Display.setFont(&fonts::lgfxJapanGothic_12);
+  M5.Display.setTextSize(1);
+  M5.Display.drawString("ADC: " + String(analogRead(SOIL_SENSOR_ANALOG_PIN)), 6, 108);
 }
 
 void showStatus() {
@@ -75,8 +86,7 @@ void showStatus() {
     M5.Display.setTextDatum(middle_left);
   }
 
-  M5.Display.setTextDatum(middle_left);
-  M5.Display.drawString("ADC: " + String(analogRead(SOIL_SENSOR_ANALOG_PIN)), 6, 108);
+  showAdcValue();
 }
 }
 
@@ -99,6 +109,7 @@ void setup() {
     Serial.printf("Wi-Fi connected: %s\n", WiFi.localIP().toString().c_str());
     showStatus();
     lastStatusAt = millis();
+    lastAdcAt = millis();
   } else {
     showMessage("WiFi error");
     Serial.println("Wi-Fi connection failed");
@@ -110,5 +121,9 @@ void loop() {
   if (WiFi.status() == WL_CONNECTED && millis() - lastStatusAt >= STATUS_REFRESH_MS) {
     showStatus();
     lastStatusAt = millis();
+  }
+  if (WiFi.status() == WL_CONNECTED && millis() - lastAdcAt >= ADC_REFRESH_MS) {
+    showAdcValue();
+    lastAdcAt = millis();
   }
 }
