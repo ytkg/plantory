@@ -54,12 +54,14 @@ plants(id INTEGER PRIMARY KEY, name TEXT, created_at DATETIME, updated_at DATETI
 metrics(id INTEGER PRIMARY KEY, plant_id INTEGER, metric_type TEXT, value REAL, created_at DATETIME)
 daily_reports(id INTEGER PRIMARY KEY, date DATE UNIQUE, content TEXT, created_at DATETIME, updated_at DATETIME)
 api_keys(id INTEGER PRIMARY KEY, name TEXT, key_hash TEXT, scope TEXT, created_at DATETIME, last_used_at DATETIME, revoked_at DATETIME)
+environment_metrics(id INTEGER PRIMARY KEY, metric_type TEXT, value REAL, created_at DATETIME)
 ```
 
 - `metrics.plant_id` は植物を参照する。
 - センサーを管理するテーブルは作らない。
 - `species`、`unit`、`measured_at` は保存しない。metricsの記録日時はWorkerが受信時に `created_at` として設定する。
 - `daily_reports` は全植物をまとめた公開用の観察日記である。1日につき1件だけ保存し、同日の再実行では内容を更新する。
+- `environment_metrics` は部屋にひも付かない環境測定値である。`metric_type` は `temperature`、`humidity`、`co2` のいずれかに固定する。
 
 ## API
 
@@ -138,6 +140,7 @@ APIキー管理APIはログインCookieでのみ利用できる。
 - アクセストークンは `plantory_access` Cookie、リフレッシュトークンは `plantory_refresh` Cookieに保存する。どちらも `HttpOnly`、`SameSite=Lax` とする。HTTPSでは `Secure` も付ける。
 - アクセストークンの検証に失敗した場合はリフレッシュを試みる。更新したCookieは、静的アセットを複製したレスポンスに付与する。
 - `API_KEY_PEPPER` はCloudflare Secretとして設定し、リポジトリには保存しない。
+- SwitchBot連携の `SWITCHBOT_TOKEN`、`SWITCHBOT_SECRET`、`SWITCHBOT_DEVICE_ID` はCloudflare Secretとして設定し、リポジトリには保存しない。
 
 ## 運用
 
@@ -147,6 +150,7 @@ APIキー管理APIはログインCookieでのみ利用できる。
 - 本番反映は `npx wrangler deploy` を実行する。
 - D1のマイグレーションは `migrations/` で管理する。`0003_make_daily_reports_aggregate.sql` は、既存の植物単位の日報テーブルを日付ごとの集約観察日記へ移行する。
 - 観察日記の定期更新は現在設定しない。M5Stackから十分なmetricsが蓄積してから、D1の情報をもとに作成・更新する仕組みを設定する。
+- 毎時0分（UTC）にWorker CronでSwitchBot CO₂センサーの温度・湿度・CO₂濃度を取得し、`environment_metrics` へ保存する。3値すべてが有限な数値で取得できた場合だけ、同じ `created_at` の3レコードをD1バッチで保存する。取得失敗・不正値・欠損時は保存、通知、リトライを行わない。
 - `firmware/` にはPlantory専用のM5Stackファームウェアを置く。機種が未決定の間は、機種に依存しない送信仕様とセットアップ方針だけを管理する。
 
 ## 仕様更新ルール

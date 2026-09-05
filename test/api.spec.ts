@@ -1,5 +1,6 @@
 import { env, SELF } from "cloudflare:test";
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
+import worker from "../src";
 
 const baseUrl = "https://plantory.test";
 const writeKey = "plnt_test_write_key";
@@ -35,6 +36,12 @@ const schemaQueries = [
     created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     last_used_at DATETIME,
     revoked_at DATETIME
+  )`,
+  `CREATE TABLE environment_metrics (
+    id INTEGER PRIMARY KEY,
+    metric_type TEXT NOT NULL CHECK (metric_type IN ('temperature', 'humidity', 'co2')),
+    value REAL NOT NULL,
+    created_at DATETIME NOT NULL
   )`,
 ];
 
@@ -80,6 +87,7 @@ describe("Plantory API", () => {
       env.DB.prepare("DELETE FROM daily_reports"),
       env.DB.prepare("DELETE FROM plants"),
       env.DB.prepare("DELETE FROM api_keys"),
+      env.DB.prepare("DELETE FROM environment_metrics"),
     ]);
     await env.DB.batch([
       env.DB.prepare("INSERT INTO api_keys (name, key_hash, scope) VALUES (?, ?, ?)")
@@ -96,6 +104,60 @@ describe("Plantory API", () => {
 
     expect(response.status).toBe(401);
     await expect(response.json()).resolves.toEqual({ error: "Authentication is required." });
+  });
+
+  it("collects SwitchBot temperature, humidity, and CO2 together on a scheduled run", async () => {
+    vi.stubGlobal("fetch", () =>
+      Promise.resolve(
+        Response.json({
+          statusCode: 100,
+          body: { temperature: 24.3, humidity: 58, CO2: 741 },
+        }),
+      ),
+    );
+
+    await worker.scheduled!(
+      { cron: "0 * * * *", scheduledTime: Date.now(), noRetry: vi.fn() },
+      env,
+      {} as ExecutionContext,
+    );
+
+    const { results } = await env.DB.prepare(
+      "SELECT metric_type, value, created_at FROM environment_metrics ORDER BY id ASC",
+    ).all<{ metric_type: string; value: number; created_at: string }>();
+    expect(results).toEqual([
+      expect.objectContaining({ metric_type: "temperature", value: 24.3 }),
+      expect.objectContaining({ metric_type: "humidity", value: 58 }),
+      expect.objectContaining({ metric_type: "co2", value: 741 }),
+    ]);
+    expect(new Set(results.map((row) => row.created_at))).toHaveLength(1);
+  });
+
+  it.each([
+    [{ temperature: 24.3, humidity: 58 }],
+    [{ temperature: 24.3, humidity: "58", CO2: 741 }],
+  ])("does not save partial or invalid SwitchBot readings", async (body) => {
+    vi.stubGlobal("fetch", () => Promise.resolve(Response.json({ statusCode: 100, body })));
+
+    await worker.scheduled!(
+      { cron: "0 * * * *", scheduledTime: Date.now(), noRetry: vi.fn() },
+      env,
+      {} as ExecutionContext,
+    );
+
+    await expect(env.DB.prepare("SELECT COUNT(*) AS count FROM environment_metrics").first<{ count: number }>()).resolves.toEqual({ count: 0 });
+  });
+
+  it("does not save readings when the SwitchBot request fails", async () => {
+    vi.stubGlobal("fetch", () => Promise.resolve(new Response(null, { status: 503 })));
+
+    await worker.scheduled!(
+      { cron: "0 * * * *", scheduledTime: Date.now(), noRetry: vi.fn() },
+      env,
+      {} as ExecutionContext,
+    );
+
+    await expect(env.DB.prepare("SELECT COUNT(*) AS count FROM environment_metrics").first<{ count: number }>()).resolves.toEqual({ count: 0 });
   });
 
   it("returns public moisture status using soil moisture first and weight as fallback", async () => {
