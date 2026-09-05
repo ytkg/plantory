@@ -9,6 +9,7 @@ namespace {
 constexpr unsigned long WIFI_TIMEOUT_MS = 15000;
 constexpr unsigned long STATUS_REFRESH_MS = 60000;
 constexpr char STATUS_URL[] = "https://plantory.ytkg.workers.dev/api/status";
+constexpr uint8_t SOIL_SENSOR_ANALOG_PIN = 1;  // ATOM S3 G1 / Earth Unit white wire
 unsigned long lastStatusAt = 0;
 
 void showMessage(const char* message) {
@@ -73,12 +74,16 @@ void showStatus() {
     M5.Display.drawString(String(status["moisture"] | 0) + "%", M5.Display.width() - 6, y);
     M5.Display.setTextDatum(middle_left);
   }
+
+  M5.Display.setTextDatum(middle_left);
+  M5.Display.drawString("ADC: " + String(analogRead(SOIL_SENSOR_ANALOG_PIN)), 6, 108);
 }
 }
 
 void setup() {
   auto config = M5.config();
   M5.begin(config);
+  analogReadResolution(12);
 
   showMessage("WiFi...");
   WiFi.mode(WIFI_STA);
