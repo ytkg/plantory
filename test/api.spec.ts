@@ -192,6 +192,48 @@ describe("Plantory API", () => {
     expect(response.headers.get("Allow")).toBe("GET");
   });
 
+  it("returns the latest complete room environment publicly", async () => {
+    await env.DB.batch([
+      env.DB.prepare("INSERT INTO environment_metrics (metric_type, value, created_at) VALUES (?, ?, ?)")
+        .bind("temperature", 20.5, "2026-09-05T00:00:00.000Z"),
+      env.DB.prepare("INSERT INTO environment_metrics (metric_type, value, created_at) VALUES (?, ?, ?)")
+        .bind("temperature", 24.3, "2026-09-06T00:00:00.000Z"),
+      env.DB.prepare("INSERT INTO environment_metrics (metric_type, value, created_at) VALUES (?, ?, ?)")
+        .bind("humidity", 58, "2026-09-06T00:00:00.000Z"),
+      env.DB.prepare("INSERT INTO environment_metrics (metric_type, value, created_at) VALUES (?, ?, ?)")
+        .bind("co2", 741, "2026-09-06T00:00:00.000Z"),
+    ]);
+
+    const response = await request("/api/environment");
+
+    expect(response.status).toBe(200);
+    await expect(response.json()).resolves.toEqual({
+      environment: {
+        temperature: 24.3,
+        humidity: 58,
+        co2: 741,
+        created_at: "2026-09-06T00:00:00.000Z",
+      },
+    });
+  });
+
+  it("hides an incomplete room environment from the public API", async () => {
+    await env.DB.prepare("INSERT INTO environment_metrics (metric_type, value, created_at) VALUES (?, ?, ?)")
+      .bind("temperature", 24.3, "2026-09-06T00:00:00.000Z")
+      .run();
+
+    const response = await request("/api/environment");
+
+    expect(response.status).toBe(200);
+    await expect(response.json()).resolves.toEqual({ environment: null });
+  });
+
+  it("rejects non-GET requests to public environment", async () => {
+    const response = await request("/api/environment", { method: "POST" });
+    expect(response.status).toBe(405);
+    expect(response.headers.get("Allow")).toBe("GET");
+  });
+
   it("serves shared browser UI modules as static assets", async () => {
     const response = await request("/api-client.js");
 
@@ -205,6 +247,10 @@ describe("Plantory API", () => {
     const statusResponse = await request("/status.js");
     expect(statusResponse.status).toBe(200);
     await expect(statusResponse.text()).resolves.toContain("/api/status");
+
+    const environmentResponse = await request("/environment.js");
+    expect(environmentResponse.status).toBe(200);
+    await expect(environmentResponse.text()).resolves.toContain("/api/environment");
   });
 
   it("publishes one aggregate observation per date and updates it on a rerun", async () => {

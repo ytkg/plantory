@@ -1,6 +1,7 @@
 import { Hono } from "hono";
 import { apiKeyRoutes } from "./routes/api-keys";
 import { authRoutes } from "./routes/auth";
+import { environmentRoutes } from "./routes/environment";
 import { pageRoutes } from "./routes/pages";
 import { plantRoutes } from "./routes/plants";
 import { reportRoutes } from "./routes/reports";
@@ -12,6 +13,7 @@ const app = new Hono<{ Bindings: Env }>();
 app.route("/api/auth", authRoutes);
 app.route("/api/plants", plantRoutes);
 app.route("/api/status", statusRoutes);
+app.route("/api/environment", environmentRoutes);
 app.route("/api/reports", reportRoutes);
 app.route("/api/api-keys", apiKeyRoutes);
 app.route("/", pageRoutes);
