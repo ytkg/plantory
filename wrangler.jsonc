@@ -13,7 +13,7 @@
 		"run_worker_first": true
 	},
 	"triggers": {
-		"crons": ["* * * * *"]
+		"crons": ["0 * * * *"]
 	},
 	"d1_databases": [
 		{
