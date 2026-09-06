@@ -39,8 +39,9 @@ const schemaQueries = [
   )`,
   `CREATE TABLE environment_metrics (
     id INTEGER PRIMARY KEY,
-    metric_type TEXT NOT NULL CHECK (metric_type IN ('temperature', 'humidity', 'co2')),
-    value REAL NOT NULL,
+    temperature REAL NOT NULL,
+    humidity REAL NOT NULL,
+    co2 INTEGER NOT NULL,
     created_at DATETIME NOT NULL
   )`,
 ];
@@ -131,7 +132,7 @@ describe("Plantory API", () => {
     expect(logout.headers.get("Set-Cookie")).toContain("Max-Age=0");
   });
 
-  it("collects SwitchBot temperature, humidity, and CO2 together on a scheduled run", async () => {
+  it("collects one SwitchBot environment snapshot on a scheduled run", async () => {
     vi.stubGlobal("fetch", () =>
       Promise.resolve(
         Response.json({
@@ -148,14 +149,12 @@ describe("Plantory API", () => {
     );
 
     const { results } = await env.DB.prepare(
-      "SELECT metric_type, value, created_at FROM environment_metrics ORDER BY id ASC",
-    ).all<{ metric_type: string; value: number; created_at: string }>();
+      "SELECT temperature, humidity, co2, created_at FROM environment_metrics ORDER BY id ASC",
+    ).all<{ temperature: number; humidity: number; co2: number; created_at: string }>();
     expect(results).toEqual([
-      expect.objectContaining({ metric_type: "temperature", value: 24.3 }),
-      expect.objectContaining({ metric_type: "humidity", value: 58 }),
-      expect.objectContaining({ metric_type: "co2", value: 741 }),
+      expect.objectContaining({ temperature: 24.3, humidity: 58, co2: 741 }),
     ]);
-    expect(new Set(results.map((row) => row.created_at))).toHaveLength(1);
+    expect(new Date(results[0].created_at).getTime()).not.toBeNaN();
   });
 
   it.each([
@@ -219,14 +218,10 @@ describe("Plantory API", () => {
 
   it("returns the latest complete room environment publicly", async () => {
     await env.DB.batch([
-      env.DB.prepare("INSERT INTO environment_metrics (metric_type, value, created_at) VALUES (?, ?, ?)")
-        .bind("temperature", 20.5, "2026-09-05T00:00:00.000Z"),
-      env.DB.prepare("INSERT INTO environment_metrics (metric_type, value, created_at) VALUES (?, ?, ?)")
-        .bind("temperature", 24.3, "2026-09-06T00:00:00.000Z"),
-      env.DB.prepare("INSERT INTO environment_metrics (metric_type, value, created_at) VALUES (?, ?, ?)")
-        .bind("humidity", 58, "2026-09-06T00:00:00.000Z"),
-      env.DB.prepare("INSERT INTO environment_metrics (metric_type, value, created_at) VALUES (?, ?, ?)")
-        .bind("co2", 741, "2026-09-06T00:00:00.000Z"),
+      env.DB.prepare("INSERT INTO environment_metrics (temperature, humidity, co2, created_at) VALUES (?, ?, ?, ?)")
+        .bind(20.5, 55, 700, "2026-09-05T00:00:00.000Z"),
+      env.DB.prepare("INSERT INTO environment_metrics (temperature, humidity, co2, created_at) VALUES (?, ?, ?, ?)")
+        .bind(24.3, 58, 741, "2026-09-06T00:00:00.000Z"),
     ]);
 
     const response = await request("/api/environment");
@@ -242,11 +237,7 @@ describe("Plantory API", () => {
     });
   });
 
-  it("hides an incomplete room environment from the public API", async () => {
-    await env.DB.prepare("INSERT INTO environment_metrics (metric_type, value, created_at) VALUES (?, ?, ?)")
-      .bind("temperature", 24.3, "2026-09-06T00:00:00.000Z")
-      .run();
-
+  it("returns no room environment before the first snapshot", async () => {
     const response = await request("/api/environment");
 
     expect(response.status).toBe(200);
