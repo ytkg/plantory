@@ -44,7 +44,7 @@ npx wrangler d1 create plantory
 npx wrangler d1 migrations apply plantory --remote
 ```
 
-API キーを使う前に、キーのハッシュ化に使う秘密値を Cloudflare へ設定します。値は十分に長いランダム文字列にし、リポジトリへ保存しないでください。
+APIキーを使う前に、キーのハッシュ化に使う秘密値を Cloudflare へ設定します。値は十分に長いランダム文字列にし、リポジトリへ保存しないでください。
 
 ```bash
 npx wrangler secret put API_KEY_PEPPER
@@ -132,11 +132,16 @@ curl -X POST https://plantory.ytkg.workers.dev/api/plants/2/metrics \
 
 ### 公開ステータス
 
-`GET /api/status` は認証なしで、植物IDの昇順に相対水分量を返します。`soil_moisture` を優先し、なければ `weight` を使います。選択した種類の全期間の最小値を0%、最大値を100%として、最新値を整数に丸めます。記録がない植物や最小値と最大値が同じ植物は含まれません。
+`GET /api/status` は認証なしで、植物IDの昇順に相対水分量と、その算出元になった最新metricの受信時刻を返します。`soil_moisture` を優先し、なければ `weight` を使います。選択した種類の全履歴からP5/P95を求め、`soil_moisture`はP5を100%・P95を0%、`weight`はP5を0%・P95を100%として最新値を整数に丸めます。記録がない植物やP5とP95が同じ植物は含まれません。
 
 ```json
 [
-  { "name": "カランコエ", "moisture": 42 }
+  {
+    "plant_id": 1,
+    "name": "カランコエ",
+    "moisture": 42,
+    "recorded_at": "2026-09-07 00:00:08"
+  }
 ]
 ```
 
@@ -144,9 +149,9 @@ curl -X POST https://plantory.ytkg.workers.dev/api/plants/2/metrics \
 
 `/` は公開の観察日記トップページです。観察日記の上に、公開ステータスAPIを使った「植物のようす」を表示します。植物一覧は認証必須の `/plants` にあり、Tailwind CSS でビルドした静的アセットを Cloudflare Workers から配信します。
 
-## 認証と API キー
+## 認証とAPIキー
 
-- `/plants` と植物管理 API はログイン Cookie または API キーで保護します。
+- `/plants` と植物管理 API はログイン Cookie またはAPIキーで保護します。
 - `/api/auth/login` は auth.takagi.dev に資格情報を送信し、アクセストークンとリフレッシュトークンを `HttpOnly` Cookie として保存します。
-- API キーは `/settings/api-keys` で発行・無効化できます。キーは発行時に一度だけ表示され、D1 にはハッシュだけを保存します。
-- API キーは `Authorization: Bearer plnt_...` で送信します。`read` は取得のみ、`write` は登録・取得に利用できます。
+- APIキーは `/settings/api-keys` で発行・無効化できます。キーは発行時に一度だけ表示され、D1 にはハッシュだけを保存します。
+- APIキーは `Authorization: Bearer plnt_...` で送信します。`read` は取得のみ、`write` は登録・取得に利用できます。

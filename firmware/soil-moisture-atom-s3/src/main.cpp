@@ -78,7 +78,7 @@ void setup() {
 
   plantory::display::begin(uiState);
   plantory::sensor::begin();
-  plantory::display::showMessage("WiFi…");
+  plantory::display::showMessage("Wi-Fi…");
 
   plantory::network::connectWifi(updateM5);
   appState.timeSynced = plantory::clock::syncJst(updateM5);
@@ -114,7 +114,7 @@ void loop() {
     if (plantory::network::isConnected()) {
       measureAndSend();
     } else {
-      showTransientMessage("WiFi未接続", now);
+      showTransientMessage("Wi-Fi未接続", now);
     }
   }
 

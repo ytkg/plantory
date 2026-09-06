@@ -95,7 +95,7 @@ void setup() {
   M5.begin(config);
   analogReadResolution(12);
 
-  showMessage("WiFi...");
+  showMessage("Wi-Fi...");
   WiFi.mode(WIFI_STA);
   WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
 
@@ -111,7 +111,7 @@ void setup() {
     lastStatusAt = millis();
     lastAdcAt = millis();
   } else {
-    showMessage("WiFi error");
+    showMessage("Wi-Fi error");
     Serial.println("Wi-Fi connection failed");
   }
 }
