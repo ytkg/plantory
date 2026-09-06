@@ -4,6 +4,7 @@
 #include <M5AtomS3.h>
 #include <WiFi.h>
 #include <WiFiClientSecure.h>
+#include <math.h>
 #include <time.h>
 
 #include "secrets.h"
@@ -11,9 +12,12 @@
 namespace {
 constexpr unsigned long WIFI_TIMEOUT_MS = 15000;
 constexpr unsigned long TIME_SYNC_TIMEOUT_MS = 10000;
-constexpr unsigned long DISPLAY_REFRESH_MS = 1000;
+constexpr unsigned long CLOCK_CHECK_MS = 1000;
+constexpr unsigned long ORIENTATION_CHECK_MS = 250;
+constexpr unsigned long ORIENTATION_STABLE_MS = 500;
 constexpr unsigned long MESSAGE_DISPLAY_MS = 2500;
 constexpr size_t MEASUREMENT_COUNT = 10;
+constexpr float VERTICAL_ACCELERATION_THRESHOLD = 0.65F;
 constexpr char PLANTS_URL[] = "https://plantory.ytkg.workers.dev/api/plants";
 constexpr char METRICS_URL[] = "https://plantory.ytkg.workers.dev/api/plants/";
 constexpr char OTA_HOSTNAME[] = "soil-moisture-atom-s3";
@@ -21,11 +25,17 @@ constexpr int SEND_HOURS[] = {0, 6, 12, 18};
 
 String plantName = "Plantory";
 unsigned long lastDisplayAt = 0;
+unsigned long lastOrientationCheckAt = 0;
+unsigned long orientationCandidateSince = 0;
 unsigned long messageUntil = 0;
 time_t lastSentAt = 0;
 long lastAutoSlotKey = -1;
 int lastMeasuredValue = -1;
 bool timeSynced = false;
+bool mainScreenNeedsRedraw = false;
+String lastTimeSignature;
+int displayRotation = 2;
+int pendingRotation = -1;
 
 void showMessage(const String& message) {
   M5.Display.clear(TFT_BLACK);
@@ -62,22 +72,79 @@ String nextSendText(const struct tm& current) {
   return "00:00:00";
 }
 
-void showMainScreen() {
+void drawTimeLines() {
   struct tm current;
   const bool hasTime = timeSynced && getLocalTimeNow(current);
-  M5.Display.clear(TFT_BLACK);
   M5.Display.setTextColor(TFT_WHITE, TFT_BLACK);
   M5.Display.setFont(&fonts::lgfxJapanGothic_12);
   M5.Display.setTextDatum(middle_center);
   M5.Display.setTextSize(1);
-  M5.Display.drawString(plantName, 64, 12);
-  M5.Display.setTextSize(2);
-  M5.Display.drawString(lastMeasuredValue < 0 ? "ADC --" : "ADC " + String(lastMeasuredValue), 64, 38);
+  M5.Display.fillRect(0, 60, M5.Display.width(), 64, TFT_BLACK);
+  M5.Display.drawString(hasTime ? "現在時刻: " + clockText(time(nullptr)) : "現在時刻: 未同期", 64, 72);
+  M5.Display.drawString(hasTime ? "次回送信: " + nextSendText(current) : "次回送信: --:--:--", 64, 92);
+  M5.Display.drawString("最終送信: " + clockText(lastSentAt), 64, 112);
+}
+
+String timeSignature() {
+  struct tm current;
+  const bool hasTime = timeSynced && getLocalTimeNow(current);
+  return (hasTime ? clockText(time(nullptr)) : "未同期") + "|" +
+         (hasTime ? nextSendText(current) : "--:--:--") + "|" + clockText(lastSentAt);
+}
+
+void showMainScreen() {
+  M5.Display.clear(TFT_BLACK);
+  M5.Display.setTextColor(TFT_WHITE, TFT_BLACK);
   M5.Display.setFont(&fonts::lgfxJapanGothic_12);
-  M5.Display.setTextSize(1);
-  M5.Display.drawString(hasTime ? "現在時刻: " + clockText(time(nullptr)) : "現在時刻: 未同期", 64, 66);
-  M5.Display.drawString(hasTime ? "次回送信: " + nextSendText(current) : "次回送信: --:--:--", 64, 86);
-  M5.Display.drawString("最終送信: " + clockText(lastSentAt), 64, 106);
+  M5.Display.setTextDatum(middle_center);
+  M5.Display.setTextSize(1.25F);
+  M5.Display.drawString(plantName, 64, 18);
+  M5.Display.setTextSize(2);
+  M5.Display.drawString(lastMeasuredValue < 0 ? "ADC --" : "ADC " + String(lastMeasuredValue), 64, 44);
+  drawTimeLines();
+  lastTimeSignature = timeSignature();
+}
+
+void refreshTimeIfNeeded() {
+  const String currentSignature = timeSignature();
+  if (currentSignature == lastTimeSignature) return;
+  drawTimeLines();
+  lastTimeSignature = currentSignature;
+}
+
+int rotationForCurrentOrientation() {
+  if (!M5.Imu.update()) return -1;
+  const auto data = M5.Imu.getImuData();
+  const float x = data.accel.x;
+  const float y = data.accel.y;
+
+  if (fabsf(x) < VERTICAL_ACCELERATION_THRESHOLD && fabsf(y) < VERTICAL_ACCELERATION_THRESHOLD) {
+    return -1;
+  }
+
+  if (fabsf(x) > fabsf(y)) return x > 0 ? 1 : 3;
+  return y > 0 ? 0 : 2;
+}
+
+void refreshOrientationIfNeeded(unsigned long now) {
+  if (now - lastOrientationCheckAt < ORIENTATION_CHECK_MS) return;
+  lastOrientationCheckAt = now;
+
+  const int candidate = rotationForCurrentOrientation();
+  if (candidate < 0) {
+    pendingRotation = -1;
+    return;
+  }
+  if (candidate != pendingRotation) {
+    pendingRotation = candidate;
+    orientationCandidateSince = now;
+    return;
+  }
+  if (candidate == displayRotation || now - orientationCandidateSince < ORIENTATION_STABLE_MS) return;
+
+  displayRotation = candidate;
+  M5.Display.setRotation(displayRotation);
+  showMainScreen();
 }
 
 bool fetchPlantName() {
@@ -134,12 +201,14 @@ void measureAndSend() {
     showMessage("送信失敗");
   }
   messageUntil = millis() + MESSAGE_DISPLAY_MS;
+  mainScreenNeedsRedraw = true;
 }
 }
 
 void setup() {
   auto config = M5.config();
   M5.begin(config);
+  M5.Display.setRotation(displayRotation);
   analogReadResolution(12);
   showMessage("WiFi…");
   WiFi.mode(WIFI_STA);
@@ -162,11 +231,23 @@ void loop() {
   M5.update();
   ArduinoOTA.handle();
   const unsigned long now = millis();
-  if (now - lastDisplayAt >= DISPLAY_REFRESH_MS && now >= messageUntil) { showMainScreen(); lastDisplayAt = now; }
+  if (now >= messageUntil) refreshOrientationIfNeeded(now);
+  if (now >= messageUntil && mainScreenNeedsRedraw) {
+    showMainScreen();
+    mainScreenNeedsRedraw = false;
+  }
+  if (now - lastDisplayAt >= CLOCK_CHECK_MS && now >= messageUntil) {
+    refreshTimeIfNeeded();
+    lastDisplayAt = now;
+  }
 
   if (M5.BtnA.wasPressed() && now >= messageUntil) {
     if (WiFi.status() == WL_CONNECTED) measureAndSend();
-    else { showMessage("WiFi未接続"); messageUntil = now + MESSAGE_DISPLAY_MS; }
+    else {
+      showMessage("WiFi未接続");
+      messageUntil = now + MESSAGE_DISPLAY_MS;
+      mainScreenNeedsRedraw = true;
+    }
   }
 
   struct tm current;
