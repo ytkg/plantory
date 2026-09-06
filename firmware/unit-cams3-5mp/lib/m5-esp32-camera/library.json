@@ -1,0 +1,31 @@
+{
+  "name": "m5-esp32-camera",
+  "version": "1.0.0",
+  "description": "M5Stack Unit CamS3 5MP camera driver with PY260 support.",
+  "build": {
+    "srcDir": ".",
+    "includeDir": "driver/include",
+    "flags": [
+      "-DCONFIG_MEGA_CCM_SUPPORT=1",
+      "-UCONFIG_ARDUHAL_ESP_LOG",
+      "-Idriver/private_include",
+      "-Isensors/private_include",
+      "-Itarget/private_include",
+      "-Iconversions/include",
+      "-Iconversions/private_include"
+    ],
+    "srcFilter": [
+      "+<driver/esp_camera.c>",
+      "+<driver/cam_hal.c>",
+      "+<driver/sccb.c>",
+      "+<driver/sensor.c>",
+      "+<sensors/*.c>",
+      "+<target/esp32s3/ll_cam.c>",
+      "+<conversions/yuv.c>",
+      "+<conversions/to_jpg.cpp>",
+      "+<conversions/to_bmp.c>",
+      "+<conversions/jpge.cpp>",
+      "+<conversions/esp_jpg_decode.c>"
+    ]
+  }
+}
