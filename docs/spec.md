@@ -125,6 +125,12 @@ APIキーは `Authorization: Bearer plnt_...` で送る。`read` は取得のみ
 | --- | --- | --- | --- |
 | `GET` | `/api/environment` | 公開 | 最新の環境観測スナップショットを `environment` として返す。観測がなければ `environment: null` を返す。 |
 
+### 屋外天気情報
+
+- `src/services/weather.ts` は、西東京市周辺（緯度35.7253、経度139.5380）の現在の屋外天気をOpen-Meteoから取得する。
+- 取得項目は気温（℃）、相対湿度（%）、降水量（mm）、WMO weather code、観測時刻（日本時間）とする。
+- 天気情報はD1へ保存せず、定期取得・公開API・画面表示は行わない。観察日記の生成など、Worker内部の必要な処理からこのサービスを呼び出す。
+
 - `created_at` は最新の環境観測をWorkerが取得した時刻を返す。
 - `GET` 以外は405を返す。CORSとキャッシュは設定しない。
 
