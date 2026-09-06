@@ -35,7 +35,11 @@ void measureAndSend() {
   plantory::display::showMessage("送信中…");
   if (plantory::network::isConnected() && plantory::api::sendSoilMoisture(appState.lastMeasuredValue)) {
     appState.lastSentAt = time(nullptr);
-    plantory::display::showMessage("送信完了\nADC: " + String(appState.lastMeasuredValue));
+    if (plantory::api::fetchMoisturePercentage(appState)) {
+      plantory::display::showMessage("送信完了\n水分量: " + String(appState.moisturePercentage) + "%");
+    } else {
+      plantory::display::showMessage("送信完了\n水分量取得失敗");
+    }
   } else {
     plantory::display::showMessage("送信失敗");
   }
@@ -81,7 +85,11 @@ void setup() {
   if (plantory::network::isConnected()) plantory::api::fetchPlantName(appState);
   plantory::network::beginOta();
 
-  plantory::display::showMainScreen(appState, uiState);
+  if (plantory::network::isConnected() && !plantory::api::fetchMoisturePercentage(appState)) {
+    showTransientMessage("水分量取得失敗", millis());
+  } else {
+    plantory::display::showMainScreen(appState, uiState);
+  }
 }
 
 void loop() {

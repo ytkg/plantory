@@ -277,9 +277,9 @@ describe("Plantory API", () => {
     const response = await request("/api/status");
     expect(response.status).toBe(200);
     await expect(response.json()).resolves.toEqual([
-      { name: "カランコエ", moisture: 0 },
-      { name: "苔玉", moisture: 100 },
-      { name: "丸葉", moisture: 33 },
+      { plant_id: 1, name: "カランコエ", moisture: 0 },
+      { plant_id: 2, name: "苔玉", moisture: 100 },
+      { plant_id: 4, name: "丸葉", moisture: 33 },
     ]);
   });
 

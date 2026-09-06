@@ -34,6 +34,30 @@ bool fetchPlantName(AppState& state) {
   return false;
 }
 
+bool fetchMoisturePercentage(AppState& state) {
+  WiFiClientSecure client;
+  client.setInsecure();
+  HTTPClient http;
+  if (!http.begin(client, config::STATUS_URL)) return false;
+  if (http.GET() != HTTP_CODE_OK) {
+    http.end();
+    return false;
+  }
+
+  JsonDocument document;
+  const auto error = deserializeJson(document, http.getString());
+  http.end();
+  if (error) return false;
+
+  for (JsonObject status : document.as<JsonArray>()) {
+    const int plantId = status["plant_id"] | -1;
+    if (plantId != PLANT_ID || !status["moisture"].is<int>()) continue;
+    state.moisturePercentage = status["moisture"].as<int>();
+    return true;
+  }
+  return false;
+}
+
 bool sendSoilMoisture(int value) {
   WiFiClientSecure client;
   client.setInsecure();

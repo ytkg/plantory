@@ -17,10 +17,10 @@ void drawTimeLines(const AppState& state) {
   M5.Display.setFont(&fonts::lgfxJapanGothic_12);
   M5.Display.setTextDatum(middle_center);
   M5.Display.setTextSize(1);
-  M5.Display.fillRect(0, 60, M5.Display.width(), 64, TFT_BLACK);
-  M5.Display.drawString(hasTime ? "現在時刻: " + clock::formatTime(time(nullptr)) : "現在時刻: 未同期", 64, 72);
-  M5.Display.drawString(hasTime ? "次回送信: " + clock::nextSendText(current) : "次回送信: --:--:--", 64, 92);
-  M5.Display.drawString("最終送信: " + clock::formatTime(state.lastSentAt), 64, 112);
+  M5.Display.fillRect(0, 66, M5.Display.width(), 62, TFT_BLACK);
+  M5.Display.drawString(hasTime ? "現在時刻: " + clock::formatTime(time(nullptr)) : "現在時刻: 未同期", 64, 78);
+  M5.Display.drawString(hasTime ? "次回送信: " + clock::nextSendText(current) : "次回送信: --:--:--", 64, 98);
+  M5.Display.drawString("最終送信: " + clock::formatTime(state.lastSentAt), 64, 118);
 }
 
 String timeSignature(const AppState& state) {
@@ -65,9 +65,11 @@ void showMainScreen(const AppState& state, UiState& ui) {
   M5.Display.setFont(&fonts::lgfxJapanGothic_12);
   M5.Display.setTextDatum(middle_center);
   M5.Display.setTextSize(1.25F);
-  M5.Display.drawString(state.plantName, 64, 18);
-  M5.Display.setTextSize(2);
-  M5.Display.drawString(state.lastMeasuredValue < 0 ? "ADC --" : "ADC " + String(state.lastMeasuredValue), 64, 44);
+  M5.Display.drawString(state.plantName, 64, 14);
+  M5.Display.setTextSize(1);
+  M5.Display.drawString("水分量", 64, 33);
+  M5.Display.setTextSize(2.5F);
+  M5.Display.drawString(state.moisturePercentage < 0 ? "--%" : String(state.moisturePercentage) + "%", 64, 54);
   drawTimeLines(state);
   ui.lastTimeSignature = timeSignature(state);
 }
