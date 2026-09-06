@@ -3,3 +3,4 @@ node_modules/
 .pio/
 firmware/**/include/secrets.h
 .dev.vars
+.DS_Store
