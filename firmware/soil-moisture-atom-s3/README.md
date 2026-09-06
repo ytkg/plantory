@@ -22,6 +22,10 @@ pio run -e usb --target upload
 pio device monitor
 ```
 
+## ソース構成
+
+`src/main.cpp`は起動・ボタン操作・定時送信の流れだけを担当します。Wi-FiとOTAは`src/services/network.*`、時刻は`src/services/clock.*`、Plantory APIは`src/services/plantory_api.*`、Earth UnitのADC読み取りは`src/device/soil_sensor.*`、画面描画は`src/ui/display.*`に分けています。設定値と画面・アプリの状態はそれぞれ`src/app/config.h`と`src/app/app_state.h`です。
+
 ## OTA更新
 
 ATOM S3がWi-Fiに接続した状態で、次のコマンドを実行します。OTAパスワードは設定していません。
