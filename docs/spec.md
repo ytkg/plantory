@@ -166,7 +166,7 @@ APIキー管理APIはログインCookieでのみ利用できる。
 - D1のマイグレーションは `migrations/` で管理する。`0003_make_daily_reports_aggregate.sql` は、既存の植物単位の日報テーブルを日付ごとの集約観察日記へ移行する。
 - 観察日記の定期更新は現在設定しない。M5Stackから十分なmetricsが蓄積してから、D1の情報をもとに作成・更新する仕組みを設定する。
 - 毎時0分（UTC）にWorker CronでSwitchBot CO₂センサーの温度・湿度・CO₂濃度を取得し、`environment_metrics` へ1件の環境観測スナップショットとして保存する。3値すべてが有限な数値で取得できた場合だけ保存する。取得失敗・不正値・欠損時は保存、通知、リトライを行わない。SwitchBotとの通信、HTTP応答、APIエラー、不正な環境値については、認証情報やレスポンス本文を含めず原因別にWorkerログへ記録する。
-- `firmware/` にはPlantory専用のM5Stackファームウェアを置く。機種が未決定の間は、機種に依存しない送信仕様とセットアップ方針だけを管理する。
+- `firmware/` にはPlantory専用のM5Stackファームウェアを置く。`soil-moisture-atom-s3/`、`weight-atom-s3/`、`unit-cams3-5mp/` はそれぞれ独立したPlatformIOプロジェクトで、`sample/` はWi-Fi接続と公開ステータス表示の動作確認用サンプルとする。
 - `hardware/mini-scales-carrier/` にはUnit Mini Scales用の3Dプリント可能な皿用キャリアを置く。OpenSCADファイルを正本とし、STLも同じディレクトリで管理する。キャリアはねじ止めせずMini Scalesの上に載せ、皿の高台を浅いくぼみで位置決めする。
 
 ## 仕様更新ルール
