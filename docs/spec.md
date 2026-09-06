@@ -171,6 +171,16 @@ APIキー管理APIはログインCookieでのみ利用できる。
 
 ## 仕様更新ルール
 
+### Unit CamS3 5MP プレビュー（実機検証中）
+
+- `firmware/unit-cams3-5mp/` は自宅Wi-Fiに接続し、`http://plantory-camera.local/` でVGA（640×480）のMJPEGライブ映像を提供する。Wi-Fi設定はGit管理外の `include/secrets.h` に置く。
+- `http://plantory-camera.local/capture?full=1` は要求時に5MP（2592×1944）の静止画を返す。保存はしない。
+- プレビュー画面の明るさスライダーは-4から+4まで調整でき、カメラへ即時反映する。起動時の明るさは0である。
+- 内蔵PDMマイクの16kHzモノラル音声は保存せず、プレビュー画面の再生操作中だけ小さなPCMチャンクとしてブラウザへ連続配信する。画面側はWeb Audioで再生し、音量を調整できる。
+- 同梱のPY260ドライバはJPEGバッファ1枚あたり約5MBを確保するため、8MB PSRAMに収まる1枚構成を使う。
+- 自宅Wi-Fi接続時はパスワードなしArduinoOTAを利用する。カメラ初期化がエラーで終了してもOTAの処理を継続し、画面・画像取得は503を返す。
+- Wi-Fi接続に20秒で成功しない場合、`Plantory-Cam-Setup` APを開く。このAPではOTAを開始しない。
+
 ### ATOM S3 重量センサー
 
 - `firmware/weight-atom-s3/` はUnit Mini Scales（U177）用。植物ID、Wi-Fi、APIキーはGit管理外の `include/secrets.h` で指定する。
