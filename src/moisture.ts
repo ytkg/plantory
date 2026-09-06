@@ -36,6 +36,7 @@ export function calculateMoistureRange(values: number[]): MoistureRange | null {
 }
 
 export type MoistureStatus = {
+  plant_id: number;
   name: string;
   moisture: number;
 };
@@ -59,6 +60,7 @@ export function toMoistureStatus(metric: MoistureMetric): MoistureStatus | null 
   const moisture = calculateMoisturePercentage(metric.value, metric, metric.metric_type);
   if (moisture === null) return null;
   return {
+    plant_id: metric.plant_id,
     name: metric.name,
     moisture,
   };

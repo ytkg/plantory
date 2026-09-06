@@ -14,6 +14,7 @@ constexpr size_t MEASUREMENT_COUNT = 10;
 constexpr float VERTICAL_ACCELERATION_THRESHOLD = 0.65F;
 
 constexpr char PLANTS_URL[] = "https://plantory.ytkg.workers.dev/api/plants";
+constexpr char STATUS_URL[] = "https://plantory.ytkg.workers.dev/api/status";
 constexpr char METRICS_URL[] = "https://plantory.ytkg.workers.dev/api/plants/";
 constexpr char OTA_HOSTNAME[] = "soil-moisture-atom-s3";
 constexpr int SEND_HOURS[] = {0, 6, 12, 18};

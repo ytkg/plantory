@@ -10,6 +10,7 @@ struct AppState {
   time_t lastSentAt = 0;
   long lastAutoSlotKey = -1;
   int lastMeasuredValue = -1;
+  int moisturePercentage = -1;
   bool timeSynced = false;
 };
 
