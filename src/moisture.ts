@@ -3,6 +3,7 @@ export type MoistureMetric = {
   name: string;
   metric_type: string;
   value: number;
+  created_at: string;
   lower: number;
   upper: number;
 };
@@ -39,6 +40,7 @@ export type MoistureStatus = {
   plant_id: number;
   name: string;
   moisture: number;
+  recorded_at: string;
 };
 
 export function selectMoistureMetric(metrics: MoistureMetric[]): MoistureMetric | null {
@@ -63,6 +65,7 @@ export function toMoistureStatus(metric: MoistureMetric): MoistureStatus | null 
     plant_id: metric.plant_id,
     name: metric.name,
     moisture,
+    recorded_at: metric.created_at,
   };
 }
 

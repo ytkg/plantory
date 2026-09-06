@@ -263,23 +263,23 @@ describe("Plantory API", () => {
       env.DB.prepare("INSERT INTO plants (name) VALUES (?)").bind("苔玉"),
       env.DB.prepare("INSERT INTO plants (name) VALUES (?)").bind("記録なし"),
       env.DB.prepare("INSERT INTO plants (name) VALUES (?)").bind("丸葉"),
-      env.DB.prepare("INSERT INTO metrics (plant_id, metric_type, value) VALUES (?, ?, ?)").bind(1, "soil_moisture", 20),
-      env.DB.prepare("INSERT INTO metrics (plant_id, metric_type, value) VALUES (?, ?, ?)").bind(1, "soil_moisture", 80),
-      env.DB.prepare("INSERT INTO metrics (plant_id, metric_type, value) VALUES (?, ?, ?)").bind(1, "weight", 10),
-      env.DB.prepare("INSERT INTO metrics (plant_id, metric_type, value) VALUES (?, ?, ?)").bind(1, "weight", 90),
-      env.DB.prepare("INSERT INTO metrics (plant_id, metric_type, value) VALUES (?, ?, ?)").bind(2, "weight", 81),
-      env.DB.prepare("INSERT INTO metrics (plant_id, metric_type, value) VALUES (?, ?, ?)").bind(2, "weight", 89),
-      env.DB.prepare("INSERT INTO metrics (plant_id, metric_type, value) VALUES (?, ?, ?)").bind(4, "weight", 1),
-      env.DB.prepare("INSERT INTO metrics (plant_id, metric_type, value) VALUES (?, ?, ?)").bind(4, "weight", 4),
-      env.DB.prepare("INSERT INTO metrics (plant_id, metric_type, value) VALUES (?, ?, ?)").bind(4, "weight", 2),
+      env.DB.prepare("INSERT INTO metrics (plant_id, metric_type, value, created_at) VALUES (?, ?, ?, ?)").bind(1, "soil_moisture", 20, "2026-09-07 00:00:00"),
+      env.DB.prepare("INSERT INTO metrics (plant_id, metric_type, value, created_at) VALUES (?, ?, ?, ?)").bind(1, "soil_moisture", 80, "2026-09-07 01:00:00"),
+      env.DB.prepare("INSERT INTO metrics (plant_id, metric_type, value, created_at) VALUES (?, ?, ?, ?)").bind(1, "weight", 10, "2026-09-07 02:00:00"),
+      env.DB.prepare("INSERT INTO metrics (plant_id, metric_type, value, created_at) VALUES (?, ?, ?, ?)").bind(1, "weight", 90, "2026-09-07 03:00:00"),
+      env.DB.prepare("INSERT INTO metrics (plant_id, metric_type, value, created_at) VALUES (?, ?, ?, ?)").bind(2, "weight", 81, "2026-09-07 04:00:00"),
+      env.DB.prepare("INSERT INTO metrics (plant_id, metric_type, value, created_at) VALUES (?, ?, ?, ?)").bind(2, "weight", 89, "2026-09-07 05:00:00"),
+      env.DB.prepare("INSERT INTO metrics (plant_id, metric_type, value, created_at) VALUES (?, ?, ?, ?)").bind(4, "weight", 1, "2026-09-07 06:00:00"),
+      env.DB.prepare("INSERT INTO metrics (plant_id, metric_type, value, created_at) VALUES (?, ?, ?, ?)").bind(4, "weight", 4, "2026-09-07 07:00:00"),
+      env.DB.prepare("INSERT INTO metrics (plant_id, metric_type, value, created_at) VALUES (?, ?, ?, ?)").bind(4, "weight", 2, "2026-09-07 08:00:00"),
     ]);
 
     const response = await request("/api/status");
     expect(response.status).toBe(200);
     await expect(response.json()).resolves.toEqual([
-      { plant_id: 1, name: "カランコエ", moisture: 0 },
-      { plant_id: 2, name: "苔玉", moisture: 100 },
-      { plant_id: 4, name: "丸葉", moisture: 33 },
+      { plant_id: 1, name: "カランコエ", moisture: 0, recorded_at: "2026-09-07 01:00:00" },
+      { plant_id: 2, name: "苔玉", moisture: 100, recorded_at: "2026-09-07 05:00:00" },
+      { plant_id: 4, name: "丸葉", moisture: 33, recorded_at: "2026-09-07 08:00:00" },
     ]);
   });
 

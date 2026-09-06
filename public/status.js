@@ -1,6 +1,19 @@
 const statusSection = document.querySelector("#plant-status");
 const statusCards = document.querySelector("#plant-status-cards");
 
+function relativeRecordedAt(value) {
+  if (typeof value !== "string") return null;
+  const normalized = value.includes("T") ? value : `${value.replace(" ", "T")}Z`;
+  const recordedAt = new Date(normalized);
+  if (Number.isNaN(recordedAt.valueOf())) return null;
+
+  const elapsedMinutes = Math.max(0, Math.floor((Date.now() - recordedAt.valueOf()) / 60000));
+  if (elapsedMinutes < 1) return "たった今";
+  if (elapsedMinutes < 60) return `${elapsedMinutes}分前`;
+  if (elapsedMinutes < 1440) return `${Math.floor(elapsedMinutes / 60)}時間前`;
+  return `${Math.floor(elapsedMinutes / 1440)}日前`;
+}
+
 function showStatuses(statuses) {
   if (!Array.isArray(statuses) || statuses.length === 0) return;
 
@@ -39,9 +52,14 @@ function showStatuses(statuses) {
     bar.className = "h-full rounded-full bg-leaf-500";
     bar.style.width = `${moisture}%`;
 
+    const relativeTime = relativeRecordedAt(status.recorded_at);
+    const recordedAt = document.createElement("p");
+    recordedAt.className = "mt-3 text-xs text-stone-500";
+    recordedAt.textContent = relativeTime ? `最終計測 ${relativeTime}` : "最終計測 --";
+
     valueRow.append(label, value);
     progress.append(bar);
-    card.append(name, valueRow, progress);
+    card.append(name, valueRow, progress, recordedAt);
     statusCards.append(card);
   }
 
