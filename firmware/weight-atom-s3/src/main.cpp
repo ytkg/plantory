@@ -257,7 +257,7 @@ void loop() {
     singleTapPending = false;
     if (!scalesReady) { showMessage("センサー未接続"); messageUntil = now + MESSAGE_DISPLAY_MS; }
     else if (WiFi.status() == WL_CONNECTED) measureAndSend();
-    else { showMessage("WiFi未接続"); messageUntil = now + MESSAGE_DISPLAY_MS; }
+    else { showMessage("Wi-Fi未接続"); messageUntil = now + MESSAGE_DISPLAY_MS; }
   }
   struct tm current;
   if (scalesReady && timeSynced && WiFi.status() == WL_CONNECTED && getLocalTimeNow(current) && current.tm_min == 0 && current.tm_sec < 5) {
