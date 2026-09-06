@@ -1,263 +1,114 @@
-#include <ArduinoJson.h>
-#include <ArduinoOTA.h>
-#include <HTTPClient.h>
 #include <M5AtomS3.h>
-#include <WiFi.h>
-#include <WiFiClientSecure.h>
-#include <math.h>
 #include <time.h>
 
-#include "secrets.h"
+#include "app/app_state.h"
+#include "app/config.h"
+#include "device/soil_sensor.h"
+#include "services/clock.h"
+#include "services/network.h"
+#include "services/plantory_api.h"
+#include "ui/display.h"
 
 namespace {
-constexpr unsigned long WIFI_TIMEOUT_MS = 15000;
-constexpr unsigned long TIME_SYNC_TIMEOUT_MS = 10000;
-constexpr unsigned long CLOCK_CHECK_MS = 1000;
-constexpr unsigned long ORIENTATION_CHECK_MS = 250;
-constexpr unsigned long ORIENTATION_STABLE_MS = 500;
-constexpr unsigned long MESSAGE_DISPLAY_MS = 2500;
-constexpr size_t MEASUREMENT_COUNT = 10;
-constexpr float VERTICAL_ACCELERATION_THRESHOLD = 0.65F;
-constexpr char PLANTS_URL[] = "https://plantory.ytkg.workers.dev/api/plants";
-constexpr char METRICS_URL[] = "https://plantory.ytkg.workers.dev/api/plants/";
-constexpr char OTA_HOSTNAME[] = "soil-moisture-atom-s3";
-constexpr int SEND_HOURS[] = {0, 6, 12, 18};
+plantory::AppState appState;
+plantory::UiState uiState;
 
-String plantName = "Plantory";
-unsigned long lastDisplayAt = 0;
-unsigned long lastOrientationCheckAt = 0;
-unsigned long orientationCandidateSince = 0;
-unsigned long messageUntil = 0;
-time_t lastSentAt = 0;
-long lastAutoSlotKey = -1;
-int lastMeasuredValue = -1;
-bool timeSynced = false;
-bool mainScreenNeedsRedraw = false;
-String lastTimeSignature;
-int displayRotation = 2;
-int pendingRotation = -1;
-
-void showMessage(const String& message) {
-  M5.Display.clear(TFT_BLACK);
-  M5.Display.setTextColor(TFT_WHITE, TFT_BLACK);
-  M5.Display.setTextDatum(middle_center);
-  M5.Display.setFont(&fonts::lgfxJapanGothic_12);
-  M5.Display.setTextSize(1);
-  M5.Display.drawString(message, M5.Display.width() / 2, M5.Display.height() / 2);
+void updateM5() {
+  M5.update();
 }
 
-String clockText(time_t timestamp) {
-  if (timestamp == 0) return "--:--:--";
-  struct tm localTime;
-  if (!localtime_r(&timestamp, &localTime)) return "--:--:--";
-  char buffer[9];
-  strftime(buffer, sizeof(buffer), "%H:%M:%S", &localTime);
-  return String(buffer);
+void keepAlive() {
+  M5.update();
+  plantory::network::handleOta();
 }
 
-bool getLocalTimeNow(struct tm& localTime) {
-  time_t now = time(nullptr);
-  if (now < 100000) return false;
-  return localtime_r(&now, &localTime) != nullptr;
-}
-
-String nextSendText(const struct tm& current) {
-  for (int hour : SEND_HOURS) {
-    if (current.tm_hour < hour || (current.tm_hour == hour && current.tm_min == 0 && current.tm_sec < 1)) {
-      char buffer[9];
-      snprintf(buffer, sizeof(buffer), "%02d:00:00", hour);
-      return String(buffer);
-    }
-  }
-  return "00:00:00";
-}
-
-void drawTimeLines() {
-  struct tm current;
-  const bool hasTime = timeSynced && getLocalTimeNow(current);
-  M5.Display.setTextColor(TFT_WHITE, TFT_BLACK);
-  M5.Display.setFont(&fonts::lgfxJapanGothic_12);
-  M5.Display.setTextDatum(middle_center);
-  M5.Display.setTextSize(1);
-  M5.Display.fillRect(0, 60, M5.Display.width(), 64, TFT_BLACK);
-  M5.Display.drawString(hasTime ? "現在時刻: " + clockText(time(nullptr)) : "現在時刻: 未同期", 64, 72);
-  M5.Display.drawString(hasTime ? "次回送信: " + nextSendText(current) : "次回送信: --:--:--", 64, 92);
-  M5.Display.drawString("最終送信: " + clockText(lastSentAt), 64, 112);
-}
-
-String timeSignature() {
-  struct tm current;
-  const bool hasTime = timeSynced && getLocalTimeNow(current);
-  return (hasTime ? clockText(time(nullptr)) : "未同期") + "|" +
-         (hasTime ? nextSendText(current) : "--:--:--") + "|" + clockText(lastSentAt);
-}
-
-void showMainScreen() {
-  M5.Display.clear(TFT_BLACK);
-  M5.Display.setTextColor(TFT_WHITE, TFT_BLACK);
-  M5.Display.setFont(&fonts::lgfxJapanGothic_12);
-  M5.Display.setTextDatum(middle_center);
-  M5.Display.setTextSize(1.25F);
-  M5.Display.drawString(plantName, 64, 18);
-  M5.Display.setTextSize(2);
-  M5.Display.drawString(lastMeasuredValue < 0 ? "ADC --" : "ADC " + String(lastMeasuredValue), 64, 44);
-  drawTimeLines();
-  lastTimeSignature = timeSignature();
-}
-
-void refreshTimeIfNeeded() {
-  const String currentSignature = timeSignature();
-  if (currentSignature == lastTimeSignature) return;
-  drawTimeLines();
-  lastTimeSignature = currentSignature;
-}
-
-int rotationForCurrentOrientation() {
-  if (!M5.Imu.update()) return -1;
-  const auto data = M5.Imu.getImuData();
-  const float x = data.accel.x;
-  const float y = data.accel.y;
-
-  if (fabsf(x) < VERTICAL_ACCELERATION_THRESHOLD && fabsf(y) < VERTICAL_ACCELERATION_THRESHOLD) {
-    return -1;
-  }
-
-  if (fabsf(x) > fabsf(y)) return x > 0 ? 1 : 3;
-  return y > 0 ? 0 : 2;
-}
-
-void refreshOrientationIfNeeded(unsigned long now) {
-  if (now - lastOrientationCheckAt < ORIENTATION_CHECK_MS) return;
-  lastOrientationCheckAt = now;
-
-  const int candidate = rotationForCurrentOrientation();
-  if (candidate < 0) {
-    pendingRotation = -1;
-    return;
-  }
-  if (candidate != pendingRotation) {
-    pendingRotation = candidate;
-    orientationCandidateSince = now;
-    return;
-  }
-  if (candidate == displayRotation || now - orientationCandidateSince < ORIENTATION_STABLE_MS) return;
-
-  displayRotation = candidate;
-  M5.Display.setRotation(displayRotation);
-  showMainScreen();
-}
-
-bool fetchPlantName() {
-  WiFiClientSecure client; client.setInsecure();
-  HTTPClient http;
-  if (!http.begin(client, PLANTS_URL)) return false;
-  http.addHeader("Authorization", "Bearer " PLANTORY_API_KEY);
-  if (http.GET() != HTTP_CODE_OK) { http.end(); return false; }
-  JsonDocument document;
-  const auto error = deserializeJson(document, http.getString());
-  http.end();
-  if (error) return false;
-  for (JsonObject plant : document["plants"].as<JsonArray>()) {
-    if (plant["id"] == PLANT_ID) { plantName = plant["name"] | plantName; return true; }
-  }
-  return false;
-}
-
-int measureAverage() {
-  long total = 0;
-  for (size_t index = 0; index < MEASUREMENT_COUNT; ++index) {
-    total += analogRead(SOIL_SENSOR_ANALOG_PIN);
-    delay(1000);
-    M5.update();
-    ArduinoOTA.handle();
-  }
-  lastMeasuredValue = static_cast<int>(total / static_cast<long>(MEASUREMENT_COUNT));
-  return lastMeasuredValue;
-}
-
-bool sendMetric(int value) {
-  WiFiClientSecure client; client.setInsecure();
-  HTTPClient http;
-  if (!http.begin(client, String(METRICS_URL) + String(PLANT_ID) + "/metrics")) return false;
-  http.addHeader("Authorization", "Bearer " PLANTORY_API_KEY);
-  http.addHeader("Content-Type", "application/json");
-  JsonDocument document;
-  document["metric_type"] = "soil_moisture";
-  document["value"] = value;
-  String body; serializeJson(document, body);
-  const int statusCode = http.POST(body);
-  http.end();
-  return statusCode == HTTP_CODE_CREATED || statusCode == HTTP_CODE_OK;
+void showTransientMessage(const String& message, unsigned long now) {
+  plantory::display::showMessage(message);
+  uiState.messageUntil = now + plantory::config::MESSAGE_DISPLAY_MS;
+  uiState.mainScreenNeedsRedraw = true;
 }
 
 void measureAndSend() {
-  showMessage("測定中…");
-  const int value = measureAverage();
-  showMessage("送信中…");
-  if (WiFi.status() == WL_CONNECTED && sendMetric(value)) {
-    lastSentAt = time(nullptr);
-    showMessage("送信完了\nADC: " + String(value));
+  plantory::display::showMessage("測定中…");
+  appState.lastMeasuredValue = plantory::sensor::measureAverage(keepAlive);
+
+  plantory::display::showMessage("送信中…");
+  if (plantory::network::isConnected() && plantory::api::sendSoilMoisture(appState.lastMeasuredValue)) {
+    appState.lastSentAt = time(nullptr);
+    plantory::display::showMessage("送信完了\nADC: " + String(appState.lastMeasuredValue));
   } else {
-    showMessage("送信失敗");
+    plantory::display::showMessage("送信失敗");
   }
-  messageUntil = millis() + MESSAGE_DISPLAY_MS;
-  mainScreenNeedsRedraw = true;
-}
+
+  uiState.messageUntil = millis() + plantory::config::MESSAGE_DISPLAY_MS;
+  uiState.mainScreenNeedsRedraw = true;
 }
 
-void setup() {
-  auto config = M5.config();
-  M5.begin(config);
-  M5.Display.setRotation(displayRotation);
-  analogReadResolution(12);
-  showMessage("WiFi…");
-  WiFi.mode(WIFI_STA);
-  WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
-  const unsigned long startedAt = millis();
-  while (WiFi.status() != WL_CONNECTED && millis() - startedAt < WIFI_TIMEOUT_MS) { delay(250); M5.update(); }
-  configTime(9 * 3600, 0, "pool.ntp.org", "time.nist.gov");
-  const unsigned long timeStartedAt = millis();
-  while (WiFi.status() == WL_CONNECTED && time(nullptr) < 100000 && millis() - timeStartedAt < TIME_SYNC_TIMEOUT_MS) { delay(250); M5.update(); }
-  timeSynced = time(nullptr) >= 100000;
-  if (WiFi.status() == WL_CONNECTED) fetchPlantName();
-  if (WiFi.status() == WL_CONNECTED) {
-    ArduinoOTA.setHostname(OTA_HOSTNAME);
-    ArduinoOTA.begin();
+bool scheduledSendIsDue(unsigned long now) {
+  struct tm current;
+  if (!appState.timeSynced || !plantory::network::isConnected() || !plantory::clock::getLocalTimeNow(current) ||
+      current.tm_min != 0 || current.tm_sec >= 5 || now < uiState.messageUntil) {
+    return false;
   }
-  showMainScreen();
+
+  int slot = -1;
+  for (size_t index = 0; index < plantory::config::SEND_HOUR_COUNT; ++index) {
+    if (plantory::config::SEND_HOURS[index] == current.tm_hour) {
+      slot = static_cast<int>(index);
+      break;
+    }
+  }
+  if (slot < 0) return false;
+
+  const long slotKey = static_cast<long>(current.tm_yday) * static_cast<long>(plantory::config::SEND_HOUR_COUNT) + slot;
+  if (slotKey == appState.lastAutoSlotKey) return false;
+
+  appState.lastAutoSlotKey = slotKey;
+  return true;
+}
+}  // namespace
+
+void setup() {
+  auto m5Config = M5.config();
+  M5.begin(m5Config);
+
+  plantory::display::begin(uiState);
+  plantory::sensor::begin();
+  plantory::display::showMessage("WiFi…");
+
+  plantory::network::connectWifi(updateM5);
+  appState.timeSynced = plantory::clock::syncJst(updateM5);
+  if (plantory::network::isConnected()) plantory::api::fetchPlantName(appState);
+  plantory::network::beginOta();
+
+  plantory::display::showMainScreen(appState, uiState);
 }
 
 void loop() {
   M5.update();
-  ArduinoOTA.handle();
+  plantory::network::handleOta();
+
   const unsigned long now = millis();
-  if (now >= messageUntil) refreshOrientationIfNeeded(now);
-  if (now >= messageUntil && mainScreenNeedsRedraw) {
-    showMainScreen();
-    mainScreenNeedsRedraw = false;
-  }
-  if (now - lastDisplayAt >= CLOCK_CHECK_MS && now >= messageUntil) {
-    refreshTimeIfNeeded();
-    lastDisplayAt = now;
+  const bool showingMessage = now < uiState.messageUntil;
+  if (!showingMessage) plantory::display::refreshOrientationIfNeeded(appState, uiState, now);
+
+  if (!showingMessage && uiState.mainScreenNeedsRedraw) {
+    plantory::display::showMainScreen(appState, uiState);
+    uiState.mainScreenNeedsRedraw = false;
   }
 
-  if (M5.BtnA.wasPressed() && now >= messageUntil) {
-    if (WiFi.status() == WL_CONNECTED) measureAndSend();
-    else {
-      showMessage("WiFi未接続");
-      messageUntil = now + MESSAGE_DISPLAY_MS;
-      mainScreenNeedsRedraw = true;
-    }
+  if (!showingMessage && now - uiState.lastDisplayAt >= plantory::config::CLOCK_CHECK_MS) {
+    plantory::display::refreshTimeIfNeeded(appState, uiState);
+    uiState.lastDisplayAt = now;
   }
 
-  struct tm current;
-  if (timeSynced && WiFi.status() == WL_CONNECTED && getLocalTimeNow(current) && current.tm_min == 0 && current.tm_sec < 5) {
-    int slot = -1;
-    for (int index = 0; index < 4; ++index) if (SEND_HOURS[index] == current.tm_hour) slot = index;
-    const long slotKey = static_cast<long>(current.tm_yday) * 4 + slot;
-    if (slot >= 0 && slotKey != lastAutoSlotKey && now >= messageUntil) {
-      lastAutoSlotKey = slotKey;
+  if (M5.BtnA.wasPressed() && !showingMessage) {
+    if (plantory::network::isConnected()) {
       measureAndSend();
+    } else {
+      showTransientMessage("WiFi未接続", now);
     }
   }
+
+  if (scheduledSendIsDue(now)) measureAndSend();
 }
