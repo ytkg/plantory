@@ -12,6 +12,7 @@ type EnvironmentSnapshot = EnvironmentReading & {
 
 type SwitchBotStatus = {
   statusCode?: unknown;
+  message?: unknown;
   body?: {
     temperature?: unknown;
     humidity?: unknown;
@@ -44,28 +45,61 @@ async function createSwitchBotHeaders(env: Env): Promise<HeadersInit> {
   };
 }
 
+function invalidReadingFields(status: SwitchBotStatus): string[] {
+  if (!status.body) return ["temperature", "humidity", "co2"];
+
+  const fields: Array<[string, unknown]> = [
+    ["temperature", status.body.temperature],
+    ["humidity", status.body.humidity],
+    ["co2", status.body.CO2],
+  ];
+  return fields.flatMap(([name, value]) => typeof value === "number" && Number.isFinite(value) ? [] : [name]);
+}
+
 function readingFromStatus(status: SwitchBotStatus): EnvironmentReading | null {
-  if (status.statusCode !== 100 || !status.body) return null;
-
-  const { temperature, humidity, CO2: co2 } = status.body;
-  const values = [temperature, humidity, co2];
-
-  if (values.some((value) => typeof value !== "number" || !Number.isFinite(value))) return null;
+  if (status.statusCode !== 100 || invalidReadingFields(status).length > 0) return null;
 
   return {
-    temperature: temperature as number,
-    humidity: humidity as number,
-    co2: co2 as number,
+    temperature: status.body!.temperature as number,
+    humidity: status.body!.humidity as number,
+    co2: status.body!.CO2 as number,
   };
 }
 
 export async function collectEnvironmentMetrics(env: Env): Promise<boolean> {
-  const response = await fetch(`${SWITCHBOT_STATUS_URL}/${encodeURIComponent(env.SWITCHBOT_DEVICE_ID)}/status`, {
-    headers: await createSwitchBotHeaders(env),
-  });
-  if (!response.ok) return false;
+  let response: Response;
+  try {
+    response = await fetch(`${SWITCHBOT_STATUS_URL}/${encodeURIComponent(env.SWITCHBOT_DEVICE_ID)}/status`, {
+      headers: await createSwitchBotHeaders(env),
+    });
+  } catch (error) {
+    console.error("SwitchBot API request failed", error);
+    return false;
+  }
+  if (!response.ok) {
+    console.error(`SwitchBot API request failed: status=${response.status}`);
+    return false;
+  }
 
-  const reading = readingFromStatus((await response.json()) as SwitchBotStatus);
+  let status: SwitchBotStatus;
+  try {
+    status = (await response.json()) as SwitchBotStatus;
+  } catch {
+    console.error("Invalid SwitchBot environment data: response");
+    return false;
+  }
+  if (status.statusCode !== 100) {
+    const message = typeof status.message === "string" ? ` message=${JSON.stringify(status.message)}` : "";
+    console.error(`SwitchBot API returned error: statusCode=${String(status.statusCode)}${message}`);
+    return false;
+  }
+
+  const invalidFields = invalidReadingFields(status);
+  if (invalidFields.length > 0) {
+    console.error(`Invalid SwitchBot environment data: ${invalidFields.join(", ")}`);
+    return false;
+  }
+  const reading = readingFromStatus(status);
   if (!reading) return false;
 
   const createdAt = new Date().toISOString();
