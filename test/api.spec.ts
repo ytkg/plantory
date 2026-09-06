@@ -184,6 +184,79 @@ describe("Plantory API", () => {
     await expect(env.DB.prepare("SELECT COUNT(*) AS count FROM environment_metrics").first<{ count: number }>()).resolves.toEqual({ count: 0 });
   });
 
+  it("logs the cause when the SwitchBot request throws", async () => {
+    const error = new Error("network unavailable");
+    const errorSpy = vi.spyOn(console, "error").mockImplementation(() => undefined);
+    vi.stubGlobal("fetch", () => Promise.reject(error));
+
+    await worker.scheduled!(
+      { cron: "0 * * * *", scheduledTime: Date.now(), noRetry: vi.fn() },
+      env,
+      {} as ExecutionContext,
+    );
+
+    expect(errorSpy).toHaveBeenCalledWith("SwitchBot API request failed", error);
+    errorSpy.mockRestore();
+  });
+
+  it("logs the HTTP status when the SwitchBot request is unsuccessful", async () => {
+    const errorSpy = vi.spyOn(console, "error").mockImplementation(() => undefined);
+    vi.stubGlobal("fetch", () => Promise.resolve(new Response(null, { status: 503 })));
+
+    await worker.scheduled!(
+      { cron: "0 * * * *", scheduledTime: Date.now(), noRetry: vi.fn() },
+      env,
+      {} as ExecutionContext,
+    );
+
+    expect(errorSpy).toHaveBeenCalledWith(expect.stringContaining("status=503"));
+    errorSpy.mockRestore();
+  });
+
+  it("logs SwitchBot API errors without logging the response body", async () => {
+    const errorSpy = vi.spyOn(console, "error").mockImplementation(() => undefined);
+    vi.stubGlobal("fetch", () => Promise.resolve(Response.json({ statusCode: 190, message: "Unauthorized", body: { token: "secret" } })));
+
+    await worker.scheduled!(
+      { cron: "0 * * * *", scheduledTime: Date.now(), noRetry: vi.fn() },
+      env,
+      {} as ExecutionContext,
+    );
+
+    expect(errorSpy).toHaveBeenCalledWith(expect.stringContaining("statusCode=190"));
+    expect(errorSpy).toHaveBeenCalledWith(expect.stringContaining('message="Unauthorized"'));
+    expect(errorSpy).not.toHaveBeenCalledWith(expect.stringContaining("secret"));
+    errorSpy.mockRestore();
+  });
+
+  it("logs every invalid SwitchBot environment field", async () => {
+    const errorSpy = vi.spyOn(console, "error").mockImplementation(() => undefined);
+    vi.stubGlobal("fetch", () => Promise.resolve(Response.json({ statusCode: 100, body: { temperature: "24.3", humidity: null } })));
+
+    await worker.scheduled!(
+      { cron: "0 * * * *", scheduledTime: Date.now(), noRetry: vi.fn() },
+      env,
+      {} as ExecutionContext,
+    );
+
+    expect(errorSpy).toHaveBeenCalledWith(expect.stringContaining("temperature, humidity, co2"));
+    errorSpy.mockRestore();
+  });
+
+  it("does not log an error for a valid SwitchBot reading", async () => {
+    const errorSpy = vi.spyOn(console, "error").mockImplementation(() => undefined);
+    vi.stubGlobal("fetch", () => Promise.resolve(Response.json({ statusCode: 100, body: { temperature: 24.3, humidity: 58, CO2: 741 } })));
+
+    await worker.scheduled!(
+      { cron: "0 * * * *", scheduledTime: Date.now(), noRetry: vi.fn() },
+      env,
+      {} as ExecutionContext,
+    );
+
+    expect(errorSpy).not.toHaveBeenCalled();
+    errorSpy.mockRestore();
+  });
+
   it("returns public moisture status using soil moisture first and weight as fallback", async () => {
     await env.DB.batch([
       env.DB.prepare("INSERT INTO plants (name) VALUES (?)").bind("カランコエ"),
