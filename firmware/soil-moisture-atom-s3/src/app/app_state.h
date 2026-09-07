@@ -25,4 +25,10 @@ struct UiState {
   int pendingRotation = -1;
 };
 
+struct ButtonState {
+  unsigned long pressedAt = 0;
+  bool pressActive = false;
+  bool longPressHandled = false;
+};
+
 }  // namespace plantory

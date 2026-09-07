@@ -10,6 +10,8 @@ constexpr unsigned long CLOCK_CHECK_MS = 1000;
 constexpr unsigned long ORIENTATION_CHECK_MS = 250;
 constexpr unsigned long ORIENTATION_STABLE_MS = 500;
 constexpr unsigned long MESSAGE_DISPLAY_MS = 2500;
+constexpr unsigned long LONG_PRESS_MS = 2000;
+constexpr uint8_t WIFI_RECONNECT_MAX_ATTEMPTS = 5;
 constexpr size_t MEASUREMENT_COUNT = 10;
 constexpr float VERTICAL_ACCELERATION_THRESHOLD = 0.65F;
 

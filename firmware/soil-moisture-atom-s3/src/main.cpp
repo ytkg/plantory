@@ -12,6 +12,7 @@
 namespace {
 plantory::AppState appState;
 plantory::UiState uiState;
+plantory::ButtonState buttonState;
 
 void updateM5() {
   M5.update();
@@ -46,6 +47,33 @@ void measureAndSend() {
 
   uiState.messageUntil = millis() + plantory::config::MESSAGE_DISPLAY_MS;
   uiState.mainScreenNeedsRedraw = true;
+}
+
+void showReconnectProgress() {
+  plantory::display::showMessage("Wi-Fi再接続\n" + String(plantory::network::reconnectAttempt()) + "/" +
+                                 String(plantory::config::WIFI_RECONNECT_MAX_ATTEMPTS));
+}
+
+void handleReconnectEvent(unsigned long now) {
+  switch (plantory::network::updateReconnect()) {
+    case plantory::network::ReconnectEvent::Attempting:
+      showReconnectProgress();
+      break;
+    case plantory::network::ReconnectEvent::Connected:
+      plantory::network::beginOta();
+      plantory::api::fetchPlantName(appState);
+      if (plantory::api::fetchMoisturePercentage(appState)) {
+        showTransientMessage("Wi-Fi接続完了", now);
+      } else {
+        showTransientMessage("Wi-Fi接続完了\n水分量取得失敗", now);
+      }
+      break;
+    case plantory::network::ReconnectEvent::Failed:
+      showTransientMessage("Wi-Fi接続失敗", now);
+      break;
+    case plantory::network::ReconnectEvent::None:
+      break;
+  }
 }
 
 bool scheduledSendIsDue(unsigned long now) {
@@ -97,6 +125,7 @@ void loop() {
   plantory::network::handleOta();
 
   const unsigned long now = millis();
+  handleReconnectEvent(now);
   const bool showingMessage = now < uiState.messageUntil;
   if (!showingMessage) plantory::display::refreshOrientationIfNeeded(appState, uiState, now);
 
@@ -111,10 +140,26 @@ void loop() {
   }
 
   if (M5.BtnA.wasPressed() && !showingMessage) {
-    if (plantory::network::isConnected()) {
-      measureAndSend();
-    } else {
-      showTransientMessage("Wi-Fi未接続", now);
+    buttonState.pressActive = true;
+    buttonState.longPressHandled = false;
+    buttonState.pressedAt = now;
+  }
+
+  if (buttonState.pressActive && M5.BtnA.isPressed() && !buttonState.longPressHandled &&
+      now - buttonState.pressedAt >= plantory::config::LONG_PRESS_MS) {
+    buttonState.longPressHandled = true;
+    plantory::network::startReconnect();
+    showReconnectProgress();
+  }
+
+  if (buttonState.pressActive && M5.BtnA.wasReleased()) {
+    buttonState.pressActive = false;
+    if (!buttonState.longPressHandled) {
+      if (plantory::network::isConnected()) {
+        measureAndSend();
+      } else {
+        showTransientMessage("Wi-Fi未接続", now);
+      }
     }
   }
 
