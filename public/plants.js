@@ -84,6 +84,7 @@ function createMetricChart(metrics) {
         borderWidth: 2,
         pointBackgroundColor: "#27613a",
         pointRadius: history.length === 1 ? 3 : 0,
+        pointHitRadius: 12,
         pointHoverRadius: 4,
         tension: 0.25,
       }],
@@ -91,16 +92,22 @@ function createMetricChart(metrics) {
     options: {
       responsive: true,
       maintainAspectRatio: false,
+      interaction: {
+        mode: "index",
+        intersect: false,
+      },
       plugins: {
         legend: { display: false },
         tooltip: {
+          mode: "index",
+          intersect: false,
           displayColors: false,
           callbacks: {
             title(items) {
               return formatDateTime(history[items[0].dataIndex].created_at);
             },
             label(context) {
-              return `${context.dataset.label}: ${formatMoisture(context.parsed.y)}%`;
+              return `${context.dataset.label}: ${formatValue(context.parsed.y)}%`;
             },
           },
         },
