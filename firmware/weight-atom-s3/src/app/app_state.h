@@ -14,5 +14,11 @@ struct AppState {
   uint8_t readFailureCount = 0;
 };
 struct UiState { unsigned long lastDisplayAt = 0; unsigned long messageUntil = 0; };
-struct ButtonState { unsigned long firstTapAt = 0; bool singleTapPending = false; };
+struct ButtonState {
+  unsigned long pressedAt = 0;
+  unsigned long firstTapAt = 0;
+  bool pressActive = false;
+  bool longPressHandled = false;
+  bool singleTapPending = false;
+};
 }  // namespace plantory

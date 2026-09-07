@@ -32,6 +32,18 @@ void measureAndSend() {
     showTransientMessage("送信失敗", millis());
   }
 }
+void showReconnectProgress() {
+  plantory::display::showMessage("Wi-Fi再接続\n" + String(plantory::network::reconnectAttempt()) + "/" + String(plantory::config::WIFI_RECONNECT_MAX_ATTEMPTS));
+}
+void handleReconnectEvent(unsigned long now) {
+  switch (plantory::network::updateReconnect()) {
+    case plantory::network::ReconnectEvent::Attempting: showReconnectProgress(); break;
+    case plantory::network::ReconnectEvent::Connected:
+      plantory::network::beginOta(); plantory::api::fetchPlantName(appState); showTransientMessage("Wi-Fi接続完了", now); break;
+    case plantory::network::ReconnectEvent::Failed: showTransientMessage("Wi-Fi接続失敗", now); break;
+    case plantory::network::ReconnectEvent::None: break;
+  }
+}
 bool scheduledSendIsDue(unsigned long now) {
   struct tm current;
   if (!appState.scalesReady || !appState.timeSynced || !plantory::network::isConnected() || !plantory::clock::getLocalTimeNow(current) || current.tm_min != 0 || current.tm_sec >= 5 || now < uiState.messageUntil) return false;
@@ -60,6 +72,7 @@ void setup() {
 void loop() {
   M5.update(); plantory::network::handleOta();
   const unsigned long now = millis();
+  handleReconnectEvent(now);
   if (appState.scalesReady && now - uiState.lastDisplayAt >= plantory::config::DISPLAY_REFRESH_MS && now >= uiState.messageUntil) {
     appState.lastMeasuredValue = plantory::sensor::normalize(plantory::sensor::readGrams());
     if (isnan(appState.lastMeasuredValue)) { if (++appState.readFailureCount >= 5) appState.scalesReady = false; } else { appState.readFailureCount = 0; }
@@ -69,11 +82,25 @@ void loop() {
     appState.scalesReady = plantory::sensor::begin(); if (appState.scalesReady) appState.readFailureCount = 0; uiState.lastDisplayAt = now;
   }
   if (M5.BtnA.wasPressed() && now >= uiState.messageUntil) {
-    if (buttonState.singleTapPending && now - buttonState.firstTapAt <= plantory::config::DOUBLE_TAP_WINDOW_MS) {
-      buttonState.singleTapPending = false;
-      if (appState.scalesReady && plantory::sensor::resetZeroOffset()) { appState.lastMeasuredValue = 0.0F; showTransientMessage("ゼロ調整完了", now); }
-      else { showTransientMessage("ゼロ調整失敗", now); }
-    } else { buttonState.singleTapPending = true; buttonState.firstTapAt = now; }
+    buttonState.pressActive = true;
+    buttonState.longPressHandled = false;
+    buttonState.pressedAt = now;
+  }
+  if (buttonState.pressActive && M5.BtnA.isPressed() && !buttonState.longPressHandled && now - buttonState.pressedAt >= plantory::config::LONG_PRESS_MS) {
+    buttonState.longPressHandled = true;
+    buttonState.singleTapPending = false;
+    plantory::network::startReconnect();
+    showReconnectProgress();
+  }
+  if (buttonState.pressActive && M5.BtnA.wasReleased()) {
+    buttonState.pressActive = false;
+    if (!buttonState.longPressHandled) {
+      if (buttonState.singleTapPending && now - buttonState.firstTapAt <= plantory::config::DOUBLE_TAP_WINDOW_MS) {
+        buttonState.singleTapPending = false;
+        if (appState.scalesReady && plantory::sensor::resetZeroOffset()) { appState.lastMeasuredValue = 0.0F; showTransientMessage("ゼロ調整完了", now); }
+        else { showTransientMessage("ゼロ調整失敗", now); }
+      } else { buttonState.singleTapPending = true; buttonState.firstTapAt = now; }
+    }
   }
   if (buttonState.singleTapPending && now - buttonState.firstTapAt > plantory::config::DOUBLE_TAP_WINDOW_MS && now >= uiState.messageUntil) {
     buttonState.singleTapPending = false;
