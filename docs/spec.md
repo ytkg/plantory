@@ -204,7 +204,7 @@ APIキー管理APIはログインCookieでのみ利用できる。
 - D1のマイグレーションは `migrations/` で管理する。`0003_make_daily_reports_aggregate.sql` は、既存の植物単位の日報テーブルを日付ごとの集約観察日記へ移行する。
 - 観察日記の定期更新は現在設定しない。M5Stackから十分なmetricsが蓄積してから、D1の情報をもとに作成・更新する仕組みを設定する。
 - 毎時0分（UTC）にWorker CronでSwitchBot CO₂センサーの温度・湿度・CO₂濃度を取得し、`environment_metrics` へ1件の環境観測スナップショットとして保存する。3値すべてが有限な数値で取得できた場合だけ保存する。取得失敗・不正値・欠損時は保存、通知、リトライを行わない。SwitchBotとの通信、HTTP応答、APIエラー、不正な環境値については、認証情報やレスポンス本文を含めず原因別にWorkerログへ記録する。
-- `firmware/` にはPlantory専用のM5Stackファームウェアを置く。`soil-moisture-atom-s3/`、`weight-atom-s3/`、`unit-cams3-5mp/` はそれぞれ独立したPlatformIOプロジェクトで、`sample/` はWi-Fi接続と公開ステータス表示の動作確認用サンプルとする。
+- `firmware/` にはPlantory専用のM5Stackファームウェアを置く。`soil-moisture-atom-s3/`、`weight-atom-s3/`、`weight-m5stickc-plus2/`、`unit-cams3-5mp/` はそれぞれ独立したPlatformIOプロジェクトで、`sample/` はWi-Fi接続と公開ステータス表示の動作確認用サンプルとする。
 - `hardware/mini-scales-carrier/` にはUnit Mini Scales用の3Dプリント可能な皿用キャリアを置く。OpenSCADファイルを正本とし、STLも同じディレクトリで管理する。キャリアはねじ止めせずMini Scalesの上に載せ、皿の高台を浅いくぼみで位置決めする。
 
 ## 仕様更新ルール
@@ -237,5 +237,12 @@ APIキー管理APIはログインCookieでのみ利用できる。
 - 重量は数値を大きくして1秒ごとに表示する。桁数が多いときは画面内に収まる大きさに縮小する。±1.0gは0.0gとして扱う。送信時は100ms間隔で10回測定し、平均を`weight`として送信する。
 - シングルタップでMini Scalesの現在の荷重をゼロ点として調整する。読み取り失敗や非有限値は送信しない。連続失敗時はI²Cを終了・再初期化して接続を試みる。起動時にゼロ点は変更しない。
 - OTAホスト名は `weight-atom-s3.local`。測定値と受信バイトをシリアルログへ出力する。
+
+### M5StickC PLUS2 重量センサー
+
+- `firmware/weight-m5stickc-plus2/` はUnit Mini Scales（U177）用。植物ID、Wi-Fi、APIキーはGit管理外の `include/secrets.h` で指定する。Mini ScalesをHY2.0-4Pへ接続し、SDA=G32、SCL=G33、100kHz、I²Cアドレス`0x26`で通信する。
+- USB Type-C端子を下にした縦画面で重量を1秒ごとに表示する。±1.0gは0.0gとして扱い、送信時は100ms間隔で10回測定した平均を`weight`として送信する。読み取り失敗や非有限値は送信しない。連続失敗時はI²Cを終了・再初期化して接続を試みる。起動時にゼロ点は変更しない。
+- 日本時間の0時・6時・12時・18時に自動計測・送信し、起動直後に自動送信はしない。BtnAの短押しはゼロ点調整、ダブルタップは即時送信、2秒長押しは最大5回のWi-Fi再接続である。再接続の試行中・成功・失敗は画面に表示し、失敗後は再度長押しでやり直せる。
+- OTAホスト名は`weight-m5stickc-plus2.local`である。測定値と受信バイトをシリアルログへ出力する。
 
 画面、API、認証、データモデル、運用の振る舞いを変更したときは、実装と同じ変更内でこの文書を更新する。詳細な実装手順や検討中の案ではなく、現時点で動作する仕様を記載する。
