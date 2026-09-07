@@ -1,6 +1,7 @@
 import { calculateMoistureRange, getMoistureDirection } from "../moisture";
 import type { AppContext } from "../routes/context";
 import type { Metric, Plant } from "../types";
+import type { HistoryQuery } from "../validation";
 
 type CreatePlantInput = { name?: unknown };
 type CreateMetricInput = { metric_type?: unknown; value?: unknown };
@@ -34,14 +35,26 @@ async function plantExists(id: number, c: AppContext): Promise<boolean> {
   return (await c.env.DB.prepare("SELECT id FROM plants WHERE id = ? LIMIT 1").bind(id).first<Pick<Plant, "id">>()) !== null;
 }
 
-export async function listMetrics(plantId: number, c: AppContext): Promise<Response> {
+export async function listMetrics(plantId: number, query: HistoryQuery, c: AppContext): Promise<Response> {
   if (!(await plantExists(plantId, c))) return c.json({ error: "Plant not found." }, 404);
+
+  const clauses = ["plant_id = ?"];
+  const bindings: Array<number | string> = [plantId];
+  if (query.from) {
+    clauses.push("datetime(created_at) >= datetime(?)");
+    bindings.push(query.from);
+  }
+  if (query.to) {
+    clauses.push("datetime(created_at) < datetime(?, '+1 day')");
+    bindings.push(query.to);
+  }
+  bindings.push(query.limit);
 
   const [result, rangeResult, countResult] = await Promise.all([
     c.env.DB.prepare(
       `SELECT id, plant_id, metric_type, value, created_at
-       FROM metrics WHERE plant_id = ? ORDER BY created_at DESC, id DESC LIMIT 100`,
-    ).bind(plantId).all<Metric>(),
+       FROM metrics WHERE ${clauses.join(" AND ")} ORDER BY created_at DESC, id DESC LIMIT ?`,
+    ).bind(...bindings).all<Metric>(),
     c.env.DB.prepare("SELECT metric_type, value FROM metrics WHERE plant_id = ? AND metric_type IN ('soil_moisture', 'weight')").bind(plantId).all<{ metric_type: string; value: number }>(),
     c.env.DB.prepare("SELECT COUNT(*) AS total_count FROM metrics WHERE plant_id = ?").bind(plantId).first<{ total_count: number }>(),
   ]);

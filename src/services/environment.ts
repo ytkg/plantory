@@ -1,3 +1,6 @@
+import type { AppContext } from "../routes/context";
+import type { HistoryQuery } from "../validation";
+
 const SWITCHBOT_STATUS_URL = "https://api.switch-bot.com/v1.1/devices";
 
 type EnvironmentReading = {
@@ -6,7 +9,7 @@ type EnvironmentReading = {
   co2: number;
 };
 
-type EnvironmentSnapshot = EnvironmentReading & {
+export type EnvironmentSnapshot = EnvironmentReading & {
   created_at: string;
 };
 
@@ -118,4 +121,25 @@ export async function latestEnvironmentMetrics(env: Env): Promise<EnvironmentSna
      ORDER BY created_at DESC, id DESC
      LIMIT 1`,
   ).first<EnvironmentSnapshot>();
+}
+
+export async function listEnvironmentMetrics(query: HistoryQuery, c: AppContext): Promise<Response> {
+  const clauses: string[] = [];
+  const bindings: Array<string | number> = [];
+  if (query.from) {
+    clauses.push("datetime(created_at) >= datetime(?)");
+    bindings.push(query.from);
+  }
+  if (query.to) {
+    clauses.push("datetime(created_at) < datetime(?, '+1 day')");
+    bindings.push(query.to);
+  }
+  bindings.push(query.limit);
+
+  const result = await c.env.DB.prepare(
+    `SELECT temperature, humidity, co2, created_at
+     FROM environment_metrics${clauses.length ? ` WHERE ${clauses.join(" AND ")}` : ""}
+     ORDER BY created_at DESC, id DESC LIMIT ?`,
+  ).bind(...bindings).all<EnvironmentSnapshot>();
+  return c.json({ environmentMetrics: result.results });
 }

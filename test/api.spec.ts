@@ -323,6 +323,54 @@ describe("Plantory API", () => {
     expect(response.headers.get("Allow")).toBe("GET");
   });
 
+  it("returns authenticated room environment history within a requested date range", async () => {
+    await env.DB.batch([
+      env.DB.prepare("INSERT INTO environment_metrics (temperature, humidity, co2, created_at) VALUES (?, ?, ?, ?)")
+        .bind(20.5, 55, 700, "2026-09-01T00:00:00.000Z"),
+      env.DB.prepare("INSERT INTO environment_metrics (temperature, humidity, co2, created_at) VALUES (?, ?, ?, ?)")
+        .bind(24.3, 58, 741, "2026-09-02T00:00:00.000Z"),
+    ]);
+
+    expect((await request("/api/environment/metrics")).status).toBe(401);
+    const response = await request("/api/environment/metrics?from=2026-09-02&to=2026-09-02", withApiKey(readKey));
+
+    expect(response.status).toBe(200);
+    await expect(response.json()).resolves.toEqual({
+      environmentMetrics: [{ temperature: 24.3, humidity: 58, co2: 741, created_at: "2026-09-02T00:00:00.000Z" }],
+    });
+  });
+
+  it("returns authenticated daily weather for the requested period", async () => {
+    const fetchMock = vi.fn(() => Promise.resolve(Response.json({
+      daily: {
+        time: ["2026-09-01", "2026-09-02"],
+        weather_code: [1, 3],
+        temperature_2m_max: [30.2, 28.4],
+        temperature_2m_min: [21.1, 20.4],
+        relative_humidity_2m_mean: [60, 67],
+        precipitation_sum: [0, 2.4],
+        sunshine_duration: [43200, 12000],
+      },
+    })));
+    vi.stubGlobal("fetch", fetchMock);
+
+    expect((await request("/api/weather")).status).toBe(401);
+    const response = await request("/api/weather?from=2026-09-01&to=2026-09-02", withApiKey(readKey));
+
+    expect(response.status).toBe(200);
+    await expect(response.json()).resolves.toEqual({
+      weather: [
+        { date: "2026-09-01", weather_code: 1, temperature_max: 30.2, temperature_min: 21.1, humidity: 60, precipitation: 0, sunshine_duration: 43200 },
+        { date: "2026-09-02", weather_code: 3, temperature_max: 28.4, temperature_min: 20.4, humidity: 67, precipitation: 2.4, sunshine_duration: 12000 },
+      ],
+    });
+
+    const requestUrl = new URL(fetchMock.mock.calls[0][0] as URL);
+    expect(requestUrl.origin + requestUrl.pathname).toBe("https://archive-api.open-meteo.com/v1/archive");
+    expect(requestUrl.searchParams.get("start_date")).toBe("2026-09-01");
+    expect(requestUrl.searchParams.get("end_date")).toBe("2026-09-02");
+  });
+
   it("serves shared browser UI modules as static assets", async () => {
     const response = await request("/api-client.js");
 
@@ -471,6 +519,23 @@ describe("Plantory API", () => {
         { plant_id: createdPlant.id, metric_type: "soil_moisture", value: 62.4 },
       ],
       moistureRanges: { soil_moisture: { lower: 48.72, upper: 61.68, direction: "decreasing" } },
+    });
+  });
+
+  it("filters authenticated metrics by date and limits the returned history", async () => {
+    await env.DB.batch([
+      env.DB.prepare("INSERT INTO plants (name) VALUES (?)").bind("履歴テスト"),
+      env.DB.prepare("INSERT INTO metrics (plant_id, metric_type, value, created_at) VALUES (?, ?, ?, ?)").bind(1, "soil_moisture", 60, "2026-09-01 00:00:00"),
+      env.DB.prepare("INSERT INTO metrics (plant_id, metric_type, value, created_at) VALUES (?, ?, ?, ?)").bind(1, "soil_moisture", 50, "2026-09-02 12:00:00"),
+      env.DB.prepare("INSERT INTO metrics (plant_id, metric_type, value, created_at) VALUES (?, ?, ?, ?)").bind(1, "soil_moisture", 40, "2026-09-03 00:00:00"),
+    ]);
+
+    const response = await request("/api/plants/1/metrics?from=2026-09-02&to=2026-09-03&limit=1", withApiKey(readKey));
+
+    expect(response.status).toBe(200);
+    await expect(response.json()).resolves.toMatchObject({
+      metrics: [{ value: 40, created_at: "2026-09-03 00:00:00" }],
+      totalCount: 3,
     });
   });
 
