@@ -1,4 +1,5 @@
 import { logout, requestJson } from "./api-client.js";
+import { differenceText, formatChartTooltipLabel, formatChartTooltipTitle, formatMoisture, formatValue, metricHistoryState } from "./presentation.js";
 import { formatDateTime, replaceWithListState, setupMobileMenu } from "./ui.js";
 
 const plantsElement = document.querySelector("#plants");
@@ -22,21 +23,6 @@ function showFeedback(message, error = false) {
 
 function showMessage(message, error = false) {
   replaceWithListState(plantsElement, message, { error });
-}
-
-function formatValue(value) {
-  return new Intl.NumberFormat("ja-JP", { maximumFractionDigits: 2 }).format(value);
-}
-
-function formatMoisture(value) {
-  return new Intl.NumberFormat("ja-JP", { maximumFractionDigits: 0 }).format(Math.round(value));
-}
-
-function differenceText(values, suffix = "") {
-  if (values.length < 2) return "比較データはまだありません";
-  const difference = values[0] - values[1];
-  if (difference === 0) return "前回と同じ";
-  return `前回から ${difference > 0 ? "+" : ""}${formatValue(difference)}${suffix}`;
 }
 
 function createMetricChart(metrics) {
@@ -83,7 +69,7 @@ function createMetricChart(metrics) {
         borderColor: "#27613a",
         borderWidth: 2,
         pointBackgroundColor: "#27613a",
-        pointRadius: history.length === 1 ? 3 : 0,
+        pointRadius: metricHistoryState(history) === "single" ? 3 : 0,
         pointHitRadius: 12,
         pointHoverRadius: 4,
         tension: 0.25,
@@ -104,10 +90,10 @@ function createMetricChart(metrics) {
           displayColors: false,
           callbacks: {
             title(items) {
-              return formatDateTime(history[items[0].dataIndex].created_at);
+              return formatChartTooltipTitle(history, items[0]?.dataIndex);
             },
             label(context) {
-              return `${context.dataset.label}: ${formatValue(context.parsed.y)}%`;
+              return formatChartTooltipLabel(context.dataset.label, context.parsed.y);
             },
           },
         },
@@ -161,7 +147,7 @@ function createPlantCard(plant, metrics, totalCount) {
     item.append(deleteButton);
   }
 
-  if (metrics.length) {
+  if (metricHistoryState(metrics) !== "empty") {
     const charts = document.createElement("div");
     charts.className = "mt-5 grid gap-3";
     charts.append(createMetricChart(metrics));
