@@ -89,14 +89,16 @@ APIキーは `Authorization: Bearer plnt_...` で送る。`read` は取得のみ
 
 | メソッド | URL | 権限 | 内容 |
 | --- | --- | --- | --- |
-| `GET` | `/api/plants/:plantId/metrics` | read | 指定した植物のmetricsを新しい順に返す。植物がなければ404。 |
+| `GET` | `/api/plants/:plantId/metrics` | read | 指定した植物の水分量を新しい順に返す。植物がなければ404。 |
 | `POST` | `/api/plants/:plantId/metrics` | write | `{ "metric_type": "soil_moisture", "value": 62.4 }` で記録する。 |
 | `DELETE` | `/api/plants/:plantId/metrics` | write | 指定した植物のmetricsをすべて削除する。植物は残し、成功時は204。 |
 
 - `metric_type` は先頭を小文字にした1〜50文字の小文字・数字・アンダースコアで指定する。
 - `value` は有限の数値で指定する。
+- `POST` の `value` はセンサーから受け取った生値として保存する。一方、`GET` は画面や観察日記で使う解釈済みの水分量だけを返す。
 - `GET /api/plants/:plantId/metrics` は任意の `from`・`to`（`YYYY-MM-DD`、両端を含む）と `limit`（1〜1000、デフォルト100）で返却対象を絞り込める。`from` は `to` 以前でなければならない。
-- `GET /api/plants/:plantId/metrics` の `moistureRanges` は種類ごとのP5（`lower`）／P95（`upper`）と正規化方向（`direction`）、`totalCount`は期間指定にかかわらずmetricsの総件数を返す。
+- `metrics` の各要素は `id`、`plant_id`、水分量を表す `value`（0〜100の整数）、`created_at` を返す。ADC値や重量などの生値、センサー種別、P5/P95レンジは返さない。
+- 水分量は、土壌水分を優先し、なければ重量の全履歴をP5/P95で正規化して算出する。`totalCount`は選択された水分量の記録総数を返す。範囲を算出できない場合、`metrics` は空配列になる。
 - metricsの削除は対象が0件でも204を返す。存在しない植物は404。
 
 ### 観察日記

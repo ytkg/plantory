@@ -13,14 +13,6 @@ const deleteDialog = document.querySelector("#delete-metrics-dialog");
 const deleteForm = document.querySelector("#delete-metrics-form");
 const deleteMessage = document.querySelector("#delete-metrics-message");
 const deleteSubmitButton = document.querySelector("#submit-delete-metrics");
-const metricLabels = {
-  soil_moisture: "土壌水分",
-  temperature: "温度",
-  humidity: "湿度",
-  light: "照度",
-  weight: "重量",
-};
-const waterSourceTypes = new Set(["soil_moisture", "weight"]);
 let pendingDelete = null;
 
 function showFeedback(message, error = false) {
@@ -30,10 +22,6 @@ function showFeedback(message, error = false) {
 
 function showMessage(message, error = false) {
   replaceWithListState(plantsElement, message, { error });
-}
-
-function metricLabel(type) {
-  return metricLabels[type] ?? type.replaceAll("_", " ");
 }
 
 function formatValue(value) {
@@ -51,24 +39,9 @@ function differenceText(values, suffix = "") {
   return `前回から ${difference > 0 ? "+" : ""}${formatValue(difference)}${suffix}`;
 }
 
-function normalizeToPercentage(value, range) {
-  if (!range || range.lower === range.upper) return null;
-  const raw = range.direction === "decreasing"
-    ? ((range.upper - value) / (range.upper - range.lower)) * 100
-    : ((value - range.lower) / (range.upper - range.lower)) * 100;
-  return Math.max(0, Math.min(100, raw));
-}
-
-function createMetricChart(type, metrics, metricRange) {
+function createMetricChart(metrics) {
   const latest = metrics[0];
   const history = metrics.slice(0, 30).reverse();
-  const range = metricRange ?? {
-    min: Math.min(...metrics.map((metric) => metric.value)),
-    max: Math.max(...metrics.map((metric) => metric.value)),
-  };
-  const isWaterSource = waterSourceTypes.has(type);
-  const normalizedHistory = history.map((metric) => normalizeToPercentage(metric.value, range));
-  const normalizedMetrics = metrics.map((metric) => normalizeToPercentage(metric.value, range));
 
   const chart = document.createElement("section");
   chart.className = "rounded-xl bg-leaf-50 p-3";
@@ -76,21 +49,21 @@ function createMetricChart(type, metrics, metricRange) {
   header.className = "flex items-baseline justify-between gap-3";
   const title = document.createElement("h4");
   title.className = "text-xs font-semibold text-stone-600";
-  title.textContent = isWaterSource ? "水分量" : metricLabel(type);
+  title.textContent = "水分量";
   const value = document.createElement("p");
   value.className = "text-lg font-semibold text-leaf-700";
-  value.textContent = isWaterSource ? `${formatMoisture(normalizedMetrics[0])}%` : formatValue(latest.value);
+  value.textContent = `${formatMoisture(latest.value)}%`;
   header.append(title, value);
 
   const detail = document.createElement("p");
   detail.className = "mt-1 text-xs text-stone-500";
-  detail.textContent = `${formatDateTime(latest.created_at)} 受信 · ${differenceText(isWaterSource ? normalizedMetrics.map(Math.round) : metrics.map((metric) => metric.value), isWaterSource ? "%" : "")}`;
+  detail.textContent = `${formatDateTime(latest.created_at)} 受信 · ${differenceText(metrics.map((metric) => metric.value), "%")}`;
 
   const graph = document.createElement("div");
   graph.className = "mt-3 h-32";
   const canvas = document.createElement("canvas");
   canvas.setAttribute("role", "img");
-  canvas.setAttribute("aria-label", `${isWaterSource ? "水分量" : metricLabel(type)}の直近${history.length}件の推移。最新値は${isWaterSource ? `${formatMoisture(normalizedMetrics[0])}%` : formatValue(latest.value)}。`);
+  canvas.setAttribute("aria-label", `水分量の直近${history.length}件の推移。最新値は${formatMoisture(latest.value)}%。`);
   graph.append(canvas);
   chart.append(header, detail, graph);
 
@@ -105,8 +78,8 @@ function createMetricChart(type, metrics, metricRange) {
     data: {
       labels: history.map((metric) => metric.created_at),
       datasets: [{
-        label: isWaterSource ? "水分量" : metricLabel(type),
-        data: isWaterSource ? normalizedHistory : history.map((metric) => metric.value),
+        label: "水分量",
+        data: history.map((metric) => metric.value),
         borderColor: "#27613a",
         borderWidth: 2,
         pointBackgroundColor: "#27613a",
@@ -127,7 +100,7 @@ function createMetricChart(type, metrics, metricRange) {
               return formatDateTime(history[items[0].dataIndex].created_at);
             },
             label(context) {
-              return `${context.dataset.label}: ${isWaterSource ? formatMoisture(context.parsed.y) : formatValue(context.parsed.y)}${isWaterSource ? "%" : ""}`;
+              return `${context.dataset.label}: ${formatMoisture(context.parsed.y)}%`;
             },
           },
         },
@@ -137,9 +110,9 @@ function createMetricChart(type, metrics, metricRange) {
         y: {
           border: { display: false },
           grid: { color: "#e5f3e8" },
-          ...(isWaterSource
-            ? { min: 0, max: 100, ticks: { color: "#78716c", callback: (value) => `${value}%`, maxTicksLimit: 3 } }
-            : { ticks: { color: "#78716c", maxTicksLimit: 3 } }),
+          min: 0,
+          max: 100,
+          ticks: { color: "#78716c", callback: (value) => `${value}%`, maxTicksLimit: 3 },
         },
       },
     },
@@ -147,7 +120,7 @@ function createMetricChart(type, metrics, metricRange) {
   return chart;
 }
 
-function createPlantCard(plant, metrics, moistureRanges, totalCount) {
+function createPlantCard(plant, metrics, totalCount) {
   const item = document.createElement("article");
   item.className = "rounded-2xl border border-leaf-100 bg-white px-5 py-5 shadow-sm";
   const heading = document.createElement("div");
@@ -160,21 +133,10 @@ function createPlantCard(plant, metrics, moistureRanges, totalCount) {
   name.textContent = plant.name;
   const summary = document.createElement("div");
   summary.append(name);
-  const groupedMetrics = new Map();
-  for (const metric of metrics) {
-    const group = groupedMetrics.get(metric.metric_type) ?? [];
-    group.push(metric);
-    groupedMetrics.set(metric.metric_type, group);
-  }
-  const waterSource = groupedMetrics.has("soil_moisture") ? "soil_moisture" : groupedMetrics.has("weight") ? "weight" : null;
-  const waterMetrics = waterSource ? groupedMetrics.get(waterSource) : null;
-  const waterRange = waterSource ? moistureRanges[waterSource] : null;
-  const hasWaterStatus = Boolean(waterMetrics?.length && waterRange && waterRange.upper !== waterRange.lower);
-  const hasOtherMetrics = metrics.some((metric) => !waterSourceTypes.has(metric.metric_type));
-  if (!metrics.length || (waterSource && !hasWaterStatus && !hasOtherMetrics)) {
+  if (!metrics.length) {
     const status = document.createElement("p");
     status.className = "mt-1 text-sm text-stone-600";
-    status.textContent = !metrics.length ? "まだ測定がありません" : "水分量を算出できるデータがありません";
+    status.textContent = totalCount === 0 ? "まだ測定がありません" : "水分量を算出できるデータがありません";
     summary.append(status);
   }
   heading.append(icon, summary);
@@ -192,14 +154,10 @@ function createPlantCard(plant, metrics, moistureRanges, totalCount) {
     item.append(deleteButton);
   }
 
-  if (groupedMetrics.size) {
+  if (metrics.length) {
     const charts = document.createElement("div");
     charts.className = "mt-5 grid gap-3";
-    for (const [type, values] of groupedMetrics) {
-      if (waterSourceTypes.has(type) && type !== waterSource) continue;
-      if (type === waterSource && !hasWaterStatus) continue;
-      charts.append(createMetricChart(type, values, moistureRanges[type]));
-    }
+    charts.append(createMetricChart(metrics));
     item.append(charts);
   }
   return item;
@@ -215,7 +173,7 @@ async function loadPlants() {
     plantCountElement.textContent = `${plants.length} 鉢`;
     if (!plants.length) return showMessage("まだ植物が登録されていません。");
     const plantsWithMetrics = await Promise.all(plants.map(async (plant) => ({ plant, ...(await loadMetrics(plant.id)) })));
-    plantsElement.replaceChildren(...plantsWithMetrics.map(({ plant, metrics, moistureRanges, totalCount }) => createPlantCard(plant, metrics, moistureRanges, totalCount)));
+    plantsElement.replaceChildren(...plantsWithMetrics.map(({ plant, metrics, totalCount }) => createPlantCard(plant, metrics, totalCount)));
   } catch {
     plantCountElement.textContent = "—";
     showMessage("植物を読み込めませんでした。", true);
