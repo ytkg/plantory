@@ -8,10 +8,15 @@ type CreatePlantInput = { name?: unknown };
 type CreateMetricInput = { metric_type?: unknown; value?: unknown };
 type WaterMetricType = "soil_moisture" | "weight";
 type MoistureMetric = Pick<Metric, "id" | "plant_id" | "created_at"> & { value: number };
+export type MetricHistory = { metrics: MoistureMetric[]; totalCount: number };
 
 export async function listPlants(c: AppContext): Promise<Response> {
-  const result = await c.env.DB.prepare("SELECT id, name, created_at, updated_at FROM plants ORDER BY id ASC").all<Plant>();
-  return c.json({ plants: result.results });
+  return c.json({ plants: await listPlantsData(c.env) });
+}
+
+export async function listPlantsData(env: Env): Promise<Plant[]> {
+  const result = await env.DB.prepare("SELECT id, name, created_at, updated_at FROM plants ORDER BY id ASC").all<Plant>();
+  return result.results;
 }
 
 export async function createPlant(c: AppContext): Promise<Response> {
@@ -39,9 +44,15 @@ async function plantExists(id: number, c: AppContext): Promise<boolean> {
 }
 
 export async function listMetrics(plantId: number, query: HistoryQuery, c: AppContext): Promise<Response> {
-  if (!(await plantExists(plantId, c))) return c.json({ error: "Plant not found." }, 404);
+  const history = await metricHistory(plantId, query, c.env);
+  return history ? c.json(history) : c.json({ error: "Plant not found." }, 404);
+}
 
-  const allWaterMetrics = await c.env.DB.prepare(
+export async function metricHistory(plantId: number, query: HistoryQuery, env: Env): Promise<MetricHistory | null> {
+  const exists = await env.DB.prepare("SELECT id FROM plants WHERE id = ? LIMIT 1").bind(plantId).first<Pick<Plant, "id">>();
+  if (!exists) return null;
+
+  const allWaterMetrics = await env.DB.prepare(
     "SELECT id, plant_id, metric_type, value, created_at FROM metrics WHERE plant_id = ? AND metric_type IN ('soil_moisture', 'weight') ORDER BY created_at DESC, id DESC",
   ).bind(plantId).all<Metric>();
   const metricType: WaterMetricType | null = allWaterMetrics.results.some((metric) => metric.metric_type === "soil_moisture")
@@ -50,7 +61,7 @@ export async function listMetrics(plantId: number, query: HistoryQuery, c: AppCo
   const sourceMetrics = metricType ? allWaterMetrics.results.filter((metric) => metric.metric_type === metricType) : [];
   const range = calculateMoistureRange(sourceMetrics.map((metric) => metric.value));
 
-  if (!metricType || !range) return c.json({ metrics: [], totalCount: sourceMetrics.length });
+  if (!metricType || !range) return { metrics: [], totalCount: sourceMetrics.length };
 
   const clauses = ["plant_id = ?", "metric_type = ?"];
   const bindings: Array<number | string> = [plantId, metricType];
@@ -64,7 +75,7 @@ export async function listMetrics(plantId: number, query: HistoryQuery, c: AppCo
   }
   bindings.push(query.limit);
 
-  const result = await c.env.DB.prepare(
+  const result = await env.DB.prepare(
     `SELECT id, plant_id, metric_type, value, created_at
      FROM metrics WHERE ${clauses.join(" AND ")} ORDER BY created_at DESC, id DESC LIMIT ?`,
   ).bind(...bindings).all<Metric>();
@@ -72,7 +83,7 @@ export async function listMetrics(plantId: number, query: HistoryQuery, c: AppCo
     const value = calculateMoisturePercentage(metric.value, range, metricType);
     return value === null ? [] : [{ id: metric.id, plant_id: metric.plant_id, value, created_at: toUtcIsoTimestamp(metric.created_at) }];
   });
-  return c.json({ metrics, totalCount: sourceMetrics.length });
+  return { metrics, totalCount: sourceMetrics.length };
 }
 
 export async function deleteMetrics(plantId: number, c: AppContext): Promise<Response> {

@@ -66,6 +66,20 @@ function withApiKey(key: string, init: RequestInit = {}): RequestInit {
   };
 }
 
+async function mcpRequest(id: number, method: string, params: unknown, key = readKey): Promise<Response> {
+  return request("/mcp", withApiKey(key, {
+    method: "POST",
+    headers: { Accept: "application/json, text/event-stream", "Content-Type": "application/json" },
+    body: JSON.stringify({ jsonrpc: "2.0", id, method, params }),
+  }));
+}
+
+async function mcpJson(response: Response): Promise<unknown> {
+  const body = await response.text();
+  const data = body.match(/^data:\s*(.+)$/m)?.[1] ?? body;
+  return JSON.parse(data);
+}
+
 function mockSignedInSession(): void {
   vi.stubGlobal("fetch", (input: RequestInfo | URL) => {
     const url = new URL(input instanceof Request ? input.url : input.toString());
@@ -105,6 +119,51 @@ describe("Plantory API", () => {
 
     expect(response.status).toBe(401);
     await expect(response.json()).resolves.toEqual({ error: "Authentication is required." });
+  });
+
+  it("exposes authenticated read-only Plantory data tools through MCP", async () => {
+    await env.DB.batch([
+      env.DB.prepare("INSERT INTO plants (name) VALUES (?)").bind("カランコエ"),
+      env.DB.prepare("INSERT INTO metrics (plant_id, metric_type, value, created_at) VALUES (?, ?, ?, ?)")
+        .bind(1, "soil_moisture", 80, "2026-09-01 15:00:00"),
+      env.DB.prepare("INSERT INTO metrics (plant_id, metric_type, value, created_at) VALUES (?, ?, ?, ?)")
+        .bind(1, "soil_moisture", 40, "2026-09-02 15:00:00"),
+    ]);
+
+    expect((await request("/mcp", { method: "POST" })).status).toBe(401);
+
+    const initialized = await mcpRequest(1, "initialize", {
+      protocolVersion: "2025-03-26",
+      capabilities: {},
+      clientInfo: { name: "plantory-test", version: "1.0.0" },
+    });
+    expect(initialized.status).toBe(200);
+    await expect(mcpJson(initialized)).resolves.toMatchObject({
+      jsonrpc: "2.0",
+      id: 1,
+      result: { serverInfo: { name: "plantory", version: "0.1.0" } },
+    });
+
+    const tools = await mcpRequest(2, "tools/list", {});
+    expect(tools.status).toBe(200);
+    const toolsResponse = await mcpJson(tools) as { result: { tools: Array<{ name: string }> } };
+    expect(toolsResponse.result.tools.map((tool) => tool.name)).toEqual([
+      "list_plants",
+      "get_plant_moisture_history",
+      "get_environment_history",
+      "get_daily_weather",
+    ]);
+
+    const history = await mcpRequest(3, "tools/call", {
+      name: "get_plant_moisture_history",
+      arguments: { plant_id: 1, from: "2026-09-02", to: "2026-09-02" },
+    });
+    expect(history.status).toBe(200);
+    const historyResponse = await mcpJson(history) as { result: { content: Array<{ text: string }> } };
+    expect(JSON.parse(historyResponse.result.content[0].text)).toMatchObject({
+      metrics: [{ value: 0, created_at: "2026-09-01T15:00:00Z" }],
+      totalCount: 2,
+    });
   });
 
   it("sets session cookies when logging in and clears both when logging out", async () => {
