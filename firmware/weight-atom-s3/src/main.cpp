@@ -26,7 +26,7 @@ void measureAndSend() {
   if (!std::isfinite(appState.lastMeasuredValue)) { showTransientMessage("測定失敗", millis()); return; }
   plantory::display::showMessage("送信中…");
   if (plantory::network::isConnected() && plantory::api::sendWeight(appState.lastMeasuredValue)) {
-    appState.lastRecordedAt = time(nullptr);
+    appState.lastSentAt = time(nullptr);
     showTransientMessage("送信完了\n重量: " + String(appState.lastMeasuredValue, 1) + "g", millis());
   } else {
     showTransientMessage("送信失敗", millis());
@@ -44,15 +44,20 @@ void handleReconnectEvent(unsigned long now) {
     case plantory::network::ReconnectEvent::None: break;
   }
 }
-bool automaticSendIsDue(unsigned long now) {
-  if (!appState.scalesReady || !appState.timeSynced || !plantory::network::isConnected() || now < uiState.messageUntil ||
-      (appState.statusChecked && now - appState.lastStatusCheckAt < plantory::config::STATUS_CHECK_MS)) return false;
-  appState.statusChecked = true;
-  appState.lastStatusCheckAt = now;
-  const auto result = plantory::api::fetchLatestRecord(appState);
-  if (result == plantory::api::LatestRecordResult::Failed) return false;
-  if (result == plantory::api::LatestRecordResult::Missing) return true;
-  return difftime(time(nullptr), appState.lastRecordedAt) >= plantory::config::AUTO_SEND_INTERVAL_SECONDS;
+bool scheduledSendIsDue(unsigned long now) {
+  struct tm current;
+  if (!appState.scalesReady || !appState.timeSynced || !plantory::network::isConnected() ||
+      !plantory::clock::getLocalTimeNow(current) || current.tm_min != 0 || current.tm_sec >= 5 ||
+      now < uiState.messageUntil) return false;
+  int slot = -1;
+  for (size_t index = 0; index < plantory::config::SEND_HOUR_COUNT; ++index) {
+    if (plantory::config::SEND_HOURS[index] == current.tm_hour) { slot = static_cast<int>(index); break; }
+  }
+  if (slot < 0) return false;
+  const long slotKey = static_cast<long>(current.tm_yday) * static_cast<long>(plantory::config::SEND_HOUR_COUNT) + slot;
+  if (slotKey == appState.lastAutoSlotKey) return false;
+  appState.lastAutoSlotKey = slotKey;
+  return true;
 }
 }  // namespace
 
@@ -107,5 +112,5 @@ void loop() {
     if (appState.scalesReady && plantory::sensor::resetZeroOffset()) { appState.lastMeasuredValue = 0.0F; showTransientMessage("ゼロ調整完了", now); }
     else { showTransientMessage("ゼロ調整失敗", now); }
   }
-  if (automaticSendIsDue(now)) measureAndSend();
+  if (scheduledSendIsDue(now)) measureAndSend();
 }

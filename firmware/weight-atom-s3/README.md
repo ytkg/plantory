@@ -2,13 +2,13 @@
 
 M5Stack ATOM S3でUnit Mini Scales（U177）の重量を読み取り、Plantoryへ送信するファームウェアです。
 
-重量をグラムで1秒ごとに大きく表示します。ゼロ付近（±1.0g）は`0.0g`として扱います。起動直後と以降1時間ごとにPlantoryの最終記録を確認し、対象植物の記録から6時間以上空いているときだけ自動送信します。ダブルタップで、100ms間隔で10回測定した平均を`weight`として即時送信します。2秒長押しでは最大5回のWi-Fi再接続を開始できます。
+重量をグラムで1秒ごとに大きく表示します。ゼロ付近（±1.0g）は`0.0g`として扱います。日本時間の0時・6時・12時・18時に自動送信し、起動直後に自動送信することはありません。ダブルタップで、100ms間隔で10回測定した平均を`weight`として即時送信します。2秒長押しでは最大5回のWi-Fi再接続を開始できます。
 
 シングルタップで、現在の荷重をゼロ点として調整します。Mini Scales本体のボタンを使う必要はありません。
 
 ## ソース構成
 
-`src/main.cpp`は起動・操作・最終記録に基づく送信判定を担当します。重量計測は`src/device/weight_sensor.*`、Wi-FiとOTAは`src/services/network.*`、時刻は`src/services/clock.*`、Plantory APIは`src/services/plantory_api.*`、画面描画は`src/ui/display.*`、状態と設定は`src/app/`に分けています。
+`src/main.cpp`は起動・操作・定時送信を担当します。重量計測は`src/device/weight_sensor.*`、Wi-FiとOTAは`src/services/network.*`、時刻は`src/services/clock.*`、Plantory APIは`src/services/plantory_api.*`、画面描画は`src/ui/display.*`、状態と設定は`src/app/`に分けています。
 
 ## 設定
 
