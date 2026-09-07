@@ -124,6 +124,10 @@ export async function latestEnvironmentMetrics(env: Env): Promise<EnvironmentSna
 }
 
 export async function listEnvironmentMetrics(query: HistoryQuery, c: AppContext): Promise<Response> {
+  return c.json({ environmentMetrics: await environmentHistory(query, c.env) });
+}
+
+export async function environmentHistory(query: HistoryQuery, env: Env): Promise<EnvironmentSnapshot[]> {
   const clauses: string[] = [];
   const bindings: Array<string | number> = [];
   if (query.from) {
@@ -136,10 +140,10 @@ export async function listEnvironmentMetrics(query: HistoryQuery, c: AppContext)
   }
   bindings.push(query.limit);
 
-  const result = await c.env.DB.prepare(
+  const result = await env.DB.prepare(
     `SELECT temperature, humidity, co2, created_at
      FROM environment_metrics${clauses.length ? ` WHERE ${clauses.join(" AND ")}` : ""}
      ORDER BY created_at DESC, id DESC LIMIT ?`,
   ).bind(...bindings).all<EnvironmentSnapshot>();
-  return c.json({ environmentMetrics: result.results });
+  return result.results;
 }

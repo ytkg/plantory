@@ -1,4 +1,7 @@
+import { createMcpHandler } from "agents/mcp/server";
 import { Hono } from "hono";
+import { authenticate, unauthorized } from "./auth";
+import { createPlantoryMcpServer } from "./mcp";
 import { apiKeyRoutes } from "./routes/api-keys";
 import { authRoutes } from "./routes/auth";
 import { environmentRoutes } from "./routes/environment";
@@ -27,7 +30,13 @@ app.onError((cause) => {
 });
 
 export default {
-  fetch: app.fetch,
+  async fetch(request, env, ctx): Promise<Response> {
+    if (new URL(request.url).pathname === "/mcp") {
+      if (!(await authenticate(request, env, "read", ctx))) return unauthorized();
+      return createMcpHandler(() => createPlantoryMcpServer(env))(request, env, ctx);
+    }
+    return app.fetch(request, env, ctx);
+  },
   async scheduled(_controller, env): Promise<void> {
     try {
       await collectEnvironmentMetrics(env);
