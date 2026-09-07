@@ -89,13 +89,14 @@ APIキーは `Authorization: Bearer plnt_...` で送る。`read` は取得のみ
 
 | メソッド | URL | 権限 | 内容 |
 | --- | --- | --- | --- |
-| `GET` | `/api/plants/:plantId/metrics` | read | 指定した植物のmetricsを新しい順に最大100件と、水分量計算用のP5/P95レンジを返す。植物がなければ404。 |
+| `GET` | `/api/plants/:plantId/metrics` | read | 指定した植物のmetricsを新しい順に返す。植物がなければ404。 |
 | `POST` | `/api/plants/:plantId/metrics` | write | `{ "metric_type": "soil_moisture", "value": 62.4 }` で記録する。 |
 | `DELETE` | `/api/plants/:plantId/metrics` | write | 指定した植物のmetricsをすべて削除する。植物は残し、成功時は204。 |
 
 - `metric_type` は先頭を小文字にした1〜50文字の小文字・数字・アンダースコアで指定する。
 - `value` は有限の数値で指定する。
-- `GET /api/plants/:plantId/metrics` の `moistureRanges` は種類ごとのP5（`lower`）／P95（`upper`）と正規化方向（`direction`）、`totalCount`はmetricsの総件数を返す。
+- `GET /api/plants/:plantId/metrics` は任意の `from`・`to`（`YYYY-MM-DD`、両端を含む）と `limit`（1〜1000、デフォルト100）で返却対象を絞り込める。`from` は `to` 以前でなければならない。
+- `GET /api/plants/:plantId/metrics` の `moistureRanges` は種類ごとのP5（`lower`）／P95（`upper`）と正規化方向（`direction`）、`totalCount`は期間指定にかかわらずmetricsの総件数を返す。
 - metricsの削除は対象が0件でも204を返す。存在しない植物は404。
 
 ### 観察日記
@@ -126,14 +127,28 @@ APIキーは `Authorization: Bearer plnt_...` で送る。`read` は取得のみ
 | --- | --- | --- | --- |
 | `GET` | `/api/environment` | 公開 | 最新の環境観測スナップショットを `environment` として返す。観測がなければ `environment: null` を返す。 |
 
-### 屋外天気情報
-
-- `src/services/weather.ts` は、西東京市周辺（緯度35.7253、経度139.5380）の現在の屋外天気をOpen-Meteoから取得する。
-- 取得項目は気温（℃）、相対湿度（%）、降水量（mm）、WMO weather code、観測時刻（日本時間）とする。
-- 天気情報はD1へ保存せず、定期取得・公開API・画面表示は行わない。観察日記の生成など、Worker内部の必要な処理からこのサービスを呼び出す。
-
 - `created_at` は最新の環境観測をWorkerが取得した時刻を返す。
 - `GET` 以外は405を返す。CORSとキャッシュは設定しない。
+
+### 環境履歴
+
+| メソッド | URL | 権限 | 内容 |
+| --- | --- | --- | --- |
+| `GET` | `/api/environment/metrics` | read | 室内環境の観測履歴を新しい順に `environmentMetrics` として返す。 |
+
+- 任意の `from`・`to`（`YYYY-MM-DD`、両端を含む）と `limit`（1〜1000、デフォルト100）で返却対象を絞り込める。`from` は `to` 以前でなければならない。
+- 公開の `/api/environment` はトップページ用の最新値のみを返し、履歴は公開しない。
+
+### 屋外天気情報
+
+| メソッド | URL | 権限 | 内容 |
+| --- | --- | --- | --- |
+| `GET` | `/api/weather` | read | 指定期間の西東京市周辺の屋外天気を日別配列 `weather` として返す。 |
+
+- `from`・`to`（ともに`YYYY-MM-DD`、両端を含む）は必須である。
+- 各日には日付、WMO weather code、最高／最低気温（℃）、平均相対湿度（%）、降水量（mm）、日照時間（秒）を含める。
+- Open-Meteoの履歴天気APIから取得し、天気情報はD1へ保存しない。定期取得・公開API・画面表示は行わない。
+- 公開APIを増やさず、詳細な天気情報はread権限のAPIキーまたはログインCookieが必要である。
 
 - 観察日記は、AIがその時点で取得できるmetricsの量・直近性・変化を判断して、全植物をまとめて考察する。
 - metricsがない場合は観察日記を作成しない。
