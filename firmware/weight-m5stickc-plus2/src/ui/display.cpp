@@ -41,7 +41,9 @@ void showMainScreen(const AppState& state) {
   M5.Display.setTextSize(1);
   M5.Display.drawString(state.plantName, M5.Display.width() / 2, 15);
   M5.Display.drawString("重量", M5.Display.width() / 2, 37);
-  const String weightText = isnan(state.lastMeasuredValue) ? "--g" : String(state.lastMeasuredValue, 1) + "g";
+  const String weightText = isnan(state.lastMeasuredValue)
+                                ? "--g"
+                                : String(lroundf(state.lastMeasuredValue)) + "g";
   M5.Display.setTextSize(weightText.length() <= 6 ? 3 : 2);
   M5.Display.setTextColor(TFT_GREEN, TFT_BLACK);
   M5.Display.drawString(weightText, M5.Display.width() / 2, 78);

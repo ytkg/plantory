@@ -43,7 +43,7 @@ bool sendWeight(float value) {
   http.addHeader("Content-Type", "application/json");
   JsonDocument document;
   document["metric_type"] = "weight";
-  document["value"] = value;
+  document["value"] = roundf(value);
   String body;
   serializeJson(document, body);
   const int statusCode = http.POST(body);
