@@ -1,0 +1,3 @@
+interface:
+  display_name: "Plantory 観察日記の下書き"
+  short_description: "Plantoryのデータから観察日記の下書きを作成"
