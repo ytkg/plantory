@@ -10,6 +10,5 @@ using WaitHandler = void (*)();
 bool syncJst(WaitHandler onWait);
 bool getLocalTimeNow(struct tm& localTime);
 String formatTime(time_t timestamp);
-String nextSendText(const struct tm& current);
 
 }  // namespace plantory::clock

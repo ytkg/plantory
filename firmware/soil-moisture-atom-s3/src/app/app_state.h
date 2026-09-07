@@ -7,8 +7,9 @@ namespace plantory {
 
 struct AppState {
   String plantName = "Plantory";
-  time_t lastSentAt = 0;
-  long lastAutoSlotKey = -1;
+  time_t lastRecordedAt = 0;
+  unsigned long lastStatusCheckAt = 0;
+  bool statusChecked = false;
   int lastMeasuredValue = -1;
   int moisturePercentage = -1;
   bool timeSynced = false;
@@ -27,8 +28,10 @@ struct UiState {
 
 struct ButtonState {
   unsigned long pressedAt = 0;
+  unsigned long firstTapAt = 0;
   bool pressActive = false;
   bool longPressHandled = false;
+  bool singleTapPending = false;
 };
 
 }  // namespace plantory

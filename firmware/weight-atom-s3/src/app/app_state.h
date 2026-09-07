@@ -6,8 +6,9 @@
 namespace plantory {
 struct AppState {
   String plantName = "Plantory";
-  time_t lastSentAt = 0;
-  long lastAutoSlotKey = -1;
+  time_t lastRecordedAt = 0;
+  unsigned long lastStatusCheckAt = 0;
+  bool statusChecked = false;
   float lastMeasuredValue = NAN;
   bool timeSynced = false;
   bool scalesReady = false;

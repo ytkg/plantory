@@ -35,7 +35,7 @@ void measureAndSend() {
 
   plantory::display::showMessage("送信中…");
   if (plantory::network::isConnected() && plantory::api::sendSoilMoisture(appState.lastMeasuredValue)) {
-    appState.lastSentAt = time(nullptr);
+    appState.lastRecordedAt = time(nullptr);
     if (plantory::api::fetchMoisturePercentage(appState)) {
       plantory::display::showMessage("送信完了\n水分量: " + String(appState.moisturePercentage) + "%");
     } else {
@@ -76,27 +76,17 @@ void handleReconnectEvent(unsigned long now) {
   }
 }
 
-bool scheduledSendIsDue(unsigned long now) {
-  struct tm current;
-  if (!appState.timeSynced || !plantory::network::isConnected() || !plantory::clock::getLocalTimeNow(current) ||
-      current.tm_min != 0 || current.tm_sec >= 5 || now < uiState.messageUntil) {
+bool automaticSendIsDue(unsigned long now) {
+  if (!appState.timeSynced || !plantory::network::isConnected() || now < uiState.messageUntil ||
+      (appState.statusChecked && now - appState.lastStatusCheckAt < plantory::config::STATUS_CHECK_MS)) {
     return false;
   }
-
-  int slot = -1;
-  for (size_t index = 0; index < plantory::config::SEND_HOUR_COUNT; ++index) {
-    if (plantory::config::SEND_HOURS[index] == current.tm_hour) {
-      slot = static_cast<int>(index);
-      break;
-    }
-  }
-  if (slot < 0) return false;
-
-  const long slotKey = static_cast<long>(current.tm_yday) * static_cast<long>(plantory::config::SEND_HOUR_COUNT) + slot;
-  if (slotKey == appState.lastAutoSlotKey) return false;
-
-  appState.lastAutoSlotKey = slotKey;
-  return true;
+  appState.statusChecked = true;
+  appState.lastStatusCheckAt = now;
+  const auto result = plantory::api::fetchLatestRecord(appState);
+  if (result == plantory::api::LatestRecordResult::Failed) return false;
+  if (result == plantory::api::LatestRecordResult::Missing) return true;
+  return difftime(time(nullptr), appState.lastRecordedAt) >= plantory::config::AUTO_SEND_INTERVAL_SECONDS;
 }
 }  // namespace
 
@@ -148,6 +138,7 @@ void loop() {
   if (buttonState.pressActive && M5.BtnA.isPressed() && !buttonState.longPressHandled &&
       now - buttonState.pressedAt >= plantory::config::LONG_PRESS_MS) {
     buttonState.longPressHandled = true;
+    buttonState.singleTapPending = false;
     plantory::network::startReconnect();
     showReconnectProgress();
   }
@@ -155,13 +146,23 @@ void loop() {
   if (buttonState.pressActive && M5.BtnA.wasReleased()) {
     buttonState.pressActive = false;
     if (!buttonState.longPressHandled) {
-      if (plantory::network::isConnected()) {
-        measureAndSend();
+      if (buttonState.singleTapPending && now - buttonState.firstTapAt <= plantory::config::DOUBLE_TAP_WINDOW_MS) {
+        buttonState.singleTapPending = false;
+        if (plantory::network::isConnected()) {
+          measureAndSend();
+        } else {
+          showTransientMessage("Wi-Fi未接続", now);
+        }
       } else {
-        showTransientMessage("Wi-Fi未接続", now);
+        buttonState.singleTapPending = true;
+        buttonState.firstTapAt = now;
       }
     }
   }
 
-  if (scheduledSendIsDue(now)) measureAndSend();
+  if (buttonState.singleTapPending && now - buttonState.firstTapAt > plantory::config::DOUBLE_TAP_WINDOW_MS) {
+    buttonState.singleTapPending = false;
+  }
+
+  if (automaticSendIsDue(now)) measureAndSend();
 }
