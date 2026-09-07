@@ -1,5 +1,6 @@
 export function formatDateTime(value) {
-  const date = new Date(`${value.replace(" ", "T")}Z`);
+  const normalized = value.includes("T") ? value : `${value.replace(" ", "T")}Z`;
+  const date = new Date(normalized);
   return new Intl.DateTimeFormat("ja-JP", {
     month: "numeric",
     day: "numeric",
