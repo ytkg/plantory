@@ -1,5 +1,6 @@
 import { calculateMoisturePercentage, calculateMoistureRange } from "../moisture";
 import type { AppContext } from "../routes/context";
+import { toUtcIsoTimestamp } from "../time";
 import type { Metric, Plant } from "../types";
 import type { HistoryQuery } from "../validation";
 
@@ -54,11 +55,11 @@ export async function listMetrics(plantId: number, query: HistoryQuery, c: AppCo
   const clauses = ["plant_id = ?", "metric_type = ?"];
   const bindings: Array<number | string> = [plantId, metricType];
   if (query.from) {
-    clauses.push("datetime(created_at) >= datetime(?)");
+    clauses.push("datetime(created_at) >= datetime(?, '-9 hours')");
     bindings.push(query.from);
   }
   if (query.to) {
-    clauses.push("datetime(created_at) < datetime(?, '+1 day')");
+    clauses.push("datetime(created_at) < datetime(?, '+1 day', '-9 hours')");
     bindings.push(query.to);
   }
   bindings.push(query.limit);
@@ -69,7 +70,7 @@ export async function listMetrics(plantId: number, query: HistoryQuery, c: AppCo
   ).bind(...bindings).all<Metric>();
   const metrics = result.results.flatMap((metric): MoistureMetric[] => {
     const value = calculateMoisturePercentage(metric.value, range, metricType);
-    return value === null ? [] : [{ id: metric.id, plant_id: metric.plant_id, value, created_at: metric.created_at }];
+    return value === null ? [] : [{ id: metric.id, plant_id: metric.plant_id, value, created_at: toUtcIsoTimestamp(metric.created_at) }];
   });
   return c.json({ metrics, totalCount: sourceMetrics.length });
 }
@@ -98,5 +99,8 @@ export async function createMetric(plantId: number, c: AppContext): Promise<Resp
      VALUES (?, ?, ?, CURRENT_TIMESTAMP)
      RETURNING id, plant_id, metric_type, value, created_at`,
   ).bind(plantId, input.metric_type, input.value).all<Metric>();
-  return result.results[0] ? c.json({ metric: result.results[0] }, 201) : c.json({ error: "Could not create metric." }, 500);
+  const metric = result.results[0];
+  return metric
+    ? c.json({ metric: { ...metric, created_at: toUtcIsoTimestamp(metric.created_at) } }, 201)
+    : c.json({ error: "Could not create metric." }, 500);
 }

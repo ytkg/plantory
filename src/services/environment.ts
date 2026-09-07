@@ -127,11 +127,11 @@ export async function listEnvironmentMetrics(query: HistoryQuery, c: AppContext)
   const clauses: string[] = [];
   const bindings: Array<string | number> = [];
   if (query.from) {
-    clauses.push("datetime(created_at) >= datetime(?)");
+    clauses.push("datetime(created_at) >= datetime(?, '-9 hours')");
     bindings.push(query.from);
   }
   if (query.to) {
-    clauses.push("datetime(created_at) < datetime(?, '+1 day')");
+    clauses.push("datetime(created_at) < datetime(?, '+1 day', '-9 hours')");
     bindings.push(query.to);
   }
   bindings.push(query.limit);
