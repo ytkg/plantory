@@ -33,7 +33,7 @@ void measureAndSend() {
   plantory::display::showMessage("送信中…");
   if (plantory::network::isConnected() && plantory::api::sendWeight(appState.lastMeasuredValue)) {
     appState.lastSentAt = time(nullptr);
-    showTransientMessage("送信完了\n重量: " + String(appState.lastMeasuredValue, 1) + "g", millis());
+    showTransientMessage("送信完了\n重量: " + String(lroundf(appState.lastMeasuredValue)) + "g", millis());
   } else {
     showTransientMessage("送信失敗", millis());
   }
