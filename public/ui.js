@@ -1,14 +1,4 @@
-export function formatDateTime(value) {
-  const normalized = value.includes("T") ? value : `${value.replace(" ", "T")}Z`;
-  const date = new Date(normalized);
-  return new Intl.DateTimeFormat("ja-JP", {
-    timeZone: "Asia/Tokyo",
-    month: "numeric",
-    day: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
-  }).format(date);
-}
+export { formatDateTime } from "./presentation.js";
 
 export function listStateCard(text, { error = false } = {}) {
   const element = document.createElement("p");
