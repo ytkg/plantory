@@ -513,12 +513,12 @@ describe("Plantory API", () => {
 
     const listed = await request(`/api/plants/${createdPlant.id}/metrics`, withApiKey(readKey));
     expect(listed.status).toBe(200);
-    await expect(listed.json()).resolves.toMatchObject({
+    await expect(listed.json()).resolves.toEqual({
       metrics: [
-        { plant_id: createdPlant.id, metric_type: "soil_moisture", value: 48 },
-        { plant_id: createdPlant.id, metric_type: "soil_moisture", value: 62.4 },
+        { id: expect.any(Number), plant_id: createdPlant.id, value: 100, created_at: expect.any(String) },
+        { id: expect.any(Number), plant_id: createdPlant.id, value: 0, created_at: expect.any(String) },
       ],
-      moistureRanges: { soil_moisture: { lower: 48.72, upper: 61.68, direction: "decreasing" } },
+      totalCount: 2,
     });
   });
 
@@ -534,7 +534,7 @@ describe("Plantory API", () => {
 
     expect(response.status).toBe(200);
     await expect(response.json()).resolves.toMatchObject({
-      metrics: [{ value: 40, created_at: "2026-09-03 00:00:00" }],
+      metrics: [{ value: 100, created_at: "2026-09-03 00:00:00" }],
       totalCount: 3,
     });
   });
@@ -549,7 +549,7 @@ describe("Plantory API", () => {
     ]);
 
     const listed = await request("/api/plants/1/metrics", withApiKey(readKey));
-    await expect(listed.json()).resolves.toMatchObject({ totalCount: 2 });
+    await expect(listed.json()).resolves.toMatchObject({ totalCount: 1 });
 
     const deleted = await request("/api/plants/1/metrics", withApiKey(writeKey, { method: "DELETE" }));
     expect(deleted.status).toBe(204);
@@ -595,7 +595,7 @@ describe("Plantory API", () => {
       env.DB.prepare("INSERT INTO metrics (plant_id, metric_type, value, created_at) VALUES (?, ?, ?, ?)").bind(1, "soil_moisture", 40, "2026-01-02 00:00:00"),
     ]);
     const response = await request("/api/plants/1/metrics", withApiKey(readKey));
-    await expect(response.json()).resolves.toMatchObject({ metrics: [{ value: 40 }, { value: 80 }] });
+    await expect(response.json()).resolves.toMatchObject({ metrics: [{ value: 100 }, { value: 0 }] });
   });
 
   it("only permits deleting a revoked API key from a signed-in session", async () => {

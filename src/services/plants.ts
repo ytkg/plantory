@@ -1,10 +1,12 @@
-import { calculateMoistureRange, getMoistureDirection } from "../moisture";
+import { calculateMoisturePercentage, calculateMoistureRange } from "../moisture";
 import type { AppContext } from "../routes/context";
 import type { Metric, Plant } from "../types";
 import type { HistoryQuery } from "../validation";
 
 type CreatePlantInput = { name?: unknown };
 type CreateMetricInput = { metric_type?: unknown; value?: unknown };
+type WaterMetricType = "soil_moisture" | "weight";
+type MoistureMetric = Pick<Metric, "id" | "plant_id" | "created_at"> & { value: number };
 
 export async function listPlants(c: AppContext): Promise<Response> {
   const result = await c.env.DB.prepare("SELECT id, name, created_at, updated_at FROM plants ORDER BY id ASC").all<Plant>();
@@ -38,8 +40,19 @@ async function plantExists(id: number, c: AppContext): Promise<boolean> {
 export async function listMetrics(plantId: number, query: HistoryQuery, c: AppContext): Promise<Response> {
   if (!(await plantExists(plantId, c))) return c.json({ error: "Plant not found." }, 404);
 
-  const clauses = ["plant_id = ?"];
-  const bindings: Array<number | string> = [plantId];
+  const allWaterMetrics = await c.env.DB.prepare(
+    "SELECT id, plant_id, metric_type, value, created_at FROM metrics WHERE plant_id = ? AND metric_type IN ('soil_moisture', 'weight') ORDER BY created_at DESC, id DESC",
+  ).bind(plantId).all<Metric>();
+  const metricType: WaterMetricType | null = allWaterMetrics.results.some((metric) => metric.metric_type === "soil_moisture")
+    ? "soil_moisture"
+    : allWaterMetrics.results.some((metric) => metric.metric_type === "weight") ? "weight" : null;
+  const sourceMetrics = metricType ? allWaterMetrics.results.filter((metric) => metric.metric_type === metricType) : [];
+  const range = calculateMoistureRange(sourceMetrics.map((metric) => metric.value));
+
+  if (!metricType || !range) return c.json({ metrics: [], totalCount: sourceMetrics.length });
+
+  const clauses = ["plant_id = ?", "metric_type = ?"];
+  const bindings: Array<number | string> = [plantId, metricType];
   if (query.from) {
     clauses.push("datetime(created_at) >= datetime(?)");
     bindings.push(query.from);
@@ -50,22 +63,15 @@ export async function listMetrics(plantId: number, query: HistoryQuery, c: AppCo
   }
   bindings.push(query.limit);
 
-  const [result, rangeResult, countResult] = await Promise.all([
-    c.env.DB.prepare(
-      `SELECT id, plant_id, metric_type, value, created_at
-       FROM metrics WHERE ${clauses.join(" AND ")} ORDER BY created_at DESC, id DESC LIMIT ?`,
-    ).bind(...bindings).all<Metric>(),
-    c.env.DB.prepare("SELECT metric_type, value FROM metrics WHERE plant_id = ? AND metric_type IN ('soil_moisture', 'weight')").bind(plantId).all<{ metric_type: string; value: number }>(),
-    c.env.DB.prepare("SELECT COUNT(*) AS total_count FROM metrics WHERE plant_id = ?").bind(plantId).first<{ total_count: number }>(),
-  ]);
-  const moistureRanges = Object.fromEntries(
-    ["soil_moisture", "weight"].flatMap((type) => {
-      const range = calculateMoistureRange(rangeResult.results.filter((metric) => metric.metric_type === type).map((metric) => metric.value));
-      const direction = getMoistureDirection(type);
-      return range && direction ? [[type, { ...range, direction }]] : [];
-    }),
-  );
-  return c.json({ metrics: result.results, moistureRanges, totalCount: countResult?.total_count ?? 0 });
+  const result = await c.env.DB.prepare(
+    `SELECT id, plant_id, metric_type, value, created_at
+     FROM metrics WHERE ${clauses.join(" AND ")} ORDER BY created_at DESC, id DESC LIMIT ?`,
+  ).bind(...bindings).all<Metric>();
+  const metrics = result.results.flatMap((metric): MoistureMetric[] => {
+    const value = calculateMoisturePercentage(metric.value, range, metricType);
+    return value === null ? [] : [{ id: metric.id, plant_id: metric.plant_id, value, created_at: metric.created_at }];
+  });
+  return c.json({ metrics, totalCount: sourceMetrics.length });
 }
 
 export async function deleteMetrics(plantId: number, c: AppContext): Promise<Response> {
