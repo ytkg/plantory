@@ -277,9 +277,9 @@ describe("Plantory API", () => {
     const response = await request("/api/status");
     expect(response.status).toBe(200);
     await expect(response.json()).resolves.toEqual([
-      { plant_id: 1, name: "カランコエ", moisture: 0, recorded_at: "2026-09-07 01:00:00" },
-      { plant_id: 2, name: "苔玉", moisture: 100, recorded_at: "2026-09-07 05:00:00" },
-      { plant_id: 4, name: "丸葉", moisture: 33, recorded_at: "2026-09-07 08:00:00" },
+      { plant_id: 1, name: "カランコエ", moisture: 0, recorded_at: "2026-09-07T01:00:00Z" },
+      { plant_id: 2, name: "苔玉", moisture: 100, recorded_at: "2026-09-07T05:00:00Z" },
+      { plant_id: 4, name: "丸葉", moisture: 33, recorded_at: "2026-09-07T08:00:00Z" },
     ]);
   });
 
@@ -326,9 +326,9 @@ describe("Plantory API", () => {
   it("returns authenticated room environment history within a requested date range", async () => {
     await env.DB.batch([
       env.DB.prepare("INSERT INTO environment_metrics (temperature, humidity, co2, created_at) VALUES (?, ?, ?, ?)")
-        .bind(20.5, 55, 700, "2026-09-01T00:00:00.000Z"),
+        .bind(20.5, 55, 700, "2026-09-01T14:59:59.000Z"),
       env.DB.prepare("INSERT INTO environment_metrics (temperature, humidity, co2, created_at) VALUES (?, ?, ?, ?)")
-        .bind(24.3, 58, 741, "2026-09-02T00:00:00.000Z"),
+        .bind(24.3, 58, 741, "2026-09-01T15:00:00.000Z"),
     ]);
 
     expect((await request("/api/environment/metrics")).status).toBe(401);
@@ -336,7 +336,7 @@ describe("Plantory API", () => {
 
     expect(response.status).toBe(200);
     await expect(response.json()).resolves.toEqual({
-      environmentMetrics: [{ temperature: 24.3, humidity: 58, co2: 741, created_at: "2026-09-02T00:00:00.000Z" }],
+      environmentMetrics: [{ temperature: 24.3, humidity: 58, co2: 741, created_at: "2026-09-01T15:00:00.000Z" }],
     });
   });
 
@@ -525,16 +525,16 @@ describe("Plantory API", () => {
   it("filters authenticated metrics by date and limits the returned history", async () => {
     await env.DB.batch([
       env.DB.prepare("INSERT INTO plants (name) VALUES (?)").bind("履歴テスト"),
-      env.DB.prepare("INSERT INTO metrics (plant_id, metric_type, value, created_at) VALUES (?, ?, ?, ?)").bind(1, "soil_moisture", 60, "2026-09-01 00:00:00"),
-      env.DB.prepare("INSERT INTO metrics (plant_id, metric_type, value, created_at) VALUES (?, ?, ?, ?)").bind(1, "soil_moisture", 50, "2026-09-02 12:00:00"),
-      env.DB.prepare("INSERT INTO metrics (plant_id, metric_type, value, created_at) VALUES (?, ?, ?, ?)").bind(1, "soil_moisture", 40, "2026-09-03 00:00:00"),
+      env.DB.prepare("INSERT INTO metrics (plant_id, metric_type, value, created_at) VALUES (?, ?, ?, ?)").bind(1, "soil_moisture", 60, "2026-09-01 14:59:59"),
+      env.DB.prepare("INSERT INTO metrics (plant_id, metric_type, value, created_at) VALUES (?, ?, ?, ?)").bind(1, "soil_moisture", 50, "2026-09-01 15:00:00"),
+      env.DB.prepare("INSERT INTO metrics (plant_id, metric_type, value, created_at) VALUES (?, ?, ?, ?)").bind(1, "soil_moisture", 40, "2026-09-02 15:00:00"),
     ]);
 
-    const response = await request("/api/plants/1/metrics?from=2026-09-02&to=2026-09-03&limit=1", withApiKey(readKey));
+    const response = await request("/api/plants/1/metrics?from=2026-09-02&to=2026-09-02&limit=1", withApiKey(readKey));
 
     expect(response.status).toBe(200);
     await expect(response.json()).resolves.toMatchObject({
-      metrics: [{ value: 100, created_at: "2026-09-03 00:00:00" }],
+      metrics: [{ value: 50, created_at: "2026-09-01T15:00:00Z" }],
       totalCount: 3,
     });
   });

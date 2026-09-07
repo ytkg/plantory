@@ -1,3 +1,5 @@
+import { toUtcIsoTimestamp } from "./time";
+
 export type MoistureMetric = {
   plant_id: number;
   name: string;
@@ -65,7 +67,7 @@ export function toMoistureStatus(metric: MoistureMetric): MoistureStatus | null 
     plant_id: metric.plant_id,
     name: metric.name,
     moisture,
-    recorded_at: metric.created_at,
+    recorded_at: toUtcIsoTimestamp(metric.created_at),
   };
 }
 

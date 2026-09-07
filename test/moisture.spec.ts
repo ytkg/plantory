@@ -14,15 +14,15 @@ const metric = (plant_id: number, name: string, metric_type: string, value: numb
 describe("moisture status calculation", () => {
   it("calculates linearly interpolated P5 and P95 ranges", () => {
     expect(calculateMoistureRange([0, 10, 20, 30, 40])).toEqual({ lower: 2, upper: 38 });
-    expect(toMoistureStatus(metric(1, "鉢", "weight", -10, 2, 38))).toEqual({ plant_id: 1, name: "鉢", moisture: 0, recorded_at: "2026-09-07 00:00:00" });
-    expect(toMoistureStatus(metric(1, "鉢", "weight", 50, 2, 38))).toEqual({ plant_id: 1, name: "鉢", moisture: 100, recorded_at: "2026-09-07 00:00:00" });
+    expect(toMoistureStatus(metric(1, "鉢", "weight", -10, 2, 38))).toEqual({ plant_id: 1, name: "鉢", moisture: 0, recorded_at: "2026-09-07T00:00:00Z" });
+    expect(toMoistureStatus(metric(1, "鉢", "weight", 50, 2, 38))).toEqual({ plant_id: 1, name: "鉢", moisture: 100, recorded_at: "2026-09-07T00:00:00Z" });
   });
 
   it("inverts soil moisture and rounds the relative value", () => {
     expect(buildMoistureStatuses([
       metric(1, "カランコエ", "weight", 90, 10, 90),
       metric(1, "カランコエ", "soil_moisture", 17, 10, 31),
-    ])).toEqual([{ plant_id: 1, name: "カランコエ", moisture: 67, recorded_at: "2026-09-07 00:00:00" }]);
+    ])).toEqual([{ plant_id: 1, name: "カランコエ", moisture: 67, recorded_at: "2026-09-07T00:00:00Z" }]);
   });
 
   it("maps soil moisture P5 to 100% and P95 to 0%, including clamping", () => {
@@ -50,8 +50,8 @@ describe("moisture status calculation", () => {
       metric(2, "同じ名前", "weight", 2, 0, 3),
       metric(3, "記録なし", "soil_moisture", 5, 5, 5),
     ])).toEqual([
-      { plant_id: 1, name: "同じ名前", moisture: 33, recorded_at: "2026-09-07 00:00:00" },
-      { plant_id: 2, name: "同じ名前", moisture: 67, recorded_at: "2026-09-07 00:00:00" },
+      { plant_id: 1, name: "同じ名前", moisture: 33, recorded_at: "2026-09-07T00:00:00Z" },
+      { plant_id: 2, name: "同じ名前", moisture: 67, recorded_at: "2026-09-07T00:00:00Z" },
     ]);
   });
 });

@@ -96,8 +96,8 @@ APIキーは `Authorization: Bearer plnt_...` で送る。`read` は取得のみ
 - `metric_type` は先頭を小文字にした1〜50文字の小文字・数字・アンダースコアで指定する。
 - `value` は有限の数値で指定する。
 - `POST` の `value` はセンサーから受け取った生値として保存する。一方、`GET` は画面や観察日記で使う解釈済みの水分量だけを返す。
-- `GET /api/plants/:plantId/metrics` は任意の `from`・`to`（`YYYY-MM-DD`、両端を含む）と `limit`（1〜1000、デフォルト100）で返却対象を絞り込める。`from` は `to` 以前でなければならない。
-- `metrics` の各要素は `id`、`plant_id`、水分量を表す `value`（0〜100の整数）、`created_at` を返す。ADC値や重量などの生値、センサー種別、P5/P95レンジは返さない。
+- `GET /api/plants/:plantId/metrics` は任意の `from`・`to`（`YYYY-MM-DD`、日本時間の暦日・両端を含む）と `limit`（1〜1000、デフォルト100）で返却対象を絞り込める。`from` は `to` 以前でなければならない。
+- `metrics` の各要素は `id`、`plant_id`、水分量を表す `value`（0〜100の整数）、UTCを明示したISO 8601形式の`created_at`を返す。ADC値や重量などの生値、センサー種別、P5/P95レンジは返さない。
 - 水分量は、土壌水分を優先し、なければ重量の全履歴をP5/P95で正規化して算出する。`totalCount`は選択された水分量の記録総数を返す。範囲を算出できない場合、`metrics` は空配列になる。
 - metricsの削除は対象が0件でも204を返す。存在しない植物は404。
 
@@ -119,7 +119,7 @@ APIキーは `Authorization: Bearer plnt_...` で送る。`read` は取得のみ
 - 水分系metricは `soil_moisture` を優先し、なければ `weight` を使う。
 - 選択した種類の全履歴からP5/P95を線形補間で求める。`soil_moisture`はP5を100%、P95を0%、`weight`はP5を0%、P95を100%として最新値を四捨五入する。範囲外は0〜100%にクランプする。
 - 方向が定義されていない種類、またはP5とP95が同じ植物は除外する。
-- `recorded_at`は、水分量の算出元として選択した種類の最新metricにある`created_at`をそのまま返す。`soil_moisture`を優先するため、より新しい`weight`が存在しても`soil_moisture`の時刻を返す。
+- `recorded_at`は、水分量の算出元として選択した種類の最新metricにある`created_at`をUTCを明示したISO 8601形式で返す。`soil_moisture`を優先するため、より新しい`weight`が存在しても`soil_moisture`の時刻を返す。
 - `GET` 以外は405を返す。CORSとキャッシュは設定しない。
 - `soil-moisture-atom-s3` は起動時と土壌水分の送信成功後にこのAPIから設定済みの`PLANT_ID`の水分量を取得して表示する。通常表示中の定期取得は行わない。取得に失敗しても最後に取得した値を維持し、未取得の場合は`--%`を表示する。
 
@@ -138,7 +138,7 @@ APIキーは `Authorization: Bearer plnt_...` で送る。`read` は取得のみ
 | --- | --- | --- | --- |
 | `GET` | `/api/environment/metrics` | read | 室内環境の観測履歴を新しい順に `environmentMetrics` として返す。 |
 
-- 任意の `from`・`to`（`YYYY-MM-DD`、両端を含む）と `limit`（1〜1000、デフォルト100）で返却対象を絞り込める。`from` は `to` 以前でなければならない。
+- 任意の `from`・`to`（`YYYY-MM-DD`、日本時間の暦日・両端を含む）と `limit`（1〜1000、デフォルト100）で返却対象を絞り込める。`from` は `to` 以前でなければならない。
 - 公開の `/api/environment` はトップページ用の最新値のみを返し、履歴は公開しない。
 
 ### 屋外天気情報
