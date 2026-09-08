@@ -1,4 +1,7 @@
 import type { DailyReport } from "../types";
+import { desc, sql } from "drizzle-orm";
+import { db } from "../db";
+import { dailyReports } from "../db/schema";
 import type { AppContext } from "../routes/context";
 
 type UpsertReportInput = { content?: unknown };
@@ -10,13 +13,7 @@ function validDate(value: string): boolean {
 }
 
 export async function listReportsData(env: Env): Promise<DailyReport[]> {
-  const result = await env.DB.prepare(
-    `SELECT id, date, content, created_at, updated_at
-     FROM daily_reports
-     ORDER BY date DESC
-     LIMIT 30`,
-  ).all<DailyReport>();
-  return result.results;
+  return (await db(env.DB).select({ id: dailyReports.id, date: dailyReports.date, content: dailyReports.content, created_at: dailyReports.createdAt, updated_at: dailyReports.updatedAt }).from(dailyReports).orderBy(desc(dailyReports.date)).limit(30).all()) as DailyReport[];
 }
 
 export async function upsertReportData(
@@ -31,14 +28,8 @@ export async function upsertReportData(
     return { error: "content must contain 1 to 10000 characters." };
   }
 
-  const result = await env.DB.prepare(
-    `INSERT INTO daily_reports (date, content, created_at, updated_at)
-     VALUES (?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
-     ON CONFLICT(date) DO UPDATE SET content = excluded.content, updated_at = CURRENT_TIMESTAMP
-     RETURNING id, date, content, created_at, updated_at`,
-  ).bind(date, content).all<DailyReport>();
-
-  return result.results[0] ? { report: result.results[0] } : { error: "Could not save report." };
+  const result = await db(env.DB).insert(dailyReports).values({ date, content, createdAt: sql`CURRENT_TIMESTAMP`, updatedAt: sql`CURRENT_TIMESTAMP` }).onConflictDoUpdate({ target: dailyReports.date, set: { content, updatedAt: sql`CURRENT_TIMESTAMP` } }).returning({ id: dailyReports.id, date: dailyReports.date, content: dailyReports.content, created_at: dailyReports.createdAt, updated_at: dailyReports.updatedAt }).all();
+  return result[0] ? { report: result[0] as DailyReport } : { error: "Could not save report." };
 }
 
 export async function listReports(c: AppContext): Promise<Response> {
