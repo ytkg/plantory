@@ -1,6 +1,6 @@
 import { McpServer } from "@modelcontextprotocol/server";
 import { environmentHistory } from "./services/environment";
-import { listPlantsData, metricHistory } from "./services/plants";
+import { listPlantsData, metricHistory, plantObservationData } from "./services/plants";
 import { fetchDailyWeather } from "./services/weather";
 import { historyQuery, type HistoryQuery } from "./validation";
 import { z } from "zod";
@@ -48,6 +48,20 @@ export function createPlantoryMcpServer(env: Env): McpServer {
       if (typeof query === "string") return error(query);
       const history = await metricHistory(plant_id, query, env);
       return history ? result(history) : error("Plant not found.");
+    },
+  );
+
+  server.registerTool(
+    "get_plant_observation_data",
+    {
+      description: "観察日記のために、指定した植物の正規化済み水分量履歴、生値の履歴、正規化の採用元・方向・P5/P95をまとめて取得する。生値はmetric_typeごとに返り、日時はUTCのISO 8601形式で返る。from/toは日本時間の暦日として扱う。",
+      inputSchema: { plant_id: z.number().int().positive().describe("植物ID。"), ...historyInputSchema },
+    },
+    async ({ plant_id, from, to, limit }) => {
+      const query = parseHistoryInput({ from, to, limit });
+      if (typeof query === "string") return error(query);
+      const observation = await plantObservationData(plant_id, query, env);
+      return observation ? result(observation) : error("Plant not found.");
     },
   );
 

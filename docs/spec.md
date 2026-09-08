@@ -161,11 +161,13 @@ APIキーは `Authorization: Bearer plnt_...` で送る。`read` は取得のみ
 | --- | --- | --- |
 | `list_plants` | read | 植物をID昇順で取得する。 |
 | `get_plant_moisture_history` | read | 指定した植物の正規化済み水分量履歴を取得する。 |
+| `get_plant_observation_data` | read | 観察日記用に、指定した植物の正規化済み水分量履歴、生値の履歴、正規化の採用元・方向・P5/P95をまとめて取得する。 |
 | `get_environment_history` | read | 室内環境の観測履歴を取得する。 |
 | `get_daily_weather` | read | 西東京市周辺の屋外天気を日別で取得する。 |
 
 - MCPは `https://plantory.ytkg.workers.dev/mcp` で提供する。既存のread APIキーまたはログインCookieで認証し、書き込みツールは公開しない。
 - `get_plant_moisture_history` と `get_environment_history` の`from`・`to`は日本時間の暦日として扱う。返すmetricsの時刻はUTCを明示したISO 8601形式である。
+- `get_plant_observation_data` は、すべての`metric_type`の生値を種類ごとに返す。正規化済み水分量には、従来と同じ土壌水分優先・重量フォールバックを用いる。`moistureSource`がある場合は、採用した種類、増減の方向、全履歴から求めたP5/P95も返す。
 - 観察日記の下書きSkillは、REST APIを直接呼ばずにこのMCPツールを使う。下書きの保存は引き続き行わない。
 
 ### APIキー管理
