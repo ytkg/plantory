@@ -9,6 +9,7 @@
 | 資料 | 主な読者 | 役割 | 判定 |
 | --- | --- | --- | --- |
 | `README.md` | 開発者・利用開始者 | リポジトリの入口、ローカル起動、主要資料への導線 | 導線とスクリプト一覧を更新した。 |
+| `docs/operations.md` | リリース・障害対応担当者 | 確認済みの本番デプロイ、D1 migration、障害確認と復旧の制約 | 製品仕様と区別して追加した。 |
 | `docs/spec.md` | 開発・運用担当者 | 実装済みの画面、API、認証、データ、運用の正本 | API・Cron・MCPを実装と照合し、古い`src/http.ts`への参照を修正した。 |
 | `firmware/README.md` と各機種のREADME | ファームウェア利用者 | 端末ごとの配線、秘密情報、書き込み、OTA操作 | 各機種のREADMEを正本とし、一覧の古い試作表記を修正した。 |
 | `firmware/metrics-api.md` | 端末開発者 | metrics送信のHTTP契約と動作確認 | 水分量以外のmetricを植物カードに表示するという古い記述を修正した。 |
@@ -22,14 +23,14 @@
 | --- | --- | --- |
 | アーキテクチャ・データフロー | `docs/spec.md`のデータモデル、API、MCP節と`src/` | 十分。仕様は1か所に集約されており、別の設計書は増やさない。 |
 | ローカル開発・Lint・テスト | `README.md`、`package.json`、`.github/workflows/test.yml` | 十分。READMEに`npm run lint`を追加し、CIの詳細は仕様書を参照する。 |
-| D1 migration・Secrets・Cron | `README.md`、`docs/spec.md`、`wrangler.jsonc` | 開発用migration、Secret名、Cronの振る舞いは確認できる。本番での確認、復旧、ログ確認は確認済みの手順としては不足するため[#35](https://github.com/ytkg/plantory/issues/35)へ分離した。 |
-| デプロイ | `README.md`、`docs/spec.md`、`package.json` | デプロイコマンドは確認できる。本番反映後の確認やロールバックを、このリポジトリだけでは保証できないため#35で実環境を確認してから記録する。 |
+| D1 migration・Secrets・Cron | `README.md`、`docs/spec.md`、`docs/operations.md`、`wrangler.jsonc` | 開発用・本番用migration、Secret名、Cronの振る舞いと、確認済みのログ・復旧手段を分離して記録した。 |
+| デプロイ | `README.md`、`docs/spec.md`、`docs/operations.md`、`.github/workflows/deploy.yml` | mainの成功したCIからの自動反映、結果確認、WorkerとD1の復旧制約を記録した。 |
 | ファームウェア | `firmware/README.md`、各プロジェクトのREADME、`firmware/metrics-api.md` | 十分。機種別の配線・設定・USB/OTA手順と共通API契約を分けており、重複した総合手順は作らない。 |
 | ハードウェア | `hardware/mini-scales-carrier/README.md`とOpenSCAD正本 | 十分。寸法と印刷・調整方法に到達できる。 |
 | MCP・AI観察日記 | `docs/spec.md`のMCP節、観察日記Skill | 十分。外部MCPクライアント固有の接続設定はこのリポジトリの範囲外であり、未確認の設定例は追加しない。 |
 
 ## 今回の判断
 
-- 新しい利用者向けの設計書や運用手順書は作らない。正本と役割が重複するためである。
+- 新しい利用者向けの設計書は作らない。正本と役割が重複するためである。本番運用は製品仕様と目的が異なるため、確認済みの操作だけを`docs/operations.md`へ分離する。
 - 監査結果そのものは後続変更の根拠としてこの文書に残す。
-- 本番運用の未確認部分だけは、実環境の確認が必要な独立作業として#35に分ける。
+- 本番運用は#35で実環境の確認後に記録した。未確認のバックアップ保持期間や通知は手順として案内しない。

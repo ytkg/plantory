@@ -5,6 +5,7 @@
 ## 資料への入口
 
 - 実装済みの画面、API、認証、データ、運用の正本: [仕様書](docs/spec.md)
+- 本番デプロイ、migration、障害確認: [本番運用](docs/operations.md)
 - 資料の役割と監査結果: [ドキュメント監査](docs/documentation-audit.md)
 - M5Stackの機種別セットアップ: [firmware/README.md](firmware/README.md)
 - 端末からmetricsを送るHTTP契約: [firmware/metrics-api.md](firmware/metrics-api.md)
