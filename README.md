@@ -6,6 +6,7 @@
 
 - 実装済みの画面、API、認証、データ、運用の正本: [仕様書](docs/spec.md)
 - 本番デプロイ、migration、障害確認: [本番運用](docs/operations.md)
+- D1 migrationの作成・検証手順: [migration手順](docs/migrations.md)
 - 資料の役割と監査結果: [ドキュメント監査](docs/documentation-audit.md)
 - M5Stackの機種別セットアップ: [firmware/README.md](firmware/README.md)
 - 端末からmetricsを送るHTTP契約: [firmware/metrics-api.md](firmware/metrics-api.md)
@@ -18,7 +19,7 @@
 - Cloudflare D1
 - Tailwind CSS v4
 - auth.takagi.dev（ログインとトークン検証）
-- D1 migrations: `migrations/0001_initial_schema.sql`〜`migrations/0005_recreate_environment_metrics.sql`
+- Drizzle schema: `src/db/schema.ts`、D1 migrations: `migrations/`
 - `firmware/`（M5Stackからmetricsを送るファームウェアと送信仕様）
 
 ## データモデル
@@ -77,6 +78,9 @@ npx wrangler secret put SWITCHBOT_DEVICE_ID
 - `npm run lint` — 手書きの TypeScript・JavaScript を検証
 - `npm test` — ローカルD1を使い、APIの認証・権限・登録・取得・APIキー削除を検証
 - `npm run test:watch` — テストを監視実行
+- `npm run db:generate -- --name <name>` — Drizzle schemaからD1 migrationを生成
+- `npm run db:check` — Drizzle migration履歴を検証
+- `npm run db:migrate:local` — 未適用migrationをローカルD1へ適用
 - `npm run deploy` — Worker をデプロイ
 
 ## API
