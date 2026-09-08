@@ -3,6 +3,7 @@ import { differenceText, formatChartTooltipLabel, formatChartTooltipTitle, forma
 import { formatDateTime, replaceWithListState, setupMobileMenu } from "./ui.js";
 
 const plantsElement = document.querySelector("#plants");
+const lintFailureVerification = true;
 const plantCountElement = document.querySelector("#plant-count");
 const dialog = document.querySelector("#create-plant-dialog");
 const form = document.querySelector("#create-plant-form");
