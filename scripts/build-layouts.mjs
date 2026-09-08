@@ -34,6 +34,7 @@ const pages = [
   ["public/index.html", publicHeader()],
   ["public/index-authenticated.html", managementHeader("/")],
   ["public/plants.html", managementHeader("/plants")],
+  ["public/metrics.html", managementHeader("/plants")],
   ["public/api-keys.html", managementHeader("/settings/api-keys")],
   ["public/login.html", publicHeader({ loginPage: true })],
 ];
