@@ -2,7 +2,14 @@
 
 センサーで植物の状態を記録し、AIが日々の変化を観察日記にする植物管理アプリ。
 
-現在の仕様は [docs/spec.md](docs/spec.md) にまとめています。
+## 資料への入口
+
+- 実装済みの画面、API、認証、データ、運用の正本: [仕様書](docs/spec.md)
+- 資料の役割と監査結果: [ドキュメント監査](docs/documentation-audit.md)
+- M5Stackの機種別セットアップ: [firmware/README.md](firmware/README.md)
+- 端末からmetricsを送るHTTP契約: [firmware/metrics-api.md](firmware/metrics-api.md)
+- Unit Mini Scales用キャリア: [hardware/mini-scales-carrier/README.md](hardware/mini-scales-carrier/README.md)
+- Codexで観察日記を作る手順: [観察日記Skill](.agents/skills/plantory-observation-draft/SKILL.md)
 
 ## 構成
 
@@ -20,6 +27,7 @@ plants(id INTEGER PRIMARY KEY, name TEXT, created_at DATETIME, updated_at DATETI
 metrics(id INTEGER PRIMARY KEY, plant_id INTEGER, metric_type TEXT, value REAL, created_at DATETIME)
 daily_reports(id INTEGER PRIMARY KEY, date DATE UNIQUE, content TEXT, created_at DATETIME, updated_at DATETIME)
 environment_metrics(id INTEGER PRIMARY KEY, temperature REAL, humidity REAL, co2 INTEGER, created_at DATETIME)
+api_keys(id INTEGER PRIMARY KEY, name TEXT, key_hash TEXT, scope TEXT, created_at DATETIME, last_used_at DATETIME, revoked_at DATETIME)
 ```
 
 `metrics.plant_id` は `plants.id` を参照します。`daily_reports` は全植物をまとめた日付ごとの観察日記です。現段階では、センサー自体を管理するテーブル、`species`、`unit`、`measured_at` は設けません。
@@ -27,7 +35,7 @@ environment_metrics(id INTEGER PRIMARY KEY, temperature REAL, humidity REAL, co2
 ## はじめかた
 
 ```bash
-npm install
+npm ci
 npm run dev
 ```
 
@@ -65,6 +73,7 @@ npx wrangler secret put SWITCHBOT_DEVICE_ID
 - `npm run dev` — ローカル Worker を起動
 - `npm run build` — Tailwind CSS と TypeScript を検証
 - `npm run check` — TypeScript を検証
+- `npm run lint` — 手書きの TypeScript・JavaScript を検証
 - `npm test` — ローカルD1を使い、APIの認証・権限・登録・取得・APIキー削除を検証
 - `npm run test:watch` — テストを監視実行
 - `npm run deploy` — Worker をデプロイ
@@ -140,7 +149,7 @@ curl -X POST https://plantory.ytkg.workers.dev/api/plants/2/metrics \
     "plant_id": 1,
     "name": "カランコエ",
     "moisture": 42,
-    "recorded_at": "2026-09-07 00:00:08"
+    "recorded_at": "2026-09-07T00:00:08Z"
   }
 ]
 ```

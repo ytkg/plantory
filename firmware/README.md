@@ -8,7 +8,7 @@ Plantory用のM5Stackファームウェアを管理する場所です。各デ�
 | --- | --- | --- |
 | [`soil-moisture-atom-s3/`](soil-moisture-atom-s3/) | ATOM S3 + Earth Unit | 土壌水分を読み取り、`soil_moisture` としてPlantoryへ送信 |
 | [`weight-atom-s3/`](weight-atom-s3/) | ATOM S3 + Unit Mini Scales（U177） | 重量を読み取り、`weight` としてPlantoryへ送信 |
-| [`weight-m5stickc-plus2/`](weight-m5stickc-plus2/) | M5StickC PLUS2 + Unit Mini Scales（U177） | 生重量の画面表示を確認する第1段階の試作 |
+| [`weight-m5stickc-plus2/`](weight-m5stickc-plus2/) | M5StickC PLUS2 + Unit Mini Scales（U177） | 重量を読み取り、`weight`としてPlantoryへ送信 |
 | [`unit-cams3-5mp/`](unit-cams3-5mp/) | Unit CamS3 5MP | 自宅Wi-Fi上でライブプレビュー、音声、静止画取得を提供 |
 | [`sample/`](sample/) | ATOM S3 | Wi-Fi接続と公開ステータス表示の動作確認用サンプル |
 
