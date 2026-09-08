@@ -1,0 +1,70 @@
+name: Deploy
+
+on:
+  workflow_run:
+    workflows:
+      - Test
+    types:
+      - completed
+
+permissions:
+  contents: read
+
+jobs:
+  deploy:
+    if: >-
+      github.event.workflow_run.conclusion == 'success' &&
+      github.event.workflow_run.event == 'push' &&
+      github.event.workflow_run.head_branch == 'main'
+    runs-on: ubuntu-latest
+    concurrency:
+      group: plantory-production-deploy
+      cancel-in-progress: false
+    env:
+      TESTED_SHA: ${{ github.event.workflow_run.head_sha }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.workflow_run.head_sha }}
+          persist-credentials: false
+
+      - name: Confirm the tested commit is current main
+        id: target
+        run: |
+          current_main_sha="$(git ls-remote origin refs/heads/main | cut -f1)"
+          echo "Tested commit: $TESTED_SHA"
+          echo "Current main: $current_main_sha"
+          if [ "$current_main_sha" = "$TESTED_SHA" ]; then
+            echo "deploy=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "deploy=false" >> "$GITHUB_OUTPUT"
+            echo "Skipping an outdated commit; the current main workflow will deploy the latest commit."
+          fi
+
+      - uses: actions/setup-node@v4
+        if: steps.target.outputs.deploy == 'true'
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        if: steps.target.outputs.deploy == 'true'
+        run: npm ci
+
+      - name: Build production assets
+        if: steps.target.outputs.deploy == 'true'
+        run: npm run build
+
+      - name: Apply pending D1 migrations
+        if: steps.target.outputs.deploy == 'true'
+        run: npx wrangler d1 migrations apply plantory --remote
+
+      - name: Deploy Worker
+        if: steps.target.outputs.deploy == 'true'
+        run: npx wrangler deploy
+
+      - name: Show deployed production state
+        if: steps.target.outputs.deploy == 'true'
+        run: npx wrangler deployments status
