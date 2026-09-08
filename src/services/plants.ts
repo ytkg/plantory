@@ -1,5 +1,5 @@
 import { calculateMoisturePercentage, calculateMoistureRange, getMoistureDirection, type MoistureRange } from "../moisture";
-import { and, desc, eq, inArray, sql } from "drizzle-orm";
+import { and, asc, count, desc, eq, inArray, or, sql } from "drizzle-orm";
 import { db } from "../db";
 import { metrics as metricsTable, plants } from "../db/schema";
 import type { AppContext } from "../routes/context";
@@ -77,21 +77,32 @@ function rawReading(metric: Metric): RawMetricReading {
   return { ...metric, created_at: toUtcIsoTimestamp(metric.created_at) };
 }
 
-async function rawMetricTypes(plantId: number, env: Env): Promise<RawMetricType[]> {
-  const types = await env.DB.prepare(
-    "SELECT metric_type, COUNT(*) AS total_count FROM metrics WHERE plant_id = ? GROUP BY metric_type ORDER BY metric_type ASC",
-  ).bind(plantId).all<{ metric_type: string; total_count: number }>();
+async function metricTypeCounts(plantId: number, env: Env): Promise<Array<{ metric_type: string; totalCount: number }>> {
+  const types = await db(env.DB)
+    .select({ metric_type: metricsTable.metricType, total_count: count() })
+    .from(metricsTable)
+    .where(eq(metricsTable.plantId, plantId))
+    .groupBy(metricsTable.metricType)
+    .orderBy(asc(metricsTable.metricType))
+    .all();
+  return types.flatMap(({ metric_type, total_count }) => metric_type === null ? [] : [{ metric_type, totalCount: total_count }]);
+}
 
-  return Promise.all(types.results.map(async ({ metric_type, total_count }) => {
-    const result = await env.DB.prepare(
-      `SELECT id, plant_id, metric_type, value, created_at
-       FROM metrics WHERE plant_id = ? AND metric_type = ? ORDER BY datetime(created_at) DESC, id DESC LIMIT 2`,
-    ).bind(plantId, metric_type).all<Metric>();
+async function rawMetricTypes(plantId: number, env: Env): Promise<RawMetricType[]> {
+  const types = await metricTypeCounts(plantId, env);
+  return Promise.all(types.map(async ({ metric_type, totalCount }) => {
+    const result = await db(env.DB)
+      .select({ id: metricsTable.id, plant_id: metricsTable.plantId, metric_type: metricsTable.metricType, value: metricsTable.value, created_at: metricsTable.createdAt })
+      .from(metricsTable)
+      .where(and(eq(metricsTable.plantId, plantId), eq(metricsTable.metricType, metric_type)))
+      .orderBy(desc(metricsTable.createdAt), desc(metricsTable.id))
+      .limit(2)
+      .all() as Metric[];
     return {
       metric_type,
-      totalCount: total_count,
-      latest: result.results[0] ? rawReading(result.results[0]) : null,
-      previous: result.results[1] ? rawReading(result.results[1]) : null,
+      totalCount,
+      latest: result[0] ? rawReading(result[0]) : null,
+      previous: result[1] ? rawReading(result[1]) : null,
     };
   }));
 }
@@ -106,27 +117,25 @@ export async function rawMetricPage(plantId: number, query: RawMetricQuery, env:
     return { plant, metricTypes, metric_type: query.metricType, metrics: [], totalCount: 0, nextCursor: null };
   }
 
-  const clauses = ["plant_id = ?", "metric_type = ?"];
-  const bindings: Array<number | string> = [plantId, query.metricType];
-  if (query.from) {
-    clauses.push("julianday(created_at) >= julianday(?)");
-    bindings.push(query.from);
-  }
-  if (query.to) {
-    clauses.push("julianday(created_at) <= julianday(?)");
-    bindings.push(query.to);
-  }
-  if (query.cursor) {
-    clauses.push("(julianday(created_at) < julianday(?) OR (julianday(created_at) = julianday(?) AND id < ?))");
-    bindings.push(query.cursor.createdAt, query.cursor.createdAt, query.cursor.id);
-  }
-  bindings.push(query.limit + 1);
-  const result = await env.DB.prepare(
-    `SELECT id, plant_id, metric_type, value, created_at
-     FROM metrics WHERE ${clauses.join(" AND ")} ORDER BY datetime(created_at) DESC, id DESC LIMIT ?`,
-  ).bind(...bindings).all<Metric>();
-  const hasMore = result.results.length > query.limit;
-  const metrics = result.results.slice(0, query.limit).map(rawReading);
+  const conditions = [
+    eq(metricsTable.plantId, plantId),
+    eq(metricsTable.metricType, query.metricType),
+    query.from ? sql`julianday(${metricsTable.createdAt}) >= julianday(${query.from})` : undefined,
+    query.to ? sql`julianday(${metricsTable.createdAt}) <= julianday(${query.to})` : undefined,
+    query.cursor ? or(
+      sql`julianday(${metricsTable.createdAt}) < julianday(${query.cursor.createdAt})`,
+      and(sql`julianday(${metricsTable.createdAt}) = julianday(${query.cursor.createdAt})`, sql`${metricsTable.id} < ${query.cursor.id}`),
+    ) : undefined,
+  ];
+  const result = await db(env.DB)
+    .select({ id: metricsTable.id, plant_id: metricsTable.plantId, metric_type: metricsTable.metricType, value: metricsTable.value, created_at: metricsTable.createdAt })
+    .from(metricsTable)
+    .where(and(...conditions))
+    .orderBy(desc(metricsTable.createdAt), desc(metricsTable.id))
+    .limit(query.limit + 1)
+    .all() as Metric[];
+  const hasMore = result.length > query.limit;
+  const metrics = result.slice(0, query.limit).map(rawReading);
   const last = metrics.at(-1);
   return {
     plant,
@@ -148,30 +157,26 @@ async function resolveMoistureMetricSource(plantId: number, env: Env): Promise<M
 }
 
 export async function metricHistory(plantId: number, query: HistoryQuery, env: Env): Promise<MetricHistory | null> {
-  const exists = await env.DB.prepare("SELECT id FROM plants WHERE id = ? LIMIT 1").bind(plantId).first<Pick<Plant, "id">>();
-  if (!exists) return null;
+  if (!(await db(env.DB).select({ id: plants.id }).from(plants).where(eq(plants.id, plantId)).limit(1).get())) return null;
 
   const { metricType, metrics: sourceMetrics, range } = await resolveMoistureMetricSource(plantId, env);
 
   if (!metricType || !range) return { metrics: [], totalCount: sourceMetrics.length };
 
-  const clauses = ["plant_id = ?", "metric_type = ?"];
-  const bindings: Array<number | string> = [plantId, metricType];
-  if (query.from) {
-    clauses.push("datetime(created_at) >= datetime(?, '-9 hours')");
-    bindings.push(query.from);
-  }
-  if (query.to) {
-    clauses.push("datetime(created_at) < datetime(?, '+1 day', '-9 hours')");
-    bindings.push(query.to);
-  }
-  bindings.push(query.limit);
-
-  const result = await env.DB.prepare(
-    `SELECT id, plant_id, metric_type, value, created_at
-     FROM metrics WHERE ${clauses.join(" AND ")} ORDER BY created_at DESC, id DESC LIMIT ?`,
-  ).bind(...bindings).all<Metric>();
-  const metrics = result.results.flatMap((metric): MoistureMetric[] => {
+  const conditions = [
+    eq(metricsTable.plantId, plantId),
+    eq(metricsTable.metricType, metricType),
+    query.from ? sql`datetime(${metricsTable.createdAt}) >= datetime(${query.from}, '-9 hours')` : undefined,
+    query.to ? sql`datetime(${metricsTable.createdAt}) < datetime(${query.to}, '+1 day', '-9 hours')` : undefined,
+  ];
+  const result = await db(env.DB)
+    .select({ id: metricsTable.id, plant_id: metricsTable.plantId, metric_type: metricsTable.metricType, value: metricsTable.value, created_at: metricsTable.createdAt })
+    .from(metricsTable)
+    .where(and(...conditions))
+    .orderBy(desc(metricsTable.createdAt), desc(metricsTable.id))
+    .limit(query.limit)
+    .all() as Metric[];
+  const metrics = result.flatMap((metric): MoistureMetric[] => {
     const value = calculateMoisturePercentage(metric.value, range, metricType);
     return value === null ? [] : [{ id: metric.id, plant_id: metric.plant_id, value, created_at: toUtcIsoTimestamp(metric.created_at) }];
   });
@@ -179,37 +184,32 @@ export async function metricHistory(plantId: number, query: HistoryQuery, env: E
 }
 
 async function rawMetricHistories(plantId: number, query: HistoryQuery, env: Env): Promise<RawMetricHistory[]> {
-  const metricTypes = await env.DB.prepare(
-    "SELECT metric_type, COUNT(*) AS total_count FROM metrics WHERE plant_id = ? GROUP BY metric_type ORDER BY metric_type ASC",
-  ).bind(plantId).all<{ metric_type: string; total_count: number }>();
+  const metricTypes = await metricTypeCounts(plantId, env);
 
-  return Promise.all(metricTypes.results.map(async ({ metric_type, total_count }) => {
-    const clauses = ["plant_id = ?", "metric_type = ?"];
-    const bindings: Array<number | string> = [plantId, metric_type];
-    if (query.from) {
-      clauses.push("datetime(created_at) >= datetime(?, '-9 hours')");
-      bindings.push(query.from);
-    }
-    if (query.to) {
-      clauses.push("datetime(created_at) < datetime(?, '+1 day', '-9 hours')");
-      bindings.push(query.to);
-    }
-    bindings.push(query.limit);
-
-    const result = await env.DB.prepare(
-      `SELECT id, plant_id, metric_type, value, created_at
-       FROM metrics WHERE ${clauses.join(" AND ")} ORDER BY created_at DESC, id DESC LIMIT ?`,
-    ).bind(...bindings).all<Metric>();
+  return Promise.all(metricTypes.map(async ({ metric_type, totalCount }) => {
+    const conditions = [
+      eq(metricsTable.plantId, plantId),
+      eq(metricsTable.metricType, metric_type),
+      query.from ? sql`datetime(${metricsTable.createdAt}) >= datetime(${query.from}, '-9 hours')` : undefined,
+      query.to ? sql`datetime(${metricsTable.createdAt}) < datetime(${query.to}, '+1 day', '-9 hours')` : undefined,
+    ];
+    const result = await db(env.DB)
+      .select({ id: metricsTable.id, plant_id: metricsTable.plantId, metric_type: metricsTable.metricType, value: metricsTable.value, created_at: metricsTable.createdAt })
+      .from(metricsTable)
+      .where(and(...conditions))
+      .orderBy(desc(metricsTable.createdAt), desc(metricsTable.id))
+      .limit(query.limit)
+      .all() as Metric[];
     return {
       metric_type,
-      metrics: result.results.map(rawReading),
-      totalCount: total_count,
+      metrics: result.map(rawReading),
+      totalCount,
     };
   }));
 }
 
 export async function plantObservationData(plantId: number, query: HistoryQuery, env: Env): Promise<PlantObservationData | null> {
-  const plant = await env.DB.prepare("SELECT id, name, created_at, updated_at FROM plants WHERE id = ? LIMIT 1").bind(plantId).first<Plant>();
+  const plant = await db(env.DB).select({ id: plants.id, name: plants.name, created_at: plants.createdAt, updated_at: plants.updatedAt }).from(plants).where(eq(plants.id, plantId)).limit(1).get() as Plant | undefined;
   if (!plant) return null;
 
   const { metricType, range } = await resolveMoistureMetricSource(plantId, env);
