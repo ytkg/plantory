@@ -458,6 +458,10 @@ describe("Plantory API", () => {
     expect(uiResponse.status).toBe(200);
     await expect(uiResponse.text()).resolves.toContain("export function listStateCard");
 
+    const presentationResponse = await request("/presentation.js");
+    expect(presentationResponse.status).toBe(200);
+    await expect(presentationResponse.text()).resolves.toContain("export function formatMoisture");
+
     const statusResponse = await request("/status.js");
     expect(statusResponse.status).toBe(200);
     await expect(statusResponse.text()).resolves.toContain("/api/status");
