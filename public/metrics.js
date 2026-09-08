@@ -9,6 +9,10 @@ const deleteDialog = document.querySelector("#delete-metrics-dialog");
 const deleteForm = document.querySelector("#delete-metrics-form");
 const deleteMessage = document.querySelector("#delete-metrics-message");
 const deleteSubmitButton = document.querySelector("#submit-delete-metrics");
+const deleteMetricDialog = document.querySelector("#delete-metric-dialog");
+const deleteMetricForm = document.querySelector("#delete-metric-form");
+const deleteMetricMessage = document.querySelector("#delete-metric-message");
+const deleteMetricSubmitButton = document.querySelector("#submit-delete-metric");
 const plantId = /^\/plants\/(\d+)\/metrics$/.exec(window.location.pathname)?.[1];
 let metricTypes = [];
 let selectedType = null;
@@ -16,6 +20,7 @@ let selectedRange = "recent";
 let visibleHistoryCount = 30;
 let rangeWindow = null;
 let currentData = null;
+let metricToDelete = null;
 
 function showFeedback(message, error = false) {
   feedback.textContent = message;
@@ -219,8 +224,19 @@ function createHistory(metrics, metricType) {
     date.className = "text-sm text-stone-600";
     date.textContent = formatDateTime(metric.created_at);
     const value = document.createElement("dd");
-    value.className = "text-right text-sm font-semibold text-ink";
-    value.textContent = valueWithUnit(metric.value, unit);
+    value.className = "flex items-center gap-3 text-right text-sm font-semibold text-ink";
+    const reading = document.createElement("span");
+    reading.textContent = valueWithUnit(metric.value, unit);
+    const remove = document.createElement("button");
+    remove.type = "button";
+    remove.className = "rounded-lg px-2 py-1 text-xs font-semibold text-rose-700 hover:bg-rose-50";
+    remove.textContent = "削除";
+    remove.addEventListener("click", () => {
+      metricToDelete = metric;
+      deleteMetricMessage.textContent = `${formatDateTime(metric.created_at)}に記録した${metricLabel(metricType)} ${valueWithUnit(metric.value, unit)}を削除します。この操作は取り消せません。`;
+      deleteMetricDialog.showModal();
+    });
+    value.append(reading, remove);
     row.append(date, value);
     list.append(row);
   }
@@ -316,6 +332,31 @@ function closeDeleteDialog() {
 
 document.querySelector("#close-delete-metrics").addEventListener("click", closeDeleteDialog);
 document.querySelector("#cancel-delete-metrics").addEventListener("click", closeDeleteDialog);
+
+function closeDeleteMetricDialog() {
+  metricToDelete = null;
+  deleteMetricDialog.close();
+}
+document.querySelector("#close-delete-metric").addEventListener("click", closeDeleteMetricDialog);
+document.querySelector("#cancel-delete-metric").addEventListener("click", closeDeleteMetricDialog);
+
+deleteMetricForm.addEventListener("submit", async (event) => {
+  event.preventDefault();
+  if (!metricToDelete) return;
+  deleteMetricSubmitButton.disabled = true;
+  deleteMetricSubmitButton.textContent = "削除中…";
+  try {
+    await requestJson(`/api/plants/${plantId}/metrics/${metricToDelete.id}`, { method: "DELETE" });
+    closeDeleteMetricDialog();
+    await refresh({ preserveFeedback: true });
+    showFeedback("記録を削除しました。");
+  } catch {
+    showFeedback("記録を削除できませんでした。", true);
+  } finally {
+    deleteMetricSubmitButton.disabled = false;
+    deleteMetricSubmitButton.textContent = "削除する";
+  }
+});
 
 deleteForm.addEventListener("submit", async (event) => {
   event.preventDefault();
