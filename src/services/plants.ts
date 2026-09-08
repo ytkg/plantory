@@ -1,4 +1,4 @@
-import { calculateMoisturePercentage, calculateMoistureRange, getMoistureDirection } from "../moisture";
+import { calculateMoisturePercentage, calculateMoistureRange, getMoistureDirection, type MoistureRange } from "../moisture";
 import type { AppContext } from "../routes/context";
 import { toUtcIsoTimestamp } from "../time";
 import type { Metric, Plant } from "../types";
@@ -8,6 +8,11 @@ type CreatePlantInput = { name?: unknown };
 type CreateMetricInput = { metric_type?: unknown; value?: unknown };
 type WaterMetricType = "soil_moisture" | "weight";
 type MoistureMetric = Pick<Metric, "id" | "plant_id" | "created_at"> & { value: number };
+type MoistureMetricSource = {
+  metricType: WaterMetricType | null;
+  metrics: Metric[];
+  range: MoistureRange | null;
+};
 export type MetricHistory = { metrics: MoistureMetric[]; totalCount: number };
 type RawMetricReading = Pick<Metric, "id" | "plant_id" | "metric_type" | "value"> & { created_at: string };
 export type RawMetricHistory = { metric_type: string; metrics: RawMetricReading[]; totalCount: number };
@@ -135,18 +140,22 @@ export async function rawMetricPage(plantId: number, query: RawMetricQuery, env:
   };
 }
 
-export async function metricHistory(plantId: number, query: HistoryQuery, env: Env): Promise<MetricHistory | null> {
-  const exists = await env.DB.prepare("SELECT id FROM plants WHERE id = ? LIMIT 1").bind(plantId).first<Pick<Plant, "id">>();
-  if (!exists) return null;
-
+async function resolveMoistureMetricSource(plantId: number, env: Env): Promise<MoistureMetricSource> {
   const allWaterMetrics = await env.DB.prepare(
     "SELECT id, plant_id, metric_type, value, created_at FROM metrics WHERE plant_id = ? AND metric_type IN ('soil_moisture', 'weight') ORDER BY created_at DESC, id DESC",
   ).bind(plantId).all<Metric>();
   const metricType: WaterMetricType | null = allWaterMetrics.results.some((metric) => metric.metric_type === "soil_moisture")
     ? "soil_moisture"
     : allWaterMetrics.results.some((metric) => metric.metric_type === "weight") ? "weight" : null;
-  const sourceMetrics = metricType ? allWaterMetrics.results.filter((metric) => metric.metric_type === metricType) : [];
-  const range = calculateMoistureRange(sourceMetrics.map((metric) => metric.value));
+  const metrics = metricType ? allWaterMetrics.results.filter((metric) => metric.metric_type === metricType) : [];
+  return { metricType, metrics, range: calculateMoistureRange(metrics.map((metric) => metric.value)) };
+}
+
+export async function metricHistory(plantId: number, query: HistoryQuery, env: Env): Promise<MetricHistory | null> {
+  const exists = await env.DB.prepare("SELECT id FROM plants WHERE id = ? LIMIT 1").bind(plantId).first<Pick<Plant, "id">>();
+  if (!exists) return null;
+
+  const { metricType, metrics: sourceMetrics, range } = await resolveMoistureMetricSource(plantId, env);
 
   if (!metricType || !range) return { metrics: [], totalCount: sourceMetrics.length };
 
@@ -207,14 +216,7 @@ export async function plantObservationData(plantId: number, query: HistoryQuery,
   const plant = await env.DB.prepare("SELECT id, name, created_at, updated_at FROM plants WHERE id = ? LIMIT 1").bind(plantId).first<Plant>();
   if (!plant) return null;
 
-  const allWaterMetrics = await env.DB.prepare(
-    "SELECT id, plant_id, metric_type, value, created_at FROM metrics WHERE plant_id = ? AND metric_type IN ('soil_moisture', 'weight') ORDER BY created_at DESC, id DESC",
-  ).bind(plantId).all<Metric>();
-  const metricType: WaterMetricType | null = allWaterMetrics.results.some((metric) => metric.metric_type === "soil_moisture")
-    ? "soil_moisture"
-    : allWaterMetrics.results.some((metric) => metric.metric_type === "weight") ? "weight" : null;
-  const sourceMetrics = metricType ? allWaterMetrics.results.filter((metric) => metric.metric_type === metricType) : [];
-  const range = calculateMoistureRange(sourceMetrics.map((metric) => metric.value));
+  const { metricType, range } = await resolveMoistureMetricSource(plantId, env);
   const [moistureHistory, rawHistories] = await Promise.all([
     metricHistory(plantId, query, env),
     rawMetricHistories(plantId, query, env),
