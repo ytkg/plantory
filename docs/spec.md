@@ -218,6 +218,8 @@ APIキー管理APIはログインCookieでのみ利用できる。
 - 技術構成: Cloudflare Workers、Cloudflare D1、TypeScript、Tailwind CSS v4、Chart.js v4.5.1。
 - `npm run build` でTailwind CSSとChart.jsアセットを生成し、TypeScriptを検証する。
 - `npm test` でVitestとCloudflare Workers用テスト環境を使い、ローカルD1に対するAPIの認証・登録・取得・APIキー管理を検証する。
+- GitHub Actionsの`Test / test`チェックは、pull requestの作成・再オープン・更新時と、`main`へのpush時に`npm ci`、`npm run build`、`npm test`を実行する。開発ブランチへのpushだけでは実行しない。
+- `main`への変更はpull request経由とし、`Test / test`チェックの成功を必須とする。テストジョブはデプロイや本番D1への変更を実行しない。
 - 本番反映は `npx wrangler deploy` を実行する。
 - D1のマイグレーションは `migrations/` で管理する。`0003_make_daily_reports_aggregate.sql` は、既存の植物単位の日報テーブルを日付ごとの集約観察日記へ移行する。
 - 観察日記の定期更新は現在設定しない。M5Stackから十分なmetricsが蓄積してから、D1の情報をもとに作成・更新する仕組みを設定する。
