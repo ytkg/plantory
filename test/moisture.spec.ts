@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { buildMoistureStatuses, calculateMoisturePercentage, calculateMoistureRange, toMoistureStatus } from "../src/moisture";
+import { buildMoistureStatuses, calculateMoisturePercentage, calculateMoistureRange, percentile, toMoistureStatus } from "../src/moisture";
 
 const metric = (plant_id: number, name: string, metric_type: string, value: number, lower: number, upper: number, created_at = "2026-09-07 00:00:00") => ({
   plant_id,
@@ -12,6 +12,19 @@ const metric = (plant_id: number, name: string, metric_type: string, value: numb
 });
 
 describe("moisture status calculation", () => {
+  it("does not calculate a range from no readings, one reading, or identical readings", () => {
+    expect(percentile([], 0.05)).toBeNull();
+    expect(calculateMoistureRange([])).toBeNull();
+    expect(calculateMoistureRange([42])).toBeNull();
+    expect(calculateMoistureRange([42, 42, 42, 42])).toBeNull();
+  });
+
+  it("interpolates percentiles in distributions with repeated values and outliers", () => {
+    expect(calculateMoistureRange([0, 0, 0, 10, 1000])).toMatchObject({ lower: 0, upper: expect.closeTo(802) });
+    expect(calculateMoisturePercentage(1000, { lower: 0, upper: 802 }, "weight")).toBe(100);
+    expect(calculateMoisturePercentage(-10, { lower: 0, upper: 802 }, "weight")).toBe(0);
+  });
+
   it("calculates linearly interpolated P5 and P95 ranges", () => {
     expect(calculateMoistureRange([0, 10, 20, 30, 40])).toEqual({ lower: 2, upper: 38 });
     expect(toMoistureStatus(metric(1, "鉢", "weight", -10, 2, 38))).toEqual({ plant_id: 1, name: "鉢", moisture: 0, recorded_at: "2026-09-07T00:00:00Z" });
