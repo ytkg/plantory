@@ -1,5 +1,5 @@
 import { calculateMoisturePercentage, calculateMoistureRange, getMoistureDirection, type MoistureRange } from "../moisture";
-import { and, eq, sql } from "drizzle-orm";
+import { and, desc, eq, inArray, sql } from "drizzle-orm";
 import { db } from "../db";
 import { metrics as metricsTable, plants } from "../db/schema";
 import type { AppContext } from "../routes/context";
@@ -97,7 +97,7 @@ async function rawMetricTypes(plantId: number, env: Env): Promise<RawMetricType[
 }
 
 export async function rawMetricPage(plantId: number, query: RawMetricQuery, env: Env): Promise<RawMetricPage | null> {
-  const plant = await env.DB.prepare("SELECT id, name, created_at, updated_at FROM plants WHERE id = ? LIMIT 1").bind(plantId).first<Plant>();
+  const plant = await db(env.DB).select({ id: plants.id, name: plants.name, created_at: plants.createdAt, updated_at: plants.updatedAt }).from(plants).where(eq(plants.id, plantId)).limit(1).get() as Plant | undefined;
   if (!plant) return null;
 
   const metricTypes = await rawMetricTypes(plantId, env);
@@ -139,13 +139,11 @@ export async function rawMetricPage(plantId: number, query: RawMetricQuery, env:
 }
 
 async function resolveMoistureMetricSource(plantId: number, env: Env): Promise<MoistureMetricSource> {
-  const allWaterMetrics = await env.DB.prepare(
-    "SELECT id, plant_id, metric_type, value, created_at FROM metrics WHERE plant_id = ? AND metric_type IN ('soil_moisture', 'weight') ORDER BY created_at DESC, id DESC",
-  ).bind(plantId).all<Metric>();
-  const metricType: WaterMetricType | null = allWaterMetrics.results.some((metric) => metric.metric_type === "soil_moisture")
+  const allWaterMetrics = await db(env.DB).select({ id: metricsTable.id, plant_id: metricsTable.plantId, metric_type: metricsTable.metricType, value: metricsTable.value, created_at: metricsTable.createdAt }).from(metricsTable).where(and(eq(metricsTable.plantId, plantId), inArray(metricsTable.metricType, ["soil_moisture", "weight"]))).orderBy(desc(metricsTable.createdAt), desc(metricsTable.id)).all() as Metric[];
+  const metricType: WaterMetricType | null = allWaterMetrics.some((metric) => metric.metric_type === "soil_moisture")
     ? "soil_moisture"
-    : allWaterMetrics.results.some((metric) => metric.metric_type === "weight") ? "weight" : null;
-  const metrics = metricType ? allWaterMetrics.results.filter((metric) => metric.metric_type === metricType) : [];
+    : allWaterMetrics.some((metric) => metric.metric_type === "weight") ? "weight" : null;
+  const metrics = metricType ? allWaterMetrics.filter((metric) => metric.metric_type === metricType) : [];
   return { metricType, metrics, range: calculateMoistureRange(metrics.map((metric) => metric.value)) };
 }
 
@@ -257,12 +255,8 @@ export async function createMetric(plantId: number, c: AppContext): Promise<Resp
   if (typeof input.value !== "number" || !Number.isFinite(input.value)) return c.json({ error: "value must be a finite number." }, 400);
   if (!(await plantExists(plantId, c))) return c.json({ error: "Plant not found." }, 404);
 
-  const result = await c.env.DB.prepare(
-    `INSERT INTO metrics (plant_id, metric_type, value, created_at)
-     VALUES (?, ?, ?, CURRENT_TIMESTAMP)
-     RETURNING id, plant_id, metric_type, value, created_at`,
-  ).bind(plantId, input.metric_type, input.value).all<Metric>();
-  const metric = result.results[0];
+  const result = await db(c.env.DB).insert(metricsTable).values({ plantId, metricType: input.metric_type, value: input.value, createdAt: sql`CURRENT_TIMESTAMP` }).returning({ id: metricsTable.id, plant_id: metricsTable.plantId, metric_type: metricsTable.metricType, value: metricsTable.value, created_at: metricsTable.createdAt }).all();
+  const metric = result[0] as Metric | undefined;
   return metric
     ? c.json({ metric: { ...metric, created_at: toUtcIsoTimestamp(metric.created_at) } }, 201)
     : c.json({ error: "Could not create metric." }, 500);
