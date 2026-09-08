@@ -32,8 +32,10 @@ app.onError((cause) => {
 export default {
   async fetch(request, env, ctx): Promise<Response> {
     if (new URL(request.url).pathname === "/mcp") {
-      if (!(await authenticate(request, env, "read", ctx))) return unauthorized();
-      return createMcpHandler(() => createPlantoryMcpServer(env))(request, env, ctx);
+      const authentication = await authenticate(request, env, "read", ctx);
+      if (!authentication) return unauthorized();
+      const canWrite = authentication.kind === "session" || authentication.scope === "write";
+      return createMcpHandler(() => createPlantoryMcpServer(env, canWrite))(request, env, ctx);
     }
     return app.fetch(request, env, ctx);
   },

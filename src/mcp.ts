@@ -1,6 +1,7 @@
 import { McpServer } from "@modelcontextprotocol/server";
 import { environmentHistory } from "./services/environment";
 import { listPlantsData, metricHistory, plantObservationData } from "./services/plants";
+import { listReportsData, upsertReportData } from "./services/reports";
 import { fetchDailyWeather } from "./services/weather";
 import { historyQuery, type HistoryQuery } from "./validation";
 import { z } from "zod";
@@ -28,7 +29,7 @@ const historyInputSchema = {
   limit: z.number().int().min(1).max(1000).optional().describe("返す最大件数。省略時は100。"),
 };
 
-export function createPlantoryMcpServer(env: Env): McpServer {
+export function createPlantoryMcpServer(env: Env, canWrite = false): McpServer {
   const server = new McpServer({ name: "plantory", version: "0.1.0" });
 
   server.registerTool(
@@ -94,6 +95,29 @@ export function createPlantoryMcpServer(env: Env): McpServer {
       return weather ? result({ weather }) : error("Could not fetch weather data.");
     },
   );
+
+  server.registerTool(
+    "get_observation_reports",
+    { description: "過去の観察日記を新しい日付順に最大30件取得する。" },
+    async () => result({ reports: await listReportsData(env) }),
+  );
+
+  if (canWrite) {
+    server.registerTool(
+      "upsert_observation_report",
+      {
+        description: "指定日の観察日記を作成または更新する。同じ日付の記録がある場合は内容を置き換える。",
+        inputSchema: {
+          date: z.string().describe("観察日記の日付。日本時間のYYYY-MM-DD。"),
+          content: z.string().describe("観察日記の本文。前後の空白を除いて1〜10000文字。"),
+        },
+      },
+      async ({ date, content }) => {
+        const saved = await upsertReportData(date, content, env);
+        return "report" in saved ? result(saved) : error(saved.error);
+      },
+    );
+  }
 
   return server;
 }

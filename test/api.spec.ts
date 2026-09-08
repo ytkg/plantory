@@ -121,7 +121,7 @@ describe("Plantory API", () => {
     await expect(response.json()).resolves.toEqual({ error: "Authentication is required." });
   });
 
-  it("exposes authenticated read-only Plantory data tools through MCP", async () => {
+  it("exposes Plantory data tools through MCP and only exposes report saving to write credentials", async () => {
     await env.DB.batch([
       env.DB.prepare("INSERT INTO plants (name) VALUES (?)").bind("カランコエ"),
       env.DB.prepare("INSERT INTO metrics (plant_id, metric_type, value, created_at) VALUES (?, ?, ?, ?)")
@@ -153,6 +153,7 @@ describe("Plantory API", () => {
       "get_plant_observation_data",
       "get_environment_history",
       "get_daily_weather",
+      "get_observation_reports",
     ]);
 
     const history = await mcpRequest(3, "tools/call", {
@@ -181,6 +182,25 @@ describe("Plantory API", () => {
         totalCount: 2,
         metrics: [{ value: 80, created_at: "2026-09-01T15:00:00Z" }],
       }],
+    });
+
+    const writeTools = await mcpRequest(5, "tools/list", {}, writeKey);
+    const writeToolsResponse = await mcpJson(writeTools) as { result: { tools: Array<{ name: string }> } };
+    expect(writeToolsResponse.result.tools.map((tool) => tool.name)).toContain("upsert_observation_report");
+
+    const saved = await mcpRequest(6, "tools/call", {
+      name: "upsert_observation_report",
+      arguments: { date: "2026-09-03", content: "土壌水分の変化を記録した。" },
+    }, writeKey);
+    const savedResponse = await mcpJson(saved) as { result: { content: Array<{ text: string }> } };
+    expect(JSON.parse(savedResponse.result.content[0].text)).toMatchObject({
+      report: { date: "2026-09-03", content: "土壌水分の変化を記録した。" },
+    });
+
+    const reports = await mcpRequest(7, "tools/call", { name: "get_observation_reports", arguments: {} });
+    const reportsResponse = await mcpJson(reports) as { result: { content: Array<{ text: string }> } };
+    expect(JSON.parse(reportsResponse.result.content[0].text)).toMatchObject({
+      reports: [{ date: "2026-09-03", content: "土壌水分の変化を記録した。" }],
     });
   });
 
