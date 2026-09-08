@@ -129,7 +129,13 @@ describe("Plantory API", () => {
     ]);
 
     expect(index.status).toBe(200);
-    expect(await index.text()).toContain('src="/marked.umd.js"');
+    const indexHtml = await index.text();
+    expect(indexHtml).toContain('src="/marked.umd.js"');
+    expect(indexHtml).toContain("部屋の環境");
+    expect(indexHtml).not.toContain("お部屋の環境");
+    expect(indexHtml.indexOf('id="reports-heading"')).toBeLessThan(indexHtml.indexOf('id="plant-status"'));
+    expect(indexHtml.indexOf('id="plant-status"')).toBeLessThan(indexHtml.indexOf('id="environment-status"'));
+    expect(indexHtml.indexOf('id="environment-status"')).toBeLessThan(indexHtml.indexOf('id="reports"'));
     expect(marked.status).toBe(200);
     expect(await marked.text()).toContain("marked");
     expect(purifier.status).toBe(200);
