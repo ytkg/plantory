@@ -2,7 +2,7 @@ import js from "@eslint/js";
 import globals from "globals";
 import tseslint from "typescript-eslint";
 
-const typescriptFiles = ["src/**/*.{ts,tsx}", "test/**/*.ts"];
+const typescriptFiles = ["src/**/*.ts", "test/**/*.ts"];
 
 export default [
   {
