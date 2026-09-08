@@ -804,6 +804,70 @@ describe("Plantory API", () => {
     });
   });
 
+  it("accepts finite metric values and leaves the database unchanged for invalid input", async () => {
+    await env.DB.prepare("INSERT INTO plants (name) VALUES (?)").bind("入力テスト").run();
+
+    for (const value of [0, -1, 0.5, 1e100]) {
+      const response = await request("/api/plants/1/metrics", withApiKey(writeKey, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ metric_type: "weight", value }),
+      }));
+      expect(response.status).toBe(201);
+    }
+
+    for (const body of [
+      {},
+      { metric_type: "weight" },
+      { metric_type: "weight", value: null },
+      { metric_type: "weight", value: "1" },
+      { metric_type: "weight", value: [] },
+      { metric_type: "weight", value: {} },
+    ]) {
+      const response = await request("/api/plants/1/metrics", withApiKey(writeKey, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      }));
+      expect(response.status).toBe(400);
+    }
+
+    await expect(env.DB.prepare("SELECT COUNT(*) AS count FROM metrics WHERE plant_id = 1").first<{ count: number }>()).resolves.toEqual({ count: 4 });
+  });
+
+  it("rejects invalid calendar ranges without changing metric history", async () => {
+    await env.DB.batch([
+      env.DB.prepare("INSERT INTO plants (name) VALUES (?)").bind("日付テスト"),
+      env.DB.prepare("INSERT INTO metrics (plant_id, metric_type, value) VALUES (?, ?, ?)").bind(1, "weight", 10),
+      env.DB.prepare("INSERT INTO metrics (plant_id, metric_type, value) VALUES (?, ?, ?)").bind(1, "weight", 20),
+    ]);
+
+    for (const query of ["from=2026-02-29", "from=2026-09-02&to=2026-09-01", "limit=0", "limit=1001"]) {
+      const response = await request(`/api/plants/1/metrics?${query}`, withApiKey(readKey));
+      expect(response.status).toBe(400);
+    }
+    await expect(env.DB.prepare("SELECT COUNT(*) AS count FROM metrics WHERE plant_id = 1").first<{ count: number }>()).resolves.toEqual({ count: 2 });
+  });
+
+  it("paginates same-timestamp raw metrics by id without duplicates", async () => {
+    await env.DB.batch([
+      env.DB.prepare("INSERT INTO plants (name) VALUES (?)").bind("カーソルテスト"),
+      env.DB.prepare("INSERT INTO metrics (plant_id, metric_type, value, created_at) VALUES (?, ?, ?, ?)").bind(1, "weight", 10, "2026-09-01 12:00:00"),
+      env.DB.prepare("INSERT INTO metrics (plant_id, metric_type, value, created_at) VALUES (?, ?, ?, ?)").bind(1, "weight", 20, "2026-09-01 12:00:00"),
+      env.DB.prepare("INSERT INTO metrics (plant_id, metric_type, value, created_at) VALUES (?, ?, ?, ?)").bind(1, "weight", 30, "2026-09-01 12:00:00"),
+    ]);
+
+    const first = await request("/api/plants/1/metrics/raw?metric_type=weight&limit=2", withApiKey(readKey));
+    const firstBody = await first.json() as { metrics: Array<{ id: number; value: number }>; nextCursor: string };
+    const second = await request(`/api/plants/1/metrics/raw?metric_type=weight&limit=2&cursor=${encodeURIComponent(firstBody.nextCursor)}`, withApiKey(readKey));
+    const secondBody = await second.json() as { metrics: Array<{ id: number; value: number }>; nextCursor: string | null };
+
+    expect(firstBody.metrics.map((metric) => metric.value)).toEqual([30, 20]);
+    expect(secondBody.metrics.map((metric) => metric.value)).toEqual([10]);
+    expect(secondBody.nextCursor).toBeNull();
+    expect(new Set([...firstBody.metrics, ...secondBody.metrics].map((metric) => metric.id)).size).toBe(3);
+  });
+
   it("orders metrics by measurement time before id", async () => {
     await env.DB.batch([
       env.DB.prepare("INSERT INTO plants (name) VALUES (?)").bind("時刻テスト"),

@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { fetchCurrentWeather } from "../src/services/weather";
+import { fetchCurrentWeather, fetchDailyWeather } from "../src/services/weather";
 
 describe("Open-Meteo weather service", () => {
   afterEach(() => vi.unstubAllGlobals());
@@ -40,5 +40,22 @@ describe("Open-Meteo weather service", () => {
       current: { time: "2026-09-07T10:00", temperature_2m: 24.3 },
     })));
     await expect(fetchCurrentWeather()).resolves.toBeNull();
+  });
+
+  it.each([
+    [{ daily: { time: ["2026-09-01", "2026-09-02"], weather_code: [1], temperature_2m_max: [30, 31], temperature_2m_min: [20, 21], relative_humidity_2m_mean: [60, 61], precipitation_sum: [0, 1], sunshine_duration: [100, 200] } }],
+    [{ daily: { time: ["2026-09-01"], weather_code: [1], temperature_2m_max: [30], temperature_2m_min: [20], relative_humidity_2m_mean: [null], precipitation_sum: [0], sunshine_duration: [100] } }],
+    [{ daily: { time: ["2026-09-01"], weather_code: [1], temperature_2m_max: [30], temperature_2m_min: [20], relative_humidity_2m_mean: [60], precipitation_sum: [0] } }],
+  ])("rejects malformed daily weather series", async (body) => {
+    vi.stubGlobal("fetch", () => Promise.resolve(Response.json(body)));
+    await expect(fetchDailyWeather("2026-09-01", "2026-09-02")).resolves.toBeNull();
+  });
+
+  it("returns null when the daily weather request fails or is not JSON", async () => {
+    vi.stubGlobal("fetch", () => Promise.resolve(new Response(null, { status: 503 })));
+    await expect(fetchDailyWeather("2026-09-01", "2026-09-02")).resolves.toBeNull();
+
+    vi.stubGlobal("fetch", () => Promise.resolve(new Response("not json", { headers: { "Content-Type": "application/json" } })));
+    await expect(fetchDailyWeather("2026-09-01", "2026-09-02")).resolves.toBeNull();
   });
 });
