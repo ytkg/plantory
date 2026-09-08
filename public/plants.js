@@ -9,17 +9,6 @@ const form = document.querySelector("#create-plant-form");
 const nameInput = document.querySelector("#plant-name");
 const errorElement = document.querySelector("#create-plant-error");
 const submitButton = document.querySelector("#submit-create-plant");
-const feedbackElement = document.querySelector("#plant-feedback");
-const deleteDialog = document.querySelector("#delete-metrics-dialog");
-const deleteForm = document.querySelector("#delete-metrics-form");
-const deleteMessage = document.querySelector("#delete-metrics-message");
-const deleteSubmitButton = document.querySelector("#submit-delete-metrics");
-let pendingDelete = null;
-
-function showFeedback(message, error = false) {
-  feedbackElement.textContent = message;
-  feedbackElement.className = error ? "mb-4 text-sm text-rose-700" : "mb-4 text-sm text-leaf-700";
-}
 
 function showMessage(message, error = false) {
   replaceWithListState(plantsElement, message, { error });
@@ -135,29 +124,25 @@ function createPlantCard(plant, metrics, totalCount) {
   heading.append(icon, summary);
   item.append(heading);
 
-  const detailLink = document.createElement("a");
-  detailLink.className = "mt-4 inline-block text-sm font-semibold text-leaf-700 underline underline-offset-4";
-  detailLink.href = `/plants/${plant.id}/metrics`;
-  detailLink.textContent = "計測データを見る";
-  item.append(detailLink);
-
-  if (totalCount > 0) {
-    const deleteButton = document.createElement("button");
-    deleteButton.className = "ml-5 text-sm font-semibold text-rose-700 underline underline-offset-4";
-    deleteButton.textContent = "測定データを削除";
-    deleteButton.addEventListener("click", () => {
-      pendingDelete = plant;
-      deleteMessage.textContent = `${plant.name}の測定データ ${totalCount}件をすべて削除します。この操作は取り消せません。`;
-      deleteDialog.showModal();
-    });
-    item.append(deleteButton);
-  }
-
   if (metricHistoryState(metrics) !== "empty") {
     const charts = document.createElement("div");
     charts.className = "mt-5 grid gap-3";
     charts.append(createMetricChart(metrics));
+    const detail = document.createElement("div");
+    detail.className = "flex justify-end";
+    const detailLink = document.createElement("a");
+    detailLink.className = "text-sm font-semibold text-leaf-700 underline underline-offset-4";
+    detailLink.href = `/plants/${plant.id}/metrics`;
+    detailLink.textContent = "計測データを見る";
+    detail.append(detailLink);
+    charts.append(detail);
     item.append(charts);
+  } else {
+    const detailLink = document.createElement("a");
+    detailLink.className = "mt-4 inline-block text-sm font-semibold text-leaf-700 underline underline-offset-4";
+    detailLink.href = `/plants/${plant.id}/metrics`;
+    detailLink.textContent = "計測データを見る";
+    item.append(detailLink);
   }
   return item;
 }
@@ -196,33 +181,6 @@ document.querySelector("#open-create-plant").addEventListener("click", () => {
 
 document.querySelector("#close-create-plant").addEventListener("click", closeDialog);
 document.querySelector("#cancel-create-plant").addEventListener("click", closeDialog);
-
-function closeDeleteDialog() {
-  pendingDelete = null;
-  deleteDialog.close();
-}
-
-document.querySelector("#close-delete-metrics").addEventListener("click", closeDeleteDialog);
-document.querySelector("#cancel-delete-metrics").addEventListener("click", closeDeleteDialog);
-
-deleteForm.addEventListener("submit", async (event) => {
-  event.preventDefault();
-  if (!pendingDelete) return;
-  deleteSubmitButton.disabled = true;
-  deleteSubmitButton.textContent = "削除中…";
-  try {
-    await requestJson(`/api/plants/${pendingDelete.id}/metrics`, { method: "DELETE" });
-    const name = pendingDelete.name;
-    closeDeleteDialog();
-    await loadPlants();
-    showFeedback(`${name}の測定データを削除しました。`);
-  } catch {
-    showFeedback("測定データを削除できませんでした。", true);
-  } finally {
-    deleteSubmitButton.disabled = false;
-    deleteSubmitButton.textContent = "すべて削除";
-  }
-});
 
 form.addEventListener("submit", async (event) => {
   event.preventDefault();

@@ -12,6 +12,7 @@ import {
   metricHistoryState,
   rawDifferenceText,
   rawMetricBounds,
+  totalMetricCount,
 } from "../public/presentation.js";
 
 describe("frontend presentation helpers", () => {
@@ -68,5 +69,10 @@ describe("frontend presentation helpers", () => {
     expect(rawMetricBounds([])).toBeNull();
     expect(rawMetricBounds([{ value: 10 }, { value: 20 }])).toEqual({ min: 9, max: 21 });
     expect(rawMetricBounds([{ value: 0 }, { value: 0 }])).toEqual({ min: -1, max: 1 });
+  });
+
+  it("counts every metric type for a whole-plant deletion confirmation", () => {
+    expect(totalMetricCount([{ totalCount: 2 }, { totalCount: 3 }])).toBe(5);
+    expect(totalMetricCount([{ totalCount: 1.5 }, { totalCount: -1 }, {}])).toBe(0);
   });
 });

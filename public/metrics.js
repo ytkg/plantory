@@ -1,10 +1,14 @@
 import { requestJson, logout } from "./api-client.js";
 import { formatDateTime, listStateCard, setupMobileMenu } from "./ui.js";
-import { formatRawValue, metricLabel, metricUnit, rawDifferenceText, rawMetricBounds } from "./presentation.js";
+import { formatRawValue, metricLabel, metricUnit, rawDifferenceText, rawMetricBounds, totalMetricCount } from "./presentation.js";
 
 const content = document.querySelector("#metrics-content");
 const plantName = document.querySelector("#metrics-plant-name");
 const feedback = document.querySelector("#metrics-feedback");
+const deleteDialog = document.querySelector("#delete-metrics-dialog");
+const deleteForm = document.querySelector("#delete-metrics-form");
+const deleteMessage = document.querySelector("#delete-metrics-message");
+const deleteSubmitButton = document.querySelector("#submit-delete-metrics");
 const plantId = /^\/plants\/(\d+)\/metrics$/.exec(window.location.pathname)?.[1];
 let metricTypes = [];
 let selectedType = null;
@@ -234,6 +238,28 @@ function createHistory(metrics, metricType) {
   return section;
 }
 
+function createDeleteSection(data) {
+  const count = totalMetricCount(metricTypes);
+  if (count === 0) return null;
+  const section = document.createElement("section");
+  section.className = "mt-7 rounded-2xl border border-rose-200 bg-rose-50 p-5";
+  const heading = document.createElement("h2");
+  heading.className = "text-lg font-semibold text-rose-700";
+  heading.textContent = "測定データを削除";
+  const description = document.createElement("p");
+  description.className = "mt-2 text-sm leading-6 text-stone-600";
+  description.textContent = "この植物に記録されたすべての測定データを削除します。選択中の種類や期間だけを削除することはできません。";
+  const button = document.createElement("button");
+  button.className = "mt-5 rounded-xl bg-rose-700 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-rose-600";
+  button.textContent = "すべての測定データを削除";
+  button.addEventListener("click", () => {
+    deleteMessage.textContent = `${data.plant.name}の測定データ ${count}件をすべて削除します。この操作は取り消せません。`;
+    deleteDialog.showModal();
+  });
+  section.append(heading, description, button);
+  return section;
+}
+
 function render(data = currentData) {
   if (!data) return;
   const selected = metricTypes.find((type) => type.metric_type === selectedType);
@@ -244,16 +270,19 @@ function render(data = currentData) {
   plantName.textContent = `${data.plant?.name ?? "植物"} / ${metricLabel(selectedType)}`;
   const title = document.querySelector("h1");
   title.textContent = metricLabel(selectedType);
-  content.replaceChildren(createControls(), createSummary(selected), createChart(data.metrics, selectedType), createHistory(data.metrics, selectedType));
+  const sections = [createControls(), createSummary(selected), createChart(data.metrics, selectedType), createHistory(data.metrics, selectedType)];
+  const deleteSection = createDeleteSection(data);
+  if (deleteSection) sections.push(deleteSection);
+  content.replaceChildren(...sections);
 }
 
-async function refresh() {
+async function refresh({ preserveFeedback = false } = {}) {
   if (!plantId) {
     content.replaceChildren(listStateCard("植物が見つかりません。", { error: true }));
     return;
   }
   content.replaceChildren(listStateCard("計測データを読み込んでいます…"));
-  feedback.className = "mt-6 hidden text-sm";
+  if (!preserveFeedback) feedback.className = "mt-6 hidden text-sm";
   rangeWindow = selectedRange === "recent" ? null : (() => {
     const to = new Date();
     return { from: new Date(to.getTime() - Number(selectedRange) * 24 * 60 * 60 * 1000).toISOString(), to: to.toISOString() };
@@ -263,6 +292,8 @@ async function refresh() {
     metricTypes = metadata.metricTypes;
     if (!metricTypes.length) {
       plantName.textContent = `${metadata.plant.name} / 計測データ`;
+      selectedType = null;
+      currentData = null;
       content.replaceChildren(listStateCard("この植物には計測データがありません。"));
       return;
     }
@@ -278,6 +309,32 @@ async function refresh() {
     content.replaceChildren(listStateCard(error instanceof Error ? error.message : "計測データを読み込めませんでした。", { error: true }));
   }
 }
+
+function closeDeleteDialog() {
+  deleteDialog.close();
+}
+
+document.querySelector("#close-delete-metrics").addEventListener("click", closeDeleteDialog);
+document.querySelector("#cancel-delete-metrics").addEventListener("click", closeDeleteDialog);
+
+deleteForm.addEventListener("submit", async (event) => {
+  event.preventDefault();
+  if (!currentData) return;
+  deleteSubmitButton.disabled = true;
+  deleteSubmitButton.textContent = "削除中…";
+  try {
+    await requestJson(`/api/plants/${plantId}/metrics`, { method: "DELETE" });
+    const name = currentData.plant.name;
+    closeDeleteDialog();
+    await refresh({ preserveFeedback: true });
+    showFeedback(`${name}の測定データを削除しました。`);
+  } catch {
+    showFeedback("測定データを削除できませんでした。", true);
+  } finally {
+    deleteSubmitButton.disabled = false;
+    deleteSubmitButton.textContent = "すべて削除";
+  }
+});
 
 document.querySelectorAll(".logout").forEach((button) => button.addEventListener("click", logout));
 setupMobileMenu();
