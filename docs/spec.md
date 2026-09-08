@@ -227,7 +227,7 @@ APIキー管理APIはログインCookieでのみ利用できる。
 - GitHub Actionsの`Deploy`は、mainへのpushで成功した`Test`ワークフローだけを受け取り、対象SHAが開始時点のmain先頭なら本番D1の未適用migrationを適用してからWorkerをデプロイする。PRや開発ブランチのCI、古い待機SHAでは本番を変更しない。デプロイは同時に1件だけ実行し、実行中のデプロイはキャンセルしない。
 - `CLOUDFLARE_ACCOUNT_ID`と最小権限の`CLOUDFLARE_API_TOKEN`をGitHub Actions Secretsに設定するまで、自動デプロイは有効化しない。ローカルの手動反映は`npx wrangler d1 migrations apply plantory --remote`の後に`npm run deploy`を実行し、GitHub Actionsのデプロイと重ならないようにする。
 - migration適用の失敗時はWorkerをデプロイしない。Workerデプロイの失敗時にD1を自動ロールバックしない。破壊的なmigrationは影響、互換性を保つ適用順、復旧方針をPRに記載してレビューする。本番の確認・復旧方法は[本番運用](operations.md)に記載する。
-- D1のマイグレーションは `migrations/` で管理する。`0003_make_daily_reports_aggregate.sql` は、既存の植物単位の日報テーブルを日付ごとの集約観察日記へ移行する。
+- D1スキーマの正本は `src/db/schema.ts` とし、Drizzle Kitで `migrations/` の差分SQLを生成する。D1への適用と適用履歴の管理はWranglerが担う。`0001`〜`0005`の既存migrationは変更せず、Drizzle Kitのベースラインから以後の差分だけを追加する。`0003_make_daily_reports_aggregate.sql` は、既存の植物単位の日報テーブルを日付ごとの集約観察日記へ移行する。
 - 観察日記の定期更新は現在設定しない。M5Stackから十分なmetricsが蓄積してから、D1の情報をもとに作成・更新する仕組みを設定する。
 - 毎時0分（UTC）にWorker CronでSwitchBot CO₂センサーの温度・湿度・CO₂濃度を取得し、`environment_metrics` へ1件の環境観測スナップショットとして保存する。3値すべてが有限な数値で取得できた場合だけ保存する。取得失敗・不正値・欠損時は保存、通知、リトライを行わない。SwitchBotとの通信、HTTP応答、APIエラー、不正な環境値については、認証情報やレスポンス本文を含めず原因別にWorkerログへ記録する。
 - `firmware/` にはPlantory専用のM5Stackファームウェアを置く。`soil-moisture-atom-s3/`、`weight-atom-s3/`、`weight-m5stickc-plus2/`、`unit-cams3-5mp/` はそれぞれ独立したPlatformIOプロジェクトで、`sample/` はWi-Fi接続と公開ステータス表示の動作確認用サンプルとする。
