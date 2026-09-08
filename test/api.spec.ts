@@ -510,6 +510,16 @@ describe("Plantory API", () => {
     const environmentResponse = await request("/environment.js");
     expect(environmentResponse.status).toBe(200);
     await expect(environmentResponse.text()).resolves.toContain("/api/environment");
+
+    const metricsResponse = await request("/metrics.js");
+    expect(metricsResponse.status).toBe(200);
+    await expect(metricsResponse.text()).resolves.toContain("/metrics/raw");
+  });
+
+  it("redirects the raw metric detail page to login when no session is present", async () => {
+    const response = await request("/plants/1/metrics", { redirect: "manual" });
+    expect(response.status).toBe(302);
+    expect(response.headers.get("Location")).toBe(`${baseUrl}/login?next=%2Fplants%2F1%2Fmetrics`);
   });
 
   it("publishes one aggregate observation per date and updates it on a rerun", async () => {
@@ -659,6 +669,45 @@ describe("Plantory API", () => {
       metrics: [{ value: 50, created_at: "2026-09-01T15:00:00Z" }],
       totalCount: 3,
     });
+  });
+
+  it("returns paginated raw metrics with exact timestamp ranges while retaining all metric types", async () => {
+    await env.DB.batch([
+      env.DB.prepare("INSERT INTO plants (name) VALUES (?)").bind("生値テスト"),
+      env.DB.prepare("INSERT INTO metrics (plant_id, metric_type, value, created_at) VALUES (?, ?, ?, ?)").bind(1, "weight", 483.547, "2026-09-01 00:00:00"),
+      env.DB.prepare("INSERT INTO metrics (plant_id, metric_type, value, created_at) VALUES (?, ?, ?, ?)").bind(1, "weight", 482.347, "2026-09-01 12:00:00"),
+      env.DB.prepare("INSERT INTO metrics (plant_id, metric_type, value, created_at) VALUES (?, ?, ?, ?)").bind(1, "weight", 481.125, "2026-09-02 00:00:00"),
+      env.DB.prepare("INSERT INTO metrics (plant_id, metric_type, value, created_at) VALUES (?, ?, ?, ?)").bind(1, "soil_moisture", 1220, "2026-09-02 06:00:00"),
+    ]);
+
+    expect((await request("/api/plants/1/metrics/raw?metric_type=weight")).status).toBe(401);
+    expect((await request("/api/plants/1/metrics/raw?metric_type=weight&from=2026-09-01", withApiKey(readKey))).status).toBe(400);
+
+    const first = await request("/api/plants/1/metrics/raw?metric_type=weight&limit=1", withApiKey(readKey));
+    expect(first.status).toBe(200);
+    const firstBody = await first.json() as {
+      plant: { name: string };
+      metricTypes: Array<{ metric_type: string; totalCount: number; latest: { value: number } | null; previous: { value: number } | null }>;
+      metrics: Array<{ id: number; value: number; created_at: string }>;
+      nextCursor: string | null;
+    };
+    expect(firstBody.plant).toEqual(expect.objectContaining({ name: "生値テスト" }));
+    expect(firstBody.metricTypes).toEqual(expect.arrayContaining([
+      expect.objectContaining({ metric_type: "soil_moisture", totalCount: 1, latest: expect.objectContaining({ value: 1220 }), previous: null }),
+      expect.objectContaining({ metric_type: "weight", totalCount: 3, latest: expect.objectContaining({ value: 481.125 }), previous: expect.objectContaining({ value: 482.347 }) }),
+    ]));
+    expect(firstBody.metrics).toEqual([{ id: expect.any(Number), plant_id: 1, metric_type: "weight", value: 481.125, created_at: "2026-09-02T00:00:00Z" }]);
+    expect(firstBody.nextCursor).toMatch(/\|\d+$/);
+
+    const second = await request(`/api/plants/1/metrics/raw?metric_type=weight&limit=1&cursor=${encodeURIComponent(firstBody.nextCursor!)}`, withApiKey(readKey));
+    await expect(second.json()).resolves.toMatchObject({ metrics: [{ value: 482.347, created_at: "2026-09-01T12:00:00Z" }] });
+
+    const ranged = await request(
+      "/api/plants/1/metrics/raw?metric_type=weight&from=2026-09-01T06:00:00Z&to=2026-09-01T18:00:00Z",
+      withApiKey(readKey),
+    );
+    await expect(ranged.json()).resolves.toMatchObject({ metrics: [{ value: 482.347, created_at: "2026-09-01T12:00:00Z" }] });
+    expect((await request("/api/plants/999/metrics/raw?metric_type=weight", withApiKey(readKey))).status).toBe(404);
   });
 
   it("deletes all metrics while keeping the plant and other plants intact", async () => {

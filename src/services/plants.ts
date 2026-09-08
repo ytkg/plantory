@@ -2,7 +2,7 @@ import { calculateMoisturePercentage, calculateMoistureRange, getMoistureDirecti
 import type { AppContext } from "../routes/context";
 import { toUtcIsoTimestamp } from "../time";
 import type { Metric, Plant } from "../types";
-import type { HistoryQuery } from "../validation";
+import type { HistoryQuery, RawMetricQuery } from "../validation";
 
 type CreatePlantInput = { name?: unknown };
 type CreateMetricInput = { metric_type?: unknown; value?: unknown };
@@ -16,6 +16,20 @@ export type PlantObservationData = {
   moistureHistory: MetricHistory;
   moistureSource: { metric_type: WaterMetricType; direction: "increasing" | "decreasing"; p5: number; p95: number } | null;
   rawMetricHistories: RawMetricHistory[];
+};
+export type RawMetricType = {
+  metric_type: string;
+  totalCount: number;
+  latest: RawMetricReading | null;
+  previous: RawMetricReading | null;
+};
+export type RawMetricPage = {
+  plant: Plant;
+  metricTypes: RawMetricType[];
+  metric_type: string;
+  metrics: RawMetricReading[];
+  totalCount: number;
+  nextCursor: string | null;
 };
 
 export async function listPlants(c: AppContext): Promise<Response> {
@@ -54,6 +68,71 @@ async function plantExists(id: number, c: AppContext): Promise<boolean> {
 export async function listMetrics(plantId: number, query: HistoryQuery, c: AppContext): Promise<Response> {
   const history = await metricHistory(plantId, query, c.env);
   return history ? c.json(history) : c.json({ error: "Plant not found." }, 404);
+}
+
+function rawReading(metric: Metric): RawMetricReading {
+  return { ...metric, created_at: toUtcIsoTimestamp(metric.created_at) };
+}
+
+async function rawMetricTypes(plantId: number, env: Env): Promise<RawMetricType[]> {
+  const types = await env.DB.prepare(
+    "SELECT metric_type, COUNT(*) AS total_count FROM metrics WHERE plant_id = ? GROUP BY metric_type ORDER BY metric_type ASC",
+  ).bind(plantId).all<{ metric_type: string; total_count: number }>();
+
+  return Promise.all(types.results.map(async ({ metric_type, total_count }) => {
+    const result = await env.DB.prepare(
+      `SELECT id, plant_id, metric_type, value, created_at
+       FROM metrics WHERE plant_id = ? AND metric_type = ? ORDER BY datetime(created_at) DESC, id DESC LIMIT 2`,
+    ).bind(plantId, metric_type).all<Metric>();
+    return {
+      metric_type,
+      totalCount: total_count,
+      latest: result.results[0] ? rawReading(result.results[0]) : null,
+      previous: result.results[1] ? rawReading(result.results[1]) : null,
+    };
+  }));
+}
+
+export async function rawMetricPage(plantId: number, query: RawMetricQuery, env: Env): Promise<RawMetricPage | null> {
+  const plant = await env.DB.prepare("SELECT id, name, created_at, updated_at FROM plants WHERE id = ? LIMIT 1").bind(plantId).first<Plant>();
+  if (!plant) return null;
+
+  const metricTypes = await rawMetricTypes(plantId, env);
+  const selected = metricTypes.find((type) => type.metric_type === query.metricType);
+  if (!selected) {
+    return { plant, metricTypes, metric_type: query.metricType, metrics: [], totalCount: 0, nextCursor: null };
+  }
+
+  const clauses = ["plant_id = ?", "metric_type = ?"];
+  const bindings: Array<number | string> = [plantId, query.metricType];
+  if (query.from) {
+    clauses.push("julianday(created_at) >= julianday(?)");
+    bindings.push(query.from);
+  }
+  if (query.to) {
+    clauses.push("julianday(created_at) <= julianday(?)");
+    bindings.push(query.to);
+  }
+  if (query.cursor) {
+    clauses.push("(julianday(created_at) < julianday(?) OR (julianday(created_at) = julianday(?) AND id < ?))");
+    bindings.push(query.cursor.createdAt, query.cursor.createdAt, query.cursor.id);
+  }
+  bindings.push(query.limit + 1);
+  const result = await env.DB.prepare(
+    `SELECT id, plant_id, metric_type, value, created_at
+     FROM metrics WHERE ${clauses.join(" AND ")} ORDER BY datetime(created_at) DESC, id DESC LIMIT ?`,
+  ).bind(...bindings).all<Metric>();
+  const hasMore = result.results.length > query.limit;
+  const metrics = result.results.slice(0, query.limit).map(rawReading);
+  const last = metrics.at(-1);
+  return {
+    plant,
+    metricTypes,
+    metric_type: query.metricType,
+    metrics,
+    totalCount: selected.totalCount,
+    nextCursor: hasMore && last ? `${last.created_at}|${last.id}` : null,
+  };
 }
 
 export async function metricHistory(plantId: number, query: HistoryQuery, env: Env): Promise<MetricHistory | null> {
@@ -118,7 +197,7 @@ async function rawMetricHistories(plantId: number, query: HistoryQuery, env: Env
     ).bind(...bindings).all<Metric>();
     return {
       metric_type,
-      metrics: result.results.map((metric) => ({ ...metric, created_at: toUtcIsoTimestamp(metric.created_at) })),
+      metrics: result.results.map(rawReading),
       totalCount: total_count,
     };
   }));

@@ -5,8 +5,13 @@ import {
   formatChartTooltipTitle,
   formatDateTime,
   formatMoisture,
+  formatRawValue,
   formatValue,
+  metricLabel,
+  metricUnit,
   metricHistoryState,
+  rawDifferenceText,
+  rawMetricBounds,
 } from "../public/presentation.js";
 
 describe("frontend presentation helpers", () => {
@@ -48,5 +53,20 @@ describe("frontend presentation helpers", () => {
     expect(metricHistoryState([])).toBe("empty");
     expect(metricHistoryState([{ value: 42 }])).toBe("single");
     expect(metricHistoryState([{ value: 42 }, { value: 40 }])).toBe("multiple");
+  });
+
+  it("keeps raw metric values and known units without display rounding", () => {
+    expect(metricLabel("weight")).toBe("重量");
+    expect(metricLabel("battery_voltage")).toBe("battery_voltage");
+    expect(metricUnit("weight")).toBe("g");
+    expect(metricUnit("soil_moisture")).toBe("");
+    expect(formatRawValue(482.347)).toBe("482.347");
+    expect(rawDifferenceText(482.347, 483.547, " g")).toBe("-1.2 g");
+  });
+
+  it("adds an adaptive non-zero range around raw metric values", () => {
+    expect(rawMetricBounds([])).toBeNull();
+    expect(rawMetricBounds([{ value: 10 }, { value: 20 }])).toEqual({ min: 9, max: 21 });
+    expect(rawMetricBounds([{ value: 0 }, { value: 0 }])).toEqual({ min: -1, max: 1 });
   });
 });

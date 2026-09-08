@@ -135,9 +135,15 @@ function createPlantCard(plant, metrics, totalCount) {
   heading.append(icon, summary);
   item.append(heading);
 
+  const detailLink = document.createElement("a");
+  detailLink.className = "mt-4 inline-block text-sm font-semibold text-leaf-700 underline underline-offset-4";
+  detailLink.href = `/plants/${plant.id}/metrics`;
+  detailLink.textContent = "計測データを見る";
+  item.append(detailLink);
+
   if (totalCount > 0) {
     const deleteButton = document.createElement("button");
-    deleteButton.className = "mt-4 text-sm font-semibold text-rose-700 underline underline-offset-4";
+    deleteButton.className = "ml-5 text-sm font-semibold text-rose-700 underline underline-offset-4";
     deleteButton.textContent = "測定データを削除";
     deleteButton.addEventListener("click", () => {
       pendingDelete = plant;

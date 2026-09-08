@@ -60,3 +60,40 @@ export function formatChartTooltipTitle(metrics, dataIndex) {
 export function formatChartTooltipLabel(label, value, unit = "%") {
   return `${label || "値"}: ${formatValue(value)}${unit}`;
 }
+
+export function metricLabel(metricType) {
+  const labels = {
+    weight: "重量",
+    soil_moisture: "土壌水分（生値）",
+  };
+  return labels[metricType] ?? String(metricType ?? "値");
+}
+
+export function metricUnit(metricType) {
+  return metricType === "weight" ? "g" : "";
+}
+
+export function formatRawValue(value) {
+  const numericValue = Number(value);
+  return Number.isFinite(numericValue) ? String(numericValue) : NUMBER_UNAVAILABLE;
+}
+
+export function rawDifferenceText(latest, previous, unit = "") {
+  const latestValue = Number(latest);
+  const previousValue = Number(previous);
+  if (!Number.isFinite(latestValue) || !Number.isFinite(previousValue)) return "—";
+  const difference = latestValue - previousValue;
+  if (difference === 0) return `0${unit}`;
+  // DBの値そのものは変えず、IEEE 754の計算誤差だけを表示から除く。
+  const displayed = new Intl.NumberFormat("ja-JP", { useGrouping: false, maximumFractionDigits: 12 }).format(difference);
+  return `${difference > 0 ? "+" : ""}${displayed}${unit}`;
+}
+
+export function rawMetricBounds(metrics) {
+  const values = Array.isArray(metrics) ? metrics.map((metric) => Number(metric?.value)).filter(Number.isFinite) : [];
+  if (!values.length) return null;
+  const minimum = Math.min(...values);
+  const maximum = Math.max(...values);
+  const padding = minimum === maximum ? Math.max(Math.abs(minimum) * 0.05, 1) : (maximum - minimum) * 0.1;
+  return { min: minimum - padding, max: maximum + padding };
+}
