@@ -18,6 +18,62 @@
   .mobile-menu-toggle::marker {
     content: "";
   }
+
+  .report-markdown > :first-child {
+    margin-top: 0;
+  }
+
+  .report-markdown h1 {
+    @apply text-2xl font-semibold tracking-tight text-ink sm:text-3xl;
+  }
+
+  .report-markdown h2 {
+    @apply mt-8 text-lg font-semibold text-leaf-700;
+  }
+
+  .report-markdown h3 {
+    @apply mt-5 text-base font-semibold text-ink;
+  }
+
+  .report-markdown h4 {
+    @apply mt-4 font-semibold text-ink;
+  }
+
+  .report-markdown p,
+  .report-markdown ul,
+  .report-markdown ol,
+  .report-markdown blockquote,
+  .report-markdown pre {
+    @apply mt-3 leading-7 text-stone-700;
+  }
+
+  .report-markdown-featured p,
+  .report-markdown-featured ul,
+  .report-markdown-featured ol,
+  .report-markdown-featured blockquote,
+  .report-markdown-featured pre {
+    @apply text-lg leading-8;
+  }
+
+  .report-markdown ul {
+    @apply list-disc space-y-1 pl-6;
+  }
+
+  .report-markdown ol {
+    @apply list-decimal space-y-1 pl-6;
+  }
+
+  .report-markdown a {
+    @apply text-leaf-700 underline underline-offset-2;
+  }
+
+  .report-markdown blockquote {
+    @apply border-l-4 border-leaf-100 pl-4 text-stone-600;
+  }
+
+  .report-markdown pre {
+    @apply overflow-x-auto rounded-xl bg-leaf-50 p-4 text-sm;
+  }
 }
 
 @theme {

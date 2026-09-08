@@ -26,6 +26,23 @@ function message(text, error = false) {
   reportsElement.append(section);
 }
 
+function renderMarkdown(content, date) {
+  const element = document.createElement("div");
+  element.className = "report-markdown";
+  const html = window.marked.parse(content);
+  element.innerHTML = window.DOMPurify.sanitize(html, {
+    ALLOWED_TAGS: ["a", "blockquote", "br", "code", "em", "h1", "h2", "h3", "h4", "li", "ol", "p", "pre", "strong", "ul"],
+    ALLOWED_ATTR: ["href", "title"],
+  });
+
+  if (!element.querySelector("h1")) {
+    const title = document.createElement("h1");
+    title.textContent = formatDate(date);
+    element.prepend(title);
+  }
+  return element;
+}
+
 function showReports(reports) {
   if (reports.length === 0) {
     message("まだ観察日記はありません。最初の記録を待っています。");
@@ -37,15 +54,9 @@ function showReports(reports) {
     article.className = featured
       ? "rounded-3xl border border-leaf-100 bg-white p-7 shadow-sm sm:p-8"
       : "rounded-3xl border border-leaf-100 bg-white p-6 shadow-sm";
-    const date = document.createElement("p");
-    date.className = "text-sm font-semibold text-leaf-700";
-    date.textContent = formatDate(report.date);
-    const content = document.createElement("p");
-    content.className = featured
-      ? "mt-4 whitespace-pre-wrap text-lg leading-8 text-stone-700"
-      : "mt-3 whitespace-pre-wrap leading-7 text-stone-700";
-    content.textContent = report.content;
-    article.append(date, content);
+    const content = renderMarkdown(report.content, report.date);
+    if (featured) content.classList.add("report-markdown-featured");
+    article.append(content);
     return article;
   };
 
