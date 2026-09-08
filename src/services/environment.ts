@@ -1,4 +1,7 @@
 import type { AppContext } from "../routes/context";
+import { and, desc, sql } from "drizzle-orm";
+import { db } from "../db";
+import { environmentMetrics } from "../db/schema";
 import type { HistoryQuery } from "../validation";
 
 const SWITCHBOT_STATUS_URL = "https://api.switch-bot.com/v1.1/devices";
@@ -106,21 +109,12 @@ export async function collectEnvironmentMetrics(env: Env): Promise<boolean> {
   if (!reading) return false;
 
   const createdAt = new Date().toISOString();
-  await env.DB.prepare(
-    "INSERT INTO environment_metrics (temperature, humidity, co2, created_at) VALUES (?, ?, ?, ?)",
-  )
-    .bind(reading.temperature, reading.humidity, reading.co2, createdAt)
-    .run();
+  await db(env.DB).insert(environmentMetrics).values({ ...reading, createdAt }).run();
   return true;
 }
 
 export async function latestEnvironmentMetrics(env: Env): Promise<EnvironmentSnapshot | null> {
-  return env.DB.prepare(
-    `SELECT temperature, humidity, co2, created_at
-     FROM environment_metrics
-     ORDER BY created_at DESC, id DESC
-     LIMIT 1`,
-  ).first<EnvironmentSnapshot>();
+  return ((await db(env.DB).select({ temperature: environmentMetrics.temperature, humidity: environmentMetrics.humidity, co2: environmentMetrics.co2, created_at: environmentMetrics.createdAt }).from(environmentMetrics).orderBy(desc(environmentMetrics.createdAt), desc(environmentMetrics.id)).limit(1).get()) as EnvironmentSnapshot | undefined) ?? null;
 }
 
 export async function listEnvironmentMetrics(query: HistoryQuery, c: AppContext): Promise<Response> {
@@ -128,22 +122,6 @@ export async function listEnvironmentMetrics(query: HistoryQuery, c: AppContext)
 }
 
 export async function environmentHistory(query: HistoryQuery, env: Env): Promise<EnvironmentSnapshot[]> {
-  const clauses: string[] = [];
-  const bindings: Array<string | number> = [];
-  if (query.from) {
-    clauses.push("datetime(created_at) >= datetime(?, '-9 hours')");
-    bindings.push(query.from);
-  }
-  if (query.to) {
-    clauses.push("datetime(created_at) < datetime(?, '+1 day', '-9 hours')");
-    bindings.push(query.to);
-  }
-  bindings.push(query.limit);
-
-  const result = await env.DB.prepare(
-    `SELECT temperature, humidity, co2, created_at
-     FROM environment_metrics${clauses.length ? ` WHERE ${clauses.join(" AND ")}` : ""}
-     ORDER BY created_at DESC, id DESC LIMIT ?`,
-  ).bind(...bindings).all<EnvironmentSnapshot>();
-  return result.results;
+  const conditions = [query.from ? sql`datetime(${environmentMetrics.createdAt}) >= datetime(${query.from}, '-9 hours')` : undefined, query.to ? sql`datetime(${environmentMetrics.createdAt}) < datetime(${query.to}, '+1 day', '-9 hours')` : undefined];
+  return (await db(env.DB).select({ temperature: environmentMetrics.temperature, humidity: environmentMetrics.humidity, co2: environmentMetrics.co2, created_at: environmentMetrics.createdAt }).from(environmentMetrics).where(and(...conditions)).orderBy(desc(environmentMetrics.createdAt), desc(environmentMetrics.id)).limit(query.limit).all()) as EnvironmentSnapshot[];
 }
