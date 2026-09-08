@@ -97,3 +97,8 @@ export function rawMetricBounds(metrics) {
   const padding = minimum === maximum ? Math.max(Math.abs(minimum) * 0.05, 1) : (maximum - minimum) * 0.1;
   return { min: minimum - padding, max: maximum + padding };
 }
+
+export function totalMetricCount(metricTypes) {
+  if (!Array.isArray(metricTypes)) return 0;
+  return metricTypes.reduce((total, metricType) => total + (Number.isSafeInteger(metricType?.totalCount) && metricType.totalCount > 0 ? metricType.totalCount : 0), 0);
+}
