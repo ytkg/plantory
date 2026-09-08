@@ -2,7 +2,6 @@ import { Hono } from "hono";
 import { authenticateSession } from "../auth";
 import { loginDestination, protectedAsset, redirectToLogin } from "../pages";
 import { setCookies } from "./context";
-import type { AppContext } from "./context";
 
 export const pageRoutes = new Hono<{ Bindings: Env }>();
 const protectedPages = new Map([["/plants", "/plants.html"], ["/settings/api-keys", "/api-keys.html"]]);
