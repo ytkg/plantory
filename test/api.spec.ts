@@ -150,6 +150,7 @@ describe("Plantory API", () => {
     expect(toolsResponse.result.tools.map((tool) => tool.name)).toEqual([
       "list_plants",
       "get_plant_moisture_history",
+      "get_plant_observation_data",
       "get_environment_history",
       "get_daily_weather",
     ]);
@@ -163,6 +164,23 @@ describe("Plantory API", () => {
     expect(JSON.parse(historyResponse.result.content[0].text)).toMatchObject({
       metrics: [{ value: 0, created_at: "2026-09-01T15:00:00Z" }],
       totalCount: 2,
+    });
+
+    const observation = await mcpRequest(4, "tools/call", {
+      name: "get_plant_observation_data",
+      arguments: { plant_id: 1, from: "2026-09-02", to: "2026-09-02" },
+    });
+    expect(observation.status).toBe(200);
+    const observationResponse = await mcpJson(observation) as { result: { content: Array<{ text: string }> } };
+    expect(JSON.parse(observationResponse.result.content[0].text)).toMatchObject({
+      plant: { id: 1, name: "カランコエ" },
+      moistureHistory: { metrics: [{ value: 0, created_at: "2026-09-01T15:00:00Z" }], totalCount: 2 },
+      moistureSource: { metric_type: "soil_moisture", direction: "decreasing", p5: 42, p95: 78 },
+      rawMetricHistories: [{
+        metric_type: "soil_moisture",
+        totalCount: 2,
+        metrics: [{ value: 80, created_at: "2026-09-01T15:00:00Z" }],
+      }],
     });
   });
 

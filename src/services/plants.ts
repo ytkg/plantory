@@ -1,4 +1,4 @@
-import { calculateMoisturePercentage, calculateMoistureRange } from "../moisture";
+import { calculateMoisturePercentage, calculateMoistureRange, getMoistureDirection } from "../moisture";
 import type { AppContext } from "../routes/context";
 import { toUtcIsoTimestamp } from "../time";
 import type { Metric, Plant } from "../types";
@@ -9,6 +9,14 @@ type CreateMetricInput = { metric_type?: unknown; value?: unknown };
 type WaterMetricType = "soil_moisture" | "weight";
 type MoistureMetric = Pick<Metric, "id" | "plant_id" | "created_at"> & { value: number };
 export type MetricHistory = { metrics: MoistureMetric[]; totalCount: number };
+type RawMetricReading = Pick<Metric, "id" | "plant_id" | "metric_type" | "value"> & { created_at: string };
+export type RawMetricHistory = { metric_type: string; metrics: RawMetricReading[]; totalCount: number };
+export type PlantObservationData = {
+  plant: Plant;
+  moistureHistory: MetricHistory;
+  moistureSource: { metric_type: WaterMetricType; direction: "increasing" | "decreasing"; p5: number; p95: number } | null;
+  rawMetricHistories: RawMetricHistory[];
+};
 
 export async function listPlants(c: AppContext): Promise<Response> {
   return c.json({ plants: await listPlantsData(c.env) });
@@ -84,6 +92,66 @@ export async function metricHistory(plantId: number, query: HistoryQuery, env: E
     return value === null ? [] : [{ id: metric.id, plant_id: metric.plant_id, value, created_at: toUtcIsoTimestamp(metric.created_at) }];
   });
   return { metrics, totalCount: sourceMetrics.length };
+}
+
+async function rawMetricHistories(plantId: number, query: HistoryQuery, env: Env): Promise<RawMetricHistory[]> {
+  const metricTypes = await env.DB.prepare(
+    "SELECT metric_type, COUNT(*) AS total_count FROM metrics WHERE plant_id = ? GROUP BY metric_type ORDER BY metric_type ASC",
+  ).bind(plantId).all<{ metric_type: string; total_count: number }>();
+
+  return Promise.all(metricTypes.results.map(async ({ metric_type, total_count }) => {
+    const clauses = ["plant_id = ?", "metric_type = ?"];
+    const bindings: Array<number | string> = [plantId, metric_type];
+    if (query.from) {
+      clauses.push("datetime(created_at) >= datetime(?, '-9 hours')");
+      bindings.push(query.from);
+    }
+    if (query.to) {
+      clauses.push("datetime(created_at) < datetime(?, '+1 day', '-9 hours')");
+      bindings.push(query.to);
+    }
+    bindings.push(query.limit);
+
+    const result = await env.DB.prepare(
+      `SELECT id, plant_id, metric_type, value, created_at
+       FROM metrics WHERE ${clauses.join(" AND ")} ORDER BY created_at DESC, id DESC LIMIT ?`,
+    ).bind(...bindings).all<Metric>();
+    return {
+      metric_type,
+      metrics: result.results.map((metric) => ({ ...metric, created_at: toUtcIsoTimestamp(metric.created_at) })),
+      totalCount: total_count,
+    };
+  }));
+}
+
+export async function plantObservationData(plantId: number, query: HistoryQuery, env: Env): Promise<PlantObservationData | null> {
+  const plant = await env.DB.prepare("SELECT id, name, created_at, updated_at FROM plants WHERE id = ? LIMIT 1").bind(plantId).first<Plant>();
+  if (!plant) return null;
+
+  const allWaterMetrics = await env.DB.prepare(
+    "SELECT id, plant_id, metric_type, value, created_at FROM metrics WHERE plant_id = ? AND metric_type IN ('soil_moisture', 'weight') ORDER BY created_at DESC, id DESC",
+  ).bind(plantId).all<Metric>();
+  const metricType: WaterMetricType | null = allWaterMetrics.results.some((metric) => metric.metric_type === "soil_moisture")
+    ? "soil_moisture"
+    : allWaterMetrics.results.some((metric) => metric.metric_type === "weight") ? "weight" : null;
+  const sourceMetrics = metricType ? allWaterMetrics.results.filter((metric) => metric.metric_type === metricType) : [];
+  const range = calculateMoistureRange(sourceMetrics.map((metric) => metric.value));
+  const [moistureHistory, rawHistories] = await Promise.all([
+    metricHistory(plantId, query, env),
+    rawMetricHistories(plantId, query, env),
+  ]);
+
+  return {
+    plant,
+    moistureHistory: moistureHistory ?? { metrics: [], totalCount: 0 },
+    moistureSource: metricType && range ? {
+      metric_type: metricType,
+      direction: getMoistureDirection(metricType)!,
+      p5: range.lower,
+      p95: range.upper,
+    } : null,
+    rawMetricHistories: rawHistories,
+  };
 }
 
 export async function deleteMetrics(plantId: number, c: AppContext): Promise<Response> {
