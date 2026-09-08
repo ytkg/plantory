@@ -142,6 +142,29 @@ describe("Plantory API", () => {
     expect(await purifier.text()).toContain("DOMPurify");
   });
 
+  it("server-renders the page shells with their existing navigation and client hooks", async () => {
+    const publicPage = await request("/");
+    expect(publicPage.status).toBe(200);
+    const publicHtml = await publicPage.text();
+    expect(publicHtml).toContain("<!doctype html>");
+    expect(publicHtml).toContain('aria-label="公開ナビゲーション"');
+    expect(publicHtml).toContain('id="reports"');
+    expect(publicHtml).toContain('src="/reports.js"');
+
+    mockSignedInSession();
+    const authenticatedPage = await request("/", { headers: { Cookie: "plantory_access=test-access-token" } });
+    const authenticatedHtml = await authenticatedPage.text();
+    expect(authenticatedHtml).toContain('aria-label="管理ナビゲーション"');
+    expect(authenticatedHtml).toContain('class="logout');
+
+    const plantsPage = await request("/plants", { headers: { Cookie: "plantory_access=test-access-token" } });
+    expect(await plantsPage.text()).toContain('id="create-plant-dialog"');
+    const metricsPage = await request("/plants/1/metrics", { headers: { Cookie: "plantory_access=test-access-token" } });
+    expect(await metricsPage.text()).toContain('id="delete-metrics-dialog"');
+    const keysPage = await request("/settings/api-keys", { headers: { Cookie: "plantory_access=test-access-token" } });
+    expect(await keysPage.text()).toContain('id="create-key-dialog"');
+  });
+
   it("exposes Plantory data tools through MCP and only exposes report saving to write credentials", async () => {
     await env.DB.batch([
       env.DB.prepare("INSERT INTO plants (name) VALUES (?)").bind("カランコエ"),
