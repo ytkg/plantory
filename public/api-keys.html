@@ -1,0 +1,40 @@
+<!doctype html>
+<html lang="ja">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Plantory | APIキー</title>
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body class="flex min-h-screen flex-col bg-leaf-50 text-ink antialiased">
+    <header class="fixed inset-x-0 top-0 z-10 border-b border-leaf-100/80 bg-white/80 backdrop-blur"><div class="mx-auto flex h-16 max-w-2xl items-center gap-4 px-5 sm:px-8"><a class="mr-auto text-sm font-semibold tracking-[0.2em] text-leaf-700" href="/">PLANTORY</a><nav class="hidden items-center gap-4 sm:flex" aria-label="管理ナビゲーション"><a class="text-sm font-semibold text-stone-600" href="/">観察日記</a><a class="text-sm font-semibold text-stone-600" href="/plants">植物一覧</a><a class="text-sm font-semibold text-leaf-700 underline underline-offset-4" href="/settings/api-keys" aria-current="page">APIキー管理</a></nav><button class="logout hidden text-sm font-semibold text-leaf-700 sm:block">ログアウト</button><details class="relative sm:hidden"><summary class="mobile-menu-toggle flex size-11 cursor-pointer list-none items-center justify-center rounded-xl bg-leaf-100 text-xl leading-none text-leaf-700" aria-label="メニューを開く"><span aria-hidden="true">☰</span></summary><nav class="absolute right-0 top-12 z-20 grid w-52 gap-1 rounded-2xl border border-leaf-100 bg-white p-2 shadow-xl" aria-label="管理メニュー"><a class="rounded-xl text-stone-600 hover:bg-leaf-50 px-4 py-3 text-sm font-semibold" href="/">観察日記</a><a class="rounded-xl text-stone-600 hover:bg-leaf-50 px-4 py-3 text-sm font-semibold" href="/plants">植物一覧</a><a class="rounded-xl bg-leaf-50 text-leaf-700 px-4 py-3 text-sm font-semibold" href="/settings/api-keys" aria-current="page">APIキー管理</a><button class="logout rounded-xl px-4 py-3 text-left text-sm font-semibold text-leaf-700 hover:bg-leaf-50">ログアウト</button></nav></details></div></header>
+    <main class="mx-auto w-full max-w-2xl px-5 pb-8 pt-24 sm:px-8 sm:pb-12 sm:pt-28">
+      <header>
+        <h1 class="text-3xl font-semibold tracking-tight sm:text-4xl">APIキー管理</h1>
+        <p class="mt-3 leading-7 text-stone-600">外部のセンサーや連携サービス用のキーを管理します。</p>
+      </header>
+      <p id="key-feedback" class="mt-5 hidden text-sm" role="status" aria-live="polite"></p>
+      <section class="mt-10" aria-labelledby="keys-heading"><div class="flex items-center justify-between gap-4"><h2 id="keys-heading" class="text-lg font-semibold">発行済みのキー</h2><button id="open-create-key" class="rounded-xl bg-leaf-700 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-leaf-500">キーを発行</button></div><div id="key-list" class="mt-4 grid gap-3" aria-live="polite"><p class="rounded-2xl border border-leaf-100 bg-white px-5 py-6 text-stone-500 shadow-sm">APIキーを読み込んでいます…</p></div></section>
+    </main>
+    <footer class="border-t border-leaf-100/80 py-3 text-center text-sm text-stone-500">© 2026 Plantory</footer>
+    <dialog id="create-key-dialog" class="m-auto w-[calc(100%-2.5rem)] max-w-md rounded-2xl border border-leaf-100 bg-white p-0 text-ink shadow-xl backdrop:bg-ink/30">
+      <form id="key-form" class="p-6" novalidate>
+        <div class="flex items-start justify-between gap-4"><div><h2 class="text-xl font-semibold">APIキーを発行</h2><p class="mt-2 text-sm leading-6 text-stone-600">用途と権限を設定してください。</p></div><button type="button" id="close-create-key" class="-mr-2 -mt-2 rounded-lg px-2 py-1 text-2xl leading-none text-stone-500 hover:bg-leaf-50" aria-label="閉じる">×</button></div>
+        <label class="mt-6 block text-sm font-semibold" for="key-name">用途名</label>
+        <input id="key-name" name="name" type="text" maxlength="100" required autocomplete="off" placeholder="リビングの温湿度センサー" class="mt-2 w-full rounded-xl border border-leaf-100 bg-white px-4 py-3 text-base outline-none transition focus:border-leaf-500 focus:ring-2 focus:ring-leaf-100" />
+        <label class="mt-5 block text-sm font-semibold" for="key-scope">権限</label>
+        <select id="key-scope" name="scope" class="mt-2 w-full rounded-xl border border-leaf-100 bg-white px-4 py-3 text-base outline-none transition focus:border-leaf-500 focus:ring-2 focus:ring-leaf-100"><option value="write">write — 登録・取得</option><option value="read">read — 取得のみ</option></select>
+        <p id="create-key-error" class="mt-3 hidden text-sm text-rose-700" role="alert"></p>
+        <div class="mt-6 flex justify-end gap-3"><button type="button" id="cancel-create-key" class="rounded-xl px-4 py-2 text-sm font-semibold text-stone-600 hover:bg-leaf-50">キャンセル</button><button id="submit-create-key" type="submit" class="rounded-xl bg-leaf-700 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-leaf-500 disabled:cursor-wait disabled:opacity-60">発行する</button></div>
+      </form>
+      <section id="new-key" class="hidden p-6" aria-labelledby="new-key-heading"><h2 id="new-key-heading" class="text-xl font-semibold">APIキーを発行しました</h2><p class="mt-3 text-sm leading-6 text-stone-600">このキーは今だけ表示されます。安全な場所に保存してください。</p><code id="new-key-value" class="mt-5 block break-all rounded-xl bg-leaf-50 p-4 text-sm"></code><div class="mt-6 flex justify-end gap-3"><button id="copy-new-key" class="rounded-xl px-4 py-2 text-sm font-semibold text-leaf-700 hover:bg-leaf-50" type="button">キーをコピー</button><button id="close-issued-key" class="rounded-xl bg-leaf-700 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-leaf-500" type="button">閉じる</button></div></section>
+    </dialog>
+    <dialog id="confirm-key-dialog" class="m-auto w-[calc(100%-2.5rem)] max-w-md rounded-2xl border border-leaf-100 bg-white p-0 text-ink shadow-xl backdrop:bg-ink/30">
+      <form id="confirm-key-form" class="p-6">
+        <div class="flex items-start justify-between gap-4"><div><h2 id="confirm-key-title" class="text-xl font-semibold"></h2><p id="confirm-key-message" class="mt-3 text-sm leading-6 text-stone-600"></p></div><button type="button" id="close-confirm-key" class="-mr-2 -mt-2 rounded-lg px-2 py-1 text-2xl leading-none text-stone-500 hover:bg-leaf-50" aria-label="閉じる">×</button></div>
+        <div class="mt-6 flex justify-end gap-3"><button type="button" id="cancel-confirm-key" class="rounded-xl px-4 py-2 text-sm font-semibold text-stone-600 hover:bg-leaf-50">キャンセル</button><button id="submit-confirm-key" type="submit" class="rounded-xl bg-rose-700 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-rose-600 disabled:cursor-wait disabled:opacity-60">実行する</button></div>
+      </form>
+    </dialog>
+    <script type="module" src="/api-keys.js"></script>
+  </body>
+</html>
