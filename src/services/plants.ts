@@ -241,6 +241,11 @@ export async function deleteMetrics(plantId: number, c: AppContext): Promise<Res
   return new Response(null, { status: 204 });
 }
 
+export async function deleteMetric(plantId: number, metricId: number, c: AppContext): Promise<Response> {
+  const result = await c.env.DB.prepare("DELETE FROM metrics WHERE id = ? AND plant_id = ?").bind(metricId, plantId).run();
+  return result.meta.changes === 1 ? new Response(null, { status: 204 }) : c.json({ error: "Metric not found." }, 404);
+}
+
 export async function createMetric(plantId: number, c: AppContext): Promise<Response> {
   let input: CreateMetricInput;
   try {
