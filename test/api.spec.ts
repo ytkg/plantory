@@ -121,6 +121,21 @@ describe("Plantory API", () => {
     await expect(response.json()).resolves.toEqual({ error: "Authentication is required." });
   });
 
+  it("serves the Markdown renderer assets used by observation reports", async () => {
+    const [index, marked, purifier] = await Promise.all([
+      request("/"),
+      request("/marked.umd.js"),
+      request("/purify.min.js"),
+    ]);
+
+    expect(index.status).toBe(200);
+    expect(await index.text()).toContain('src="/marked.umd.js"');
+    expect(marked.status).toBe(200);
+    expect(await marked.text()).toContain("marked");
+    expect(purifier.status).toBe(200);
+    expect(await purifier.text()).toContain("DOMPurify");
+  });
+
   it("exposes Plantory data tools through MCP and only exposes report saving to write credentials", async () => {
     await env.DB.batch([
       env.DB.prepare("INSERT INTO plants (name) VALUES (?)").bind("カランコエ"),

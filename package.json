@@ -8,8 +8,9 @@
     "predev": "npm run build:assets",
     "build:css": "tailwindcss -i ./src/styles.css -o ./public/styles.css --minify",
     "build:chart": "cp ./node_modules/chart.js/dist/chart.umd.min.js ./public/chart.umd.min.js",
+    "build:markdown": "cp ./node_modules/marked/lib/marked.umd.js ./public/marked.umd.js && cp ./node_modules/dompurify/dist/purify.min.js ./public/purify.min.js",
     "build:layout": "node ./scripts/build-layouts.mjs",
-    "build:assets": "npm run build:layout && npm run build:css && npm run build:chart",
+    "build:assets": "npm run build:layout && npm run build:css && npm run build:chart && npm run build:markdown",
     "build": "npm run build:assets && npm run check",
     "deploy": "npm run build && wrangler deploy",
     "cf-typegen": "wrangler types",
@@ -29,7 +30,9 @@
     "@modelcontextprotocol/server": "^2.0.0",
     "agents": "^0.22.0",
     "chart.js": "4.5.1",
+    "dompurify": "^3.4.15",
     "hono": "^4.13.5",
+    "marked": "^18.0.12",
     "zod": "^4.5.4"
   }
 }

@@ -39,6 +39,7 @@ Plantoryは、室内植物の状態をセンサーから記録し、AIが日々�
 ### 観察日記
 
 - 最新の観察日記を最初に大きく表示し、過去の記録はその下に時系列で表示する。
+- 観察日記の本文はMarkdownとして保存し、安全に無害化して表示する。本文先頭のMarkdown見出しをカードのタイトルとして使うため、カード側に日付を別途表示しない。
 
 ### 植物のようす
 
@@ -108,7 +109,7 @@ APIキーは `Authorization: Bearer plnt_...` で送る。`read` は取得のみ
 | メソッド | URL | 権限 | 内容 |
 | --- | --- | --- | --- |
 | `GET` | `/api/reports` | 公開 | 新しい順に最大30件の観察日記を返す。 |
-| `PUT` | `/api/reports/:date` | write | `{ "content": "…" }` で指定日の観察日記を作成または更新する。`date` は `YYYY-MM-DD`。 |
+| `PUT` | `/api/reports/:date` | write | `{ "content": "…" }` で指定日のMarkdown観察日記を作成または更新する。`date` は `YYYY-MM-DD`。 |
 
 ### 公開ステータス
 
