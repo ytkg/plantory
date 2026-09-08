@@ -756,6 +756,25 @@ describe("Plantory API", () => {
     await expect(env.DB.prepare("SELECT id FROM plants WHERE id = 1").first()).resolves.not.toBeNull();
   });
 
+  it("deletes one metric only when it belongs to the requested plant", async () => {
+    await env.DB.batch([
+      env.DB.prepare("INSERT INTO plants (name) VALUES (?)").bind("カランコエ"),
+      env.DB.prepare("INSERT INTO plants (name) VALUES (?)").bind("苔玉"),
+      env.DB.prepare("INSERT INTO metrics (plant_id, metric_type, value) VALUES (?, ?, ?)").bind(1, "soil_moisture", 40),
+      env.DB.prepare("INSERT INTO metrics (plant_id, metric_type, value) VALUES (?, ?, ?)").bind(1, "soil_moisture", 50),
+      env.DB.prepare("INSERT INTO metrics (plant_id, metric_type, value) VALUES (?, ?, ?)").bind(2, "weight", 80),
+    ]);
+    expect((await request("/api/plants/1/metrics/1", { method: "DELETE" })).status).toBe(401);
+    expect((await request("/api/plants/1/metrics/1", withApiKey(readKey, { method: "DELETE" }))).status).toBe(401);
+    expect((await request("/api/plants/1/metrics/3", withApiKey(writeKey, { method: "DELETE" }))).status).toBe(404);
+    expect((await request("/api/plants/1/metrics/999", withApiKey(writeKey, { method: "DELETE" }))).status).toBe(404);
+    expect((await request("/api/plants/1/metrics/1", withApiKey(writeKey, { method: "DELETE" }))).status).toBe(204);
+    await expect(env.DB.prepare("SELECT COUNT(*) AS count FROM metrics WHERE plant_id = 1").first<{ count: number }>()).resolves.toMatchObject({ count: 1 });
+    await expect(env.DB.prepare("SELECT COUNT(*) AS count FROM metrics WHERE plant_id = 2").first<{ count: number }>()).resolves.toMatchObject({ count: 1 });
+    mockSignedInSession();
+    expect((await request("/api/plants/1/metrics/2", { method: "DELETE", headers: { Cookie: "plantory_access=test-access-token" } })).status).toBe(204);
+  });
+
   it("requires write access and returns success when there are no metrics", async () => {
     await env.DB.prepare("INSERT INTO plants (name) VALUES (?)").bind("空の鉢").run();
     expect((await request("/api/plants/1/metrics", { method: "DELETE" })).status).toBe(401);
