@@ -37,7 +37,7 @@
         },
         "created_at": {
           "name": "created_at",
-          "type": "text",
+          "type": "DATETIME",
           "primaryKey": false,
           "notNull": true,
           "autoincrement": false,
@@ -45,14 +45,14 @@
         },
         "last_used_at": {
           "name": "last_used_at",
-          "type": "text",
+          "type": "DATETIME",
           "primaryKey": false,
           "notNull": false,
           "autoincrement": false
         },
         "revoked_at": {
           "name": "revoked_at",
-          "type": "text",
+          "type": "DATETIME",
           "primaryKey": false,
           "notNull": false,
           "autoincrement": false
@@ -70,7 +70,12 @@
       "foreignKeys": {},
       "compositePrimaryKeys": {},
       "uniqueConstraints": {},
-      "checkConstraints": {}
+      "checkConstraints": {
+        "api_keys_scope": {
+          "name": "api_keys_scope",
+          "value": "\"api_keys\".\"scope\" IN ('read', 'write')"
+        }
+      }
     },
     "daily_reports": {
       "name": "daily_reports",
@@ -84,7 +89,7 @@
         },
         "date": {
           "name": "date",
-          "type": "text",
+          "type": "DATE",
           "primaryKey": false,
           "notNull": true,
           "autoincrement": false
@@ -98,17 +103,19 @@
         },
         "created_at": {
           "name": "created_at",
-          "type": "text",
+          "type": "DATETIME",
           "primaryKey": false,
           "notNull": true,
-          "autoincrement": false
+          "autoincrement": false,
+          "default": "CURRENT_TIMESTAMP"
         },
         "updated_at": {
           "name": "updated_at",
-          "type": "text",
+          "type": "DATETIME",
           "primaryKey": false,
           "notNull": true,
-          "autoincrement": false
+          "autoincrement": false,
+          "default": "CURRENT_TIMESTAMP"
         }
       },
       "indexes": {
@@ -158,7 +165,7 @@
         },
         "created_at": {
           "name": "created_at",
-          "type": "text",
+          "type": "DATETIME",
           "primaryKey": false,
           "notNull": true,
           "autoincrement": false
@@ -211,7 +218,7 @@
         },
         "created_at": {
           "name": "created_at",
-          "type": "text",
+          "type": "DATETIME",
           "primaryKey": false,
           "notNull": false,
           "autoincrement": false
@@ -256,14 +263,14 @@
         },
         "created_at": {
           "name": "created_at",
-          "type": "text",
+          "type": "DATETIME",
           "primaryKey": false,
           "notNull": false,
           "autoincrement": false
         },
         "updated_at": {
           "name": "updated_at",
-          "type": "text",
+          "type": "DATETIME",
           "primaryKey": false,
           "notNull": false,
           "autoincrement": false
