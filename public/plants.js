@@ -1,5 +1,5 @@
 import { logout, requestJson } from "./api-client.js";
-import { differenceText, formatChartTooltipLabel, formatChartTooltipTitle, formatMoisture, formatValue, metricHistoryState } from "./presentation.js";
+import { differenceText, formatChartTooltipLabel, formatChartTooltipTitle, formatMoisture, metricHistoryState } from "./presentation.js";
 import { formatDateTime, replaceWithListState, setupMobileMenu } from "./ui.js";
 
 const plantsElement = document.querySelector("#plants");
