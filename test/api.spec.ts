@@ -671,6 +671,32 @@ describe("Plantory API", () => {
     });
   });
 
+  it("uses soil moisture consistently for history and observation data when weight metrics also exist", async () => {
+    await env.DB.batch([
+      env.DB.prepare("INSERT INTO plants (name) VALUES (?)").bind("水分量の優先順位テスト"),
+      env.DB.prepare("INSERT INTO metrics (plant_id, metric_type, value, created_at) VALUES (?, ?, ?, ?)").bind(1, "weight", 200, "2026-09-01 00:00:00"),
+      env.DB.prepare("INSERT INTO metrics (plant_id, metric_type, value, created_at) VALUES (?, ?, ?, ?)").bind(1, "weight", 300, "2026-09-02 00:00:00"),
+      env.DB.prepare("INSERT INTO metrics (plant_id, metric_type, value, created_at) VALUES (?, ?, ?, ?)").bind(1, "soil_moisture", 80, "2026-09-01 00:00:00"),
+      env.DB.prepare("INSERT INTO metrics (plant_id, metric_type, value, created_at) VALUES (?, ?, ?, ?)").bind(1, "soil_moisture", 40, "2026-09-02 00:00:00"),
+    ]);
+
+    const history = await request("/api/plants/1/metrics", withApiKey(readKey));
+    await expect(history.json()).resolves.toMatchObject({
+      metrics: [{ value: 100 }, { value: 0 }],
+      totalCount: 2,
+    });
+
+    const observation = await mcpRequest(1, "tools/call", {
+      name: "get_plant_observation_data",
+      arguments: { plant_id: 1 },
+    });
+    const observationResponse = await mcpJson(observation) as { result: { content: Array<{ text: string }> } };
+    expect(JSON.parse(observationResponse.result.content[0].text)).toMatchObject({
+      moistureHistory: { metrics: [{ value: 100 }, { value: 0 }], totalCount: 2 },
+      moistureSource: { metric_type: "soil_moisture", direction: "decreasing", p5: 42, p95: 78 },
+    });
+  });
+
   it("returns paginated raw metrics with exact timestamp ranges while retaining all metric types", async () => {
     await env.DB.batch([
       env.DB.prepare("INSERT INTO plants (name) VALUES (?)").bind("生値テスト"),
