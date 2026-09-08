@@ -1,6 +1,6 @@
 # Plantory 仕様
 
-最終更新: 2026-09-04
+最終更新: 2026-09-08
 
 ## 目的
 
@@ -84,7 +84,7 @@ environment_metrics(id INTEGER PRIMARY KEY, temperature REAL, humidity REAL, co2
 
 処理本体（D1アクセスとドメイン処理）は`src/services/`に集約し、ルート定義と分離する。認証などの共通処理は`src/auth.ts`、ページ配信は`src/pages.ts`で管理する。
 
-HTTPレスポンスの共通処理は、サービス層のJSON／エラー生成とCookie付与に必要な最小限だけを`src/http.ts`に残し、ルーター自身の404・500はHonoの標準レスポンスを利用する。
+Cookie付与とメソッド不許可の共通処理は`src/routes/context.ts`に置く。各サービスとルーターは必要なJSON／エラーレスポンスを生成し、ルーター自身の404・500はHonoの標準レスポンスを利用する。
 
 APIキーは `Authorization: Bearer plnt_...` で送る。`read` は取得のみ、`write` は取得と登録に利用できる。管理画面からのログインCookieでも、植物・metrics APIを利用できる。
 

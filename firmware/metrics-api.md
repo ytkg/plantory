@@ -27,7 +27,7 @@ Content-Type: application/json
 - 計測時刻は送らない。Plantoryが受信時刻を `created_at` として保存する。
 - 単位も送らない。グラフで分かるように、`metric_type` を用途ごとに統一する。
 
-最初に使う候補は `soil_moisture`、`temperature`、`humidity`、`light` です。Plantoryの植物カードでは、これらをそれぞれ土壌水分、温度、湿度、照度として表示します。
+水分量の算出には`soil_moisture`を優先し、なければ`weight`を使います。ほかの`metric_type`も保存でき、計測データページでは生値として確認できます。種類ごとの表示名や単位を推測しないため、端末ごとに`metric_type`を統一します。
 
 ## 成功と失敗
 
