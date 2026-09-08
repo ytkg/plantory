@@ -1,4 +1,7 @@
 import { calculateMoisturePercentage, calculateMoistureRange, getMoistureDirection, type MoistureRange } from "../moisture";
+import { and, eq, sql } from "drizzle-orm";
+import { db } from "../db";
+import { metrics as metricsTable, plants } from "../db/schema";
 import type { AppContext } from "../routes/context";
 import { toUtcIsoTimestamp } from "../time";
 import type { Metric, Plant } from "../types";
@@ -42,8 +45,7 @@ export async function listPlants(c: AppContext): Promise<Response> {
 }
 
 export async function listPlantsData(env: Env): Promise<Plant[]> {
-  const result = await env.DB.prepare("SELECT id, name, created_at, updated_at FROM plants ORDER BY id ASC").all<Plant>();
-  return result.results;
+  return (await db(env.DB).select({ id: plants.id, name: plants.name, created_at: plants.createdAt, updated_at: plants.updatedAt }).from(plants).orderBy(plants.id).all()) as Plant[];
 }
 
 export async function createPlant(c: AppContext): Promise<Response> {
@@ -58,16 +60,12 @@ export async function createPlant(c: AppContext): Promise<Response> {
   const name = input.name.trim();
   if (name.length === 0 || name.length > 100) return c.json({ error: "name must contain 1 to 100 characters." }, 400);
 
-  const result = await c.env.DB.prepare(
-    `INSERT INTO plants (name, created_at, updated_at)
-     VALUES (?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
-     RETURNING id, name, created_at, updated_at`,
-  ).bind(name).all<Plant>();
-  return result.results[0] ? c.json({ plant: result.results[0] }, 201) : c.json({ error: "Could not create plant." }, 500);
+  const result = await db(c.env.DB).insert(plants).values({ name, createdAt: sql`CURRENT_TIMESTAMP`, updatedAt: sql`CURRENT_TIMESTAMP` }).returning({ id: plants.id, name: plants.name, created_at: plants.createdAt, updated_at: plants.updatedAt }).all();
+  return result[0] ? c.json({ plant: result[0] as Plant }, 201) : c.json({ error: "Could not create plant." }, 500);
 }
 
 async function plantExists(id: number, c: AppContext): Promise<boolean> {
-  return (await c.env.DB.prepare("SELECT id FROM plants WHERE id = ? LIMIT 1").bind(id).first<Pick<Plant, "id">>()) !== null;
+  return (await db(c.env.DB).select({ id: plants.id }).from(plants).where(eq(plants.id, id)).limit(1).get()) !== undefined;
 }
 
 export async function listMetrics(plantId: number, query: HistoryQuery, c: AppContext): Promise<Response> {
@@ -237,12 +235,12 @@ export async function plantObservationData(plantId: number, query: HistoryQuery,
 
 export async function deleteMetrics(plantId: number, c: AppContext): Promise<Response> {
   if (!(await plantExists(plantId, c))) return c.json({ error: "Plant not found." }, 404);
-  await c.env.DB.prepare("DELETE FROM metrics WHERE plant_id = ?").bind(plantId).run();
+  await db(c.env.DB).delete(metricsTable).where(eq(metricsTable.plantId, plantId)).run();
   return new Response(null, { status: 204 });
 }
 
 export async function deleteMetric(plantId: number, metricId: number, c: AppContext): Promise<Response> {
-  const result = await c.env.DB.prepare("DELETE FROM metrics WHERE id = ? AND plant_id = ?").bind(metricId, plantId).run();
+  const result = await db(c.env.DB).delete(metricsTable).where(and(eq(metricsTable.id, metricId), eq(metricsTable.plantId, plantId))).run();
   return result.meta.changes === 1 ? new Response(null, { status: 204 }) : c.json({ error: "Metric not found." }, 404);
 }
 
