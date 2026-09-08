@@ -1,4 +1,7 @@
 import type { ApiKey, ApiKeyAuth, Authentication, Scope, SessionAuth, TokenPair } from "./types";
+import { and, eq, isNull, sql } from "drizzle-orm";
+import { db } from "./db";
+import { apiKeys } from "./db/schema";
 import type { AppContext } from "./routes/context";
 
 const error = (message: string, status: number) => Response.json({ error: message }, { status });
@@ -93,19 +96,11 @@ async function authenticateApiKey(
   const key = authorizationToken(request);
   if (!key?.startsWith("plnt_")) return null;
 
-  const apiKey = await env.DB.prepare(
-    `SELECT id, scope FROM api_keys
-     WHERE key_hash = ? AND revoked_at IS NULL
-     LIMIT 1`,
-  )
-    .bind(await hashApiKey(key, env))
-    .first<Pick<ApiKey, "id" | "scope">>();
+  const apiKey = await db(env.DB).select({ id: apiKeys.id, scope: apiKeys.scope }).from(apiKeys).where(and(eq(apiKeys.keyHash, await hashApiKey(key, env)), isNull(apiKeys.revokedAt))).limit(1).get() as Pick<ApiKey, "id" | "scope"> | undefined;
   if (!apiKey || (requiredScope === "write" && apiKey.scope !== "write")) return null;
 
   ctx.waitUntil(
-    env.DB.prepare("UPDATE api_keys SET last_used_at = CURRENT_TIMESTAMP WHERE id = ?")
-      .bind(apiKey.id)
-      .run()
+    db(env.DB).update(apiKeys).set({ lastUsedAt: sql`CURRENT_TIMESTAMP` }).where(eq(apiKeys.id, apiKey.id)).run()
       .then(() => undefined, (cause) => console.error("Could not update API key usage", cause)),
   );
   return { kind: "apiKey", scope: apiKey.scope, id: apiKey.id };
