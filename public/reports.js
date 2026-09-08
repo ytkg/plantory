@@ -40,6 +40,20 @@ function renderMarkdown(content, date) {
     title.textContent = formatDate(date);
     element.prepend(title);
   }
+
+  const levels = {
+    H1: ["h3", "report-markdown-title"],
+    H2: ["h4", "report-markdown-section"],
+    H3: ["h5", "report-markdown-subsection"],
+    H4: ["h6", "report-markdown-detail"],
+  };
+  for (const heading of element.querySelectorAll("h1, h2, h3, h4")) {
+    const [tagName, className] = levels[heading.tagName];
+    const replacement = document.createElement(tagName);
+    replacement.className = className;
+    replacement.append(...heading.childNodes);
+    heading.replaceWith(replacement);
+  }
   return element;
 }
 

@@ -23,19 +23,19 @@
     margin-top: 0;
   }
 
-  .report-markdown h1 {
+  .report-markdown-title {
     @apply text-2xl font-semibold tracking-tight text-ink sm:text-3xl;
   }
 
-  .report-markdown h2 {
+  .report-markdown-section {
     @apply mt-8 text-lg font-semibold text-leaf-700;
   }
 
-  .report-markdown h3 {
+  .report-markdown-subsection {
     @apply mt-5 text-base font-semibold text-ink;
   }
 
-  .report-markdown h4 {
+  .report-markdown-detail {
     @apply mt-4 font-semibold text-ink;
   }
 
