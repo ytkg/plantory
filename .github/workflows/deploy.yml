@@ -65,6 +65,16 @@ jobs:
         if: steps.target.outputs.deploy == 'true'
         run: npx wrangler deploy
 
-      - name: Show deployed production state
+      - name: Confirm deployed production state
         if: steps.target.outputs.deploy == 'true'
-        run: npx wrangler deployments status
+        run: |
+          for attempt in 1 2 3; do
+            if npx wrangler deployments status; then
+              exit 0
+            fi
+            if [ "$attempt" -lt 3 ]; then
+              echo "Deployment status is still propagating; retrying in 5 seconds."
+              sleep 5
+            fi
+          done
+          echo "::warning::Worker deployment succeeded, but its status was not available within the retry window. Confirm it with npx wrangler deployments status."
