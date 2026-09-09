@@ -32,7 +32,7 @@
   }
 
   .report-markdown-subsection {
-    @apply mt-5 text-base font-semibold text-ink;
+    @apply mt-5 text-xl font-semibold text-ink;
   }
 
   .report-markdown-detail {
