@@ -1,5 +1,5 @@
 import { logout, requestJson } from "./api-client.js";
-import { differenceText, formatChartTooltipLabel, formatChartTooltipTitle, formatMoisture, metricHistoryState } from "./presentation.js";
+import { differenceText, formatChartTooltipLabel, formatMoisture, metricHistoryState } from "./presentation.js";
 import { formatDateTime, replaceWithListState, setupMobileMenu } from "./ui.js";
 
 const plantsElement = document.querySelector("#plants");
@@ -51,35 +51,37 @@ function createMetricChart(metrics) {
   new window.Chart(canvas, {
     type: "line",
     data: {
-      labels: history.map((metric) => metric.created_at),
       datasets: [{
         label: "水分量",
-        data: history.map((metric) => metric.value),
+        data: history.map((metric) => ({
+          x: new Date(metric.created_at).getTime(),
+          y: metric.value,
+          created_at: metric.created_at,
+        })),
         borderColor: "#27613a",
         borderWidth: 2,
         pointBackgroundColor: "#27613a",
-        pointRadius: metricHistoryState(history) === "single" ? 3 : 0,
+        pointRadius: metricHistoryState(history) === "single" ? 3 : 2,
         pointHitRadius: 12,
-        pointHoverRadius: 4,
-        tension: 0.25,
+        pointHoverRadius: 5,
+        cubicInterpolationMode: "monotone",
+        tension: 0.35,
       }],
     },
     options: {
       responsive: true,
       maintainAspectRatio: false,
       interaction: {
-        mode: "index",
+        mode: "nearest",
         intersect: false,
       },
       plugins: {
         legend: { display: false },
         tooltip: {
-          mode: "index",
-          intersect: false,
           displayColors: false,
           callbacks: {
             title(items) {
-              return formatChartTooltipTitle(history, items[0]?.dataIndex);
+              return formatDateTime(items[0]?.raw?.created_at);
             },
             label(context) {
               return formatChartTooltipLabel(context.dataset.label, context.parsed.y);
@@ -88,7 +90,15 @@ function createMetricChart(metrics) {
         },
       },
       scales: {
-        x: { display: false },
+        x: {
+          type: "linear",
+          grid: { color: "#e5f3e8" },
+          ticks: {
+            color: "#78716c",
+            maxTicksLimit: 3,
+            callback: (value) => formatDateTime(new Date(Number(value)).toISOString()),
+          },
+        },
         y: {
           border: { display: false },
           grid: { color: "#e5f3e8" },
