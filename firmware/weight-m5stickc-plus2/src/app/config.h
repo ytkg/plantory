@@ -19,6 +19,6 @@ constexpr int I2C_SCL_PIN = 33;
 constexpr char PLANTS_URL[] = "https://plantory.ytkg.workers.dev/api/plants";
 constexpr char METRICS_URL[] = "https://plantory.ytkg.workers.dev/api/plants/";
 constexpr char OTA_HOSTNAME[] = "weight-m5stickc-plus2";
-constexpr int SEND_HOURS[] = {0, 6, 12, 18};
+constexpr int SEND_HOURS[] = {0, 3, 6, 9, 12, 15, 18, 21};
 constexpr size_t SEND_HOUR_COUNT = sizeof(SEND_HOURS) / sizeof(SEND_HOURS[0]);
 }  // namespace plantory::config
