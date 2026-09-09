@@ -24,15 +24,15 @@
   }
 
   .report-markdown-title {
-    @apply text-2xl font-semibold tracking-tight text-ink sm:text-3xl;
+    @apply text-2xl font-semibold tracking-tight text-ink;
   }
 
   .report-markdown-section {
-    @apply mt-8 text-xl font-semibold text-leaf-700 sm:text-2xl;
+    @apply mt-8 text-xl font-semibold text-leaf-700;
   }
 
   .report-markdown-subsection {
-    @apply mt-5 text-lg font-semibold text-ink sm:text-xl;
+    @apply mt-5 text-lg font-semibold text-ink;
   }
 
   .report-markdown-detail {
