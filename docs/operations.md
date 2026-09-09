@@ -35,7 +35,8 @@
 
 ## D1 migration
 
-- migrationは`migrations/`で管理する。ローカル確認は`npx wrangler d1 migrations apply plantory --local`、本番確認は`npx wrangler d1 migrations list plantory --remote`を使う。
+- `src/db/schema.ts`を正本としてDrizzle Kitでmigration SQLを生成し、`migrations/`はWranglerで適用する。生成・ローカル検証の詳細は[migration手順](migrations.md)を参照する。
+- 本番確認は`npx wrangler d1 migrations list plantory --remote`を使う。既存の0001〜0005は変更しない。
 - `npx wrangler d1 migrations apply plantory --remote`は未適用分だけを適用する。CIではmigrationの確認入力を待たない。
 - 2026-09-08の確認時点で、本番D1に未適用migrationはなかった。
 - migration適用に失敗した場合、`Deploy`はWorkerを反映しない。Workerの反映に失敗しても、D1を自動で元へ戻さない。
