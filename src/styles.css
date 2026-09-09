@@ -28,11 +28,11 @@
   }
 
   .report-markdown-section {
-    @apply mt-8 text-lg font-semibold text-leaf-700;
+    @apply mt-8 text-xl font-semibold text-leaf-700 sm:text-2xl;
   }
 
   .report-markdown-subsection {
-    @apply mt-5 text-xl font-semibold text-ink;
+    @apply mt-5 text-lg font-semibold text-ink sm:text-xl;
   }
 
   .report-markdown-detail {
@@ -52,7 +52,7 @@
   .report-markdown-featured ol,
   .report-markdown-featured blockquote,
   .report-markdown-featured pre {
-    @apply text-lg leading-8;
+    @apply leading-7;
   }
 
   .report-markdown ul {
