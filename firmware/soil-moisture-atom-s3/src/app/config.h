@@ -20,7 +20,6 @@ constexpr char PLANTS_URL[] = "https://plantory.ytkg.workers.dev/api/plants";
 constexpr char STATUS_URL[] = "https://plantory.ytkg.workers.dev/api/status";
 constexpr char METRICS_URL[] = "https://plantory.ytkg.workers.dev/api/plants/";
 constexpr char OTA_HOSTNAME[] = "soil-moisture-atom-s3";
-constexpr int SEND_HOURS[] = {0, 3, 6, 9, 12, 15, 18, 21};
-constexpr size_t SEND_HOUR_COUNT = sizeof(SEND_HOURS) / sizeof(SEND_HOURS[0]);
+constexpr char METRICS_SETTINGS_URL[] = "https://plantory.ytkg.workers.dev/api/settings/metrics";
 
 }  // namespace plantory::config

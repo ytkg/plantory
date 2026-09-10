@@ -5,6 +5,7 @@
 namespace plantory::api {
 
 bool fetchPlantName(AppState& state);
+bool fetchMetricsInterval(int& intervalHours);
 bool fetchMoisturePercentage(AppState& state);
 bool sendSoilMoisture(int value);
 

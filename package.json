@@ -20,6 +20,7 @@
     "check": "tsc --noEmit",
     "lint": "eslint .",
     "test": "vitest run",
+    "test:firmware": "node ./scripts/test-firmware-schedule.mjs",
     "test:watch": "vitest"
   },
   "devDependencies": {
