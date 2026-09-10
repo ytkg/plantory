@@ -61,3 +61,15 @@ export const environmentMetrics = sqliteTable(
   },
   (table) => [index("idx_environment_metrics_created_at").on(table.createdAt)],
 );
+
+export const metricsSettings = sqliteTable(
+  "metrics_settings",
+  {
+    id: integer().primaryKey(),
+    intervalHours: integer("interval_hours").notNull().default(3),
+  },
+  (table) => [
+    check("metrics_settings_singleton", sql`${table.id} = 1`),
+    check("metrics_settings_interval_hours", sql`${table.intervalHours} IN (1, 2, 3, 4, 6, 8, 12, 24)`),
+  ],
+);
