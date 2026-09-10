@@ -78,6 +78,11 @@ export function formatRawValue(value) {
   return Number.isFinite(numericValue) ? String(numericValue) : NUMBER_UNAVAILABLE;
 }
 
+export function isRecordedAtOrBefore(metric, referenceTime) {
+  const recordedAt = new Date(metric?.created_at).getTime();
+  return Number.isFinite(recordedAt) && recordedAt <= referenceTime;
+}
+
 export function rawDifferenceText(latest, previous, unit = "") {
   const latestValue = Number(latest);
   const previousValue = Number(previous);
