@@ -12,7 +12,7 @@ void showMainScreen(const AppState& state) {
   const String weightText = isnan(state.lastMeasuredValue) ? "--g" : String(state.lastMeasuredValue, 1) + "g";
   M5.Display.setTextSize(weightText.length() <= 6 ? 2 : 1); M5.Display.drawString(weightText, 64, 46); M5.Display.setTextSize(1);
   M5.Display.drawString(hasTime ? "現在時刻: " + clock::formatTime(time(nullptr)) : "現在時刻: 未同期", 64, 74);
-  M5.Display.drawString(hasTime ? "次回送信: " + clock::nextSendText(current) : "次回送信: --:--:--", 64, 94);
+  M5.Display.drawString(hasTime ? "次回送信: " + clock::nextSendText(current, state.metricsSchedule) : "次回送信: --:--:--", 64, 94);
   M5.Display.drawString("最終送信: " + clock::formatTime(state.lastSentAt), 64, 114);
 }
 }  // namespace plantory::display

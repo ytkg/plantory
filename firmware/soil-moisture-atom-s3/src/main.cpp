@@ -76,21 +76,14 @@ void handleReconnectEvent(unsigned long now) {
   }
 }
 
-bool scheduledSendIsDue(unsigned long now) {
+bool scheduledSendIsDue() {
   struct tm current;
-  if (!appState.timeSynced || !plantory::network::isConnected() || !plantory::clock::getLocalTimeNow(current) ||
-      current.tm_min != 0 || current.tm_sec >= 5 || now < uiState.messageUntil) {
-    return false;
-  }
-  int slot = -1;
-  for (size_t index = 0; index < plantory::config::SEND_HOUR_COUNT; ++index) {
-    if (plantory::config::SEND_HOURS[index] == current.tm_hour) { slot = static_cast<int>(index); break; }
-  }
-  if (slot < 0) return false;
-  const long slotKey = static_cast<long>(current.tm_yday) * static_cast<long>(plantory::config::SEND_HOUR_COUNT) + slot;
-  if (slotKey == appState.lastAutoSlotKey) return false;
-  appState.lastAutoSlotKey = slotKey;
-  return true;
+  if (!plantory::clock::getLocalTimeNow(current)) return false;
+  appState.timeSynced = true;
+  const bool due = appState.metricsSchedule.onHour(current, [](int& intervalHours) {
+    return plantory::network::isConnected() && plantory::api::fetchMetricsInterval(intervalHours);
+  });
+  return due && plantory::network::isConnected();
 }
 }  // namespace
 
@@ -112,12 +105,15 @@ void setup() {
   } else {
     plantory::display::showMainScreen(appState, uiState);
   }
+  struct tm current;
+  if (plantory::clock::getLocalTimeNow(current)) appState.metricsSchedule.start(current);
 }
 
 void loop() {
   M5.update();
   plantory::network::handleOta();
 
+  if (scheduledSendIsDue()) measureAndSend();
   const unsigned long now = millis();
   handleReconnectEvent(now);
   const bool showingMessage = now < uiState.messageUntil;
@@ -167,6 +163,4 @@ void loop() {
   if (buttonState.singleTapPending && now - buttonState.firstTapAt > plantory::config::DOUBLE_TAP_WINDOW_MS) {
     buttonState.singleTapPending = false;
   }
-
-  if (scheduledSendIsDue(now)) measureAndSend();
 }

@@ -19,7 +19,7 @@ void drawTimeLines(const AppState& state) {
   M5.Display.setTextSize(1);
   M5.Display.fillRect(0, 66, M5.Display.width(), 62, TFT_BLACK);
   M5.Display.drawString(hasTime ? "現在時刻: " + clock::formatTime(time(nullptr)) : "現在時刻: 未同期", 64, 78);
-  M5.Display.drawString(hasTime ? "次回送信: " + clock::nextSendText(current) : "次回送信: --:--:--", 64, 98);
+  M5.Display.drawString(hasTime ? "次回送信: " + clock::nextSendText(current, state.metricsSchedule) : "次回送信: --:--:--", 64, 98);
   M5.Display.drawString("最終送信: " + clock::formatTime(state.lastSentAt), 64, 118);
 }
 
@@ -27,7 +27,7 @@ String timeSignature(const AppState& state) {
   struct tm current;
   const bool hasTime = state.timeSynced && clock::getLocalTimeNow(current);
   return (hasTime ? clock::formatTime(time(nullptr)) : "未同期") + "|" +
-         (hasTime ? clock::nextSendText(current) : "--:--:--") + "|" +
+         (hasTime ? clock::nextSendText(current, state.metricsSchedule) : "--:--:--") + "|" +
          clock::formatTime(state.lastSentAt);
 }
 
