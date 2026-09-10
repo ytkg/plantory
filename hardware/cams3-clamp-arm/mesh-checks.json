@@ -1,0 +1,158 @@
+{
+  "plate_1": {
+    "triangles": 28108,
+    "closed": true,
+    "components": 4,
+    "size_mm": [
+      158.0,
+      154.0,
+      44.0
+    ],
+    "min_z_mm": 0.0,
+    "volume_mm3": 62639.77
+  },
+  "plate_2": {
+    "triangles": 68240,
+    "closed": true,
+    "components": 8,
+    "size_mm": [
+      102.329,
+      94.5,
+      47.0
+    ],
+    "min_z_mm": 0.0,
+    "volume_mm3": 22334.99
+  },
+  "clamp": {
+    "triangles": 5536,
+    "closed": true,
+    "components": 1,
+    "size_mm": [
+      90.0,
+      48.0,
+      30.0
+    ],
+    "min_z_mm": 0.0,
+    "volume_mm3": 35925.57
+  },
+  "arm": {
+    "triangles": 2624,
+    "closed": true,
+    "components": 1,
+    "size_mm": [
+      148.0,
+      28.0,
+      6.8
+    ],
+    "min_z_mm": 0.0,
+    "volume_mm3": 14136.22
+  },
+  "cradle": {
+    "triangles": 18648,
+    "closed": true,
+    "components": 1,
+    "size_mm": [
+      58.0,
+      44.2,
+      44.0
+    ],
+    "min_z_mm": 0.0,
+    "volume_mm3": 11555.77
+  },
+  "bezel": {
+    "triangles": 1348,
+    "closed": true,
+    "components": 1,
+    "size_mm": [
+      58.0,
+      44.2,
+      1.6
+    ],
+    "min_z_mm": 0.0,
+    "volume_mm3": 1022.21
+  },
+  "foot": {
+    "triangles": 1500,
+    "closed": true,
+    "components": 1,
+    "size_mm": [
+      22.0,
+      22.0,
+      8.0
+    ],
+    "min_z_mm": 0.0,
+    "volume_mm3": 1134.65
+  },
+  "clamp_screw": {
+    "triangles": 15914,
+    "closed": true,
+    "components": 1,
+    "size_mm": [
+      25.329,
+      26.0,
+      47.0
+    ],
+    "min_z_mm": 0.0,
+    "volume_mm3": 6078.23
+  },
+  "joint_screw": {
+    "triangles": 12996,
+    "closed": true,
+    "components": 1,
+    "size_mm": [
+      25.329,
+      26.0,
+      28.0
+    ],
+    "min_z_mm": 0.0,
+    "volume_mm3": 3498.52
+  },
+  "joint_nut": {
+    "triangles": 5840,
+    "closed": true,
+    "components": 1,
+    "size_mm": [
+      25.329,
+      26.0,
+      8.0
+    ],
+    "min_z_mm": 0.0,
+    "volume_mm3": 3287.58
+  },
+  "bezel_screw": {
+    "triangles": 8690,
+    "closed": true,
+    "components": 1,
+    "size_mm": [
+      13.0,
+      13.0,
+      15.0
+    ],
+    "min_z_mm": 0.0,
+    "volume_mm3": 774.95
+  },
+  "arm_60_base": {
+    "triangles": 2080,
+    "closed": true,
+    "components": 1,
+    "size_mm": [
+      88.0,
+      28.0,
+      6.8
+    ],
+    "min_z_mm": 0.0,
+    "volume_mm3": 10708.43
+  },
+  "arm_60_camera": {
+    "triangles": 2080,
+    "closed": true,
+    "components": 1,
+    "size_mm": [
+      88.0,
+      28.0,
+      6.8
+    ],
+    "min_z_mm": 0.0,
+    "volume_mm3": 10708.43
+  }
+}

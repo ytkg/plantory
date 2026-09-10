@@ -11,6 +11,7 @@
 - M5Stackの機種別セットアップ: [firmware/README.md](firmware/README.md)
 - 端末からmetricsを送るHTTP契約: [firmware/metrics-api.md](firmware/metrics-api.md)
 - Unit Mini Scales用キャリア: [hardware/mini-scales-carrier/README.md](hardware/mini-scales-carrier/README.md)
+- CamS3 5MP用の全印刷クランプアーム: [hardware/cams3-clamp-arm/README.md](hardware/cams3-clamp-arm/README.md)
 - Codexで観察日記を作る手順: [観察日記Skill](.agents/skills/plantory-observation-draft/SKILL.md)
 
 ## 構成
