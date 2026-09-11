@@ -10,7 +10,7 @@
 | --- | --- | --- | --- |
 | `README.md` | 開発者・利用開始者 | リポジトリの入口、ローカル起動、主要資料への導線 | 導線とスクリプト一覧を更新した。 |
 | `docs/operations.md` | リリース・障害対応担当者 | 確認済みの本番デプロイ、D1 migration、障害確認と復旧の制約 | 製品仕様と区別して追加した。 |
-| `docs/spec.md` | 開発・運用担当者 | 実装済みの画面、API、認証、データ、運用の正本 | API・Cron・MCPを実装と照合し、古い`src/http.ts`への参照を修正した。 |
+| `docs/spec.md` | 開発・運用担当者 | 実装済みの画面、API、認証、データ、運用の正本 | API・Cron・MCPを実装と照合し、アプリケーションの参照先を`app/`に統一した。 |
 | `firmware/README.md` と各機種のREADME | ファームウェア利用者 | 端末ごとの配線、秘密情報、書き込み、OTA操作 | 各機種のREADMEを正本とし、一覧の古い試作表記を修正した。 |
 | `firmware/metrics-api.md` | 端末開発者 | metrics送信のHTTP契約と動作確認 | 水分量以外のmetricを植物カードに表示するという古い記述を修正した。 |
 | `hardware/mini-scales-carrier/README.md` | 3Dプリント利用者 | キャリアの設計値、印刷、調整 | ATOM S3重量計のゼロ調整操作を実装どおりに修正した。 |
@@ -21,9 +21,9 @@
 
 | 領域 | 確認できる資料 | 結論 |
 | --- | --- | --- |
-| アーキテクチャ・データフロー | `docs/spec.md`のデータモデル、API、MCP節と`src/` | 十分。仕様は1か所に集約されており、別の設計書は増やさない。 |
-| ローカル開発・Lint・テスト | `README.md`、`package.json`、`.github/workflows/test.yml` | 十分。READMEに`npm run lint`を追加し、CIの詳細は仕様書を参照する。 |
-| D1 migration・Secrets・Cron | `README.md`、`docs/spec.md`、`docs/operations.md`、`wrangler.jsonc` | 開発用・本番用migration、Secret名、Cronの振る舞いと、確認済みのログ・復旧手段を分離して記録した。 |
+| アーキテクチャ・データフロー | `docs/spec.md`のデータモデル、API、MCP節と`app/src/` | 十分。仕様は1か所に集約されており、別の設計書は増やさない。 |
+| ローカル開発・Lint・テスト | `README.md`、`app/package.json`、`.github/workflows/test.yml` | 十分。アプリケーションのコマンドは`app/`で実行し、CIの詳細は仕様書を参照する。 |
+| D1 migration・Secrets・Cron | `README.md`、`docs/spec.md`、`docs/operations.md`、`app/wrangler.jsonc` | 開発用・本番用migration、Secret名、Cronの振る舞いと、確認済みのログ・復旧手段を分離して記録した。 |
 | デプロイ | `README.md`、`docs/spec.md`、`docs/operations.md`、`.github/workflows/deploy.yml` | mainの成功したCIからの自動反映、結果確認、WorkerとD1の復旧制約を記録した。 |
 | ファームウェア | `firmware/README.md`、各プロジェクトのREADME、`firmware/metrics-api.md` | 十分。機種別の配線・設定・USB/OTA手順と共通API契約を分けており、重複した総合手順は作らない。 |
 | ハードウェア | `hardware/mini-scales-carrier/README.md`とOpenSCAD正本 | 十分。寸法と印刷・調整方法に到達できる。 |
