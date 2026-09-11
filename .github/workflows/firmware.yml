@@ -6,8 +6,6 @@ on:
       - main
     paths:
       - "firmware/**"
-      - "scripts/test-firmware-schedule.mjs"
-      - "package.json"
       - ".github/workflows/firmware.yml"
   pull_request:
     types:
@@ -16,8 +14,6 @@ on:
       - synchronize
     paths:
       - "firmware/**"
-      - "scripts/test-firmware-schedule.mjs"
-      - "package.json"
       - ".github/workflows/firmware.yml"
 
 jobs:
@@ -28,4 +24,4 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 22
-      - run: npm run test:firmware
+      - run: npm --prefix firmware test
