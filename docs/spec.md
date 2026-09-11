@@ -1,6 +1,6 @@
 # Plantory 仕様
 
-最終更新: 2026-09-09
+最終更新: 2026-09-10
 
 ## 目的
 
@@ -15,6 +15,7 @@ Plantoryは、室内植物の状態をセンサーから記録し、AIが日々�
 | `/plants` | 要ログイン | ページタイトル「植物一覧」と、植物一覧、植物追加、相対水分量の要約を表示する。 |
 | `/plants/:plantId/metrics` | 要ログイン | 植物ごとの計測生値をグラフと履歴で確認する。 |
 | `/settings/api-keys` | 要ログイン | ページタイトル「APIキー管理」と、APIキーの発行、無効化、削除を行う。発行はモーダルで行う。 |
+| `/settings/metrics` | 要ログイン | 「送信間隔」で、全センサー共通の計測データ送信間隔を表示・変更する。 |
 
 保護ページを未ログインで開いた場合は、`/login?next=…` に移動する。ログイン成功後は元の保護ページへ戻る。
 
@@ -75,6 +76,7 @@ metrics(id INTEGER PRIMARY KEY, plant_id INTEGER, metric_type TEXT, value REAL, 
 daily_reports(id INTEGER PRIMARY KEY, date DATE UNIQUE, content TEXT, created_at DATETIME, updated_at DATETIME)
 api_keys(id INTEGER PRIMARY KEY, name TEXT, key_hash TEXT, scope TEXT, created_at DATETIME, last_used_at DATETIME, revoked_at DATETIME)
 environment_metrics(id INTEGER PRIMARY KEY, temperature REAL, humidity REAL, co2 INTEGER, created_at DATETIME)
+metrics_settings(id INTEGER PRIMARY KEY CHECK(id = 1), interval_hours INTEGER NOT NULL DEFAULT 3 CHECK(interval_hours IN (1, 2, 3, 4, 6, 8, 12, 24)))
 ```
 
 - `metrics.plant_id` は植物を参照する。
@@ -82,6 +84,7 @@ environment_metrics(id INTEGER PRIMARY KEY, temperature REAL, humidity REAL, co2
 - `species`、`unit`、`measured_at` は保存しない。metricsの記録日時はWorkerが受信時に `created_at` として設定する。
 - `daily_reports` は全植物をまとめた公開用の観察日記である。1日につき1件だけ保存し、同日の再実行では内容を更新する。
 - `environment_metrics` は部屋にひも付かない環境観測スナップショットである。1レコードに温度・湿度・CO₂濃度をまとめて保存する。
+- `metrics_settings` は全センサー共通の1件だけを保持する。初回保存前はAPIが3時間を返し、保存時に`id = 1`の行を追加または更新する。
 
 ## API
 
@@ -120,6 +123,18 @@ APIキーは `Authorization: Bearer plnt_...` で送る。`read` は取得のみ
 - `GET /api/plants/:plantId/metrics/raw` は`metric_type`（必須）、`from`・`to`（任意、UTC ISO 8601形式、両端を含む）、`limit`（1〜500、デフォルト100）、`cursor`（任意）を受け付ける。`from`・`to`は日時精度で比較し、`from`は`to`以前でなければならない。
 - 生値APIは`plant`、全種類の`metricTypes`（種類ごとの総件数・全期間の最新値・前回値）、選択した`metric_type`、`metrics`、その種類の全期間`totalCount`、次ページ用`nextCursor`を返す。各metricは`id`、`plant_id`、`metric_type`、保存した`value`、UTC ISO 8601形式の`created_at`を含む。存在しない植物は404、記録のない種類は空の`metrics`を返す。
 - `nextCursor`を使うと同じ条件で新しい順に続きのページを取得できる。計測データページは1回あたり最大500件ずつ取得し、グラフでは選択期間内の全点を表示する。履歴一覧は取得済みの同じデータから30件ずつ表示する。
+
+### 送信間隔の設定
+
+| メソッド | URL | 権限 | 内容 |
+| --- | --- | --- | --- |
+| `GET` | `/api/settings/metrics` | readまたはログインCookie | `{ "interval_hours": 3 }`の形式で共通の送信間隔を返す。write APIキーでも取得可能。 |
+| `PUT` | `/api/settings/metrics` | ログインCookieのみ | `{ "interval_hours": 6 }`で保存し、保存した設定を同じ形式で返す。 |
+
+- 許可する値は数値の`1 / 2 / 3 / 4 / 6 / 8 / 12 / 24`のみ。文字列・小数・欠損・不正JSONは400とし、既存値を変更しない。D1でも許可値と1件制限をCHECK制約で保証する。
+- 認証なしの取得・更新、およびAPIキーによる更新は401。その他のメソッドは405。応答は`Cache-Control: no-store`とし、毎回D1から取得する。
+- 管理画面は保存済みの値と8択の選択欄を表示する。読み込み中・保存中は編集と保存を無効にし、読み込み失敗時は再読み込み、保存失敗時は再試行ができる。保存結果を画面に表示する。
+- 設定は日本時間の0時を基準にした間隔であり、設定APIに対応した端末が次の正時に取得することで反映される。固定間隔の既存ファームウェアは設定を参照せず、従来の送信を続ける。Workerの環境情報収集Cronには影響しない。
 
 ### 観察日記
 
