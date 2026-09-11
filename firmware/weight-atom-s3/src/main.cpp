@@ -44,20 +44,14 @@ void handleReconnectEvent(unsigned long now) {
     case plantory::network::ReconnectEvent::None: break;
   }
 }
-bool scheduledSendIsDue(unsigned long now) {
+bool scheduledSendIsDue() {
   struct tm current;
-  if (!appState.scalesReady || !appState.timeSynced || !plantory::network::isConnected() ||
-      !plantory::clock::getLocalTimeNow(current) || current.tm_min != 0 || current.tm_sec >= 5 ||
-      now < uiState.messageUntil) return false;
-  int slot = -1;
-  for (size_t index = 0; index < plantory::config::SEND_HOUR_COUNT; ++index) {
-    if (plantory::config::SEND_HOURS[index] == current.tm_hour) { slot = static_cast<int>(index); break; }
-  }
-  if (slot < 0) return false;
-  const long slotKey = static_cast<long>(current.tm_yday) * static_cast<long>(plantory::config::SEND_HOUR_COUNT) + slot;
-  if (slotKey == appState.lastAutoSlotKey) return false;
-  appState.lastAutoSlotKey = slotKey;
-  return true;
+  if (!plantory::clock::getLocalTimeNow(current)) return false;
+  appState.timeSynced = true;
+  const bool due = appState.metricsSchedule.onHour(current, [](int& intervalHours) {
+    return plantory::network::isConnected() && plantory::api::fetchMetricsInterval(intervalHours);
+  });
+  return due && appState.scalesReady && plantory::network::isConnected();
 }
 }  // namespace
 
@@ -71,10 +65,13 @@ void setup() {
   if (plantory::network::isConnected()) plantory::api::fetchPlantName(appState);
   plantory::network::beginOta();
   plantory::display::showMainScreen(appState);
+  struct tm current;
+  if (plantory::clock::getLocalTimeNow(current)) appState.metricsSchedule.start(current);
 }
 
 void loop() {
   M5.update(); plantory::network::handleOta();
+  if (scheduledSendIsDue()) measureAndSend();
   const unsigned long now = millis();
   handleReconnectEvent(now);
   if (appState.scalesReady && now - uiState.lastDisplayAt >= plantory::config::DISPLAY_REFRESH_MS && now >= uiState.messageUntil) {
@@ -112,5 +109,4 @@ void loop() {
     if (appState.scalesReady && plantory::sensor::resetZeroOffset()) { appState.lastMeasuredValue = 0.0F; showTransientMessage("ゼロ調整完了", now); }
     else { showTransientMessage("ゼロ調整失敗", now); }
   }
-  if (scheduledSendIsDue(now)) measureAndSend();
 }
