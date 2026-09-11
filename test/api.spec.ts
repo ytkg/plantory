@@ -736,6 +736,32 @@ describe("Plantory API", () => {
     expect((await request("/api/plants/999/metrics/raw?metric_type=weight", withApiKey(readKey))).status).toBe(404);
   });
 
+  it("keeps future metrics in raw history but excludes them from current summaries and moisture calculations", async () => {
+    await env.DB.batch([
+      env.DB.prepare("INSERT INTO plants (name) VALUES (?)").bind("将来日時テスト"),
+      env.DB.prepare("INSERT INTO metrics (plant_id, metric_type, value, created_at) VALUES (?, ?, ?, ?)").bind(1, "soil_moisture", 80, "2026-09-01 00:00:00"),
+      env.DB.prepare("INSERT INTO metrics (plant_id, metric_type, value, created_at) VALUES (?, ?, ?, ?)").bind(1, "soil_moisture", 40, "2026-09-02 00:00:00"),
+      env.DB.prepare("INSERT INTO metrics (plant_id, metric_type, value, created_at) VALUES (?, ?, ?, ?)").bind(1, "soil_moisture", 10, "2999-01-01 00:00:00"),
+    ]);
+
+    const raw = await request("/api/plants/1/metrics/raw?metric_type=soil_moisture", withApiKey(readKey));
+    await expect(raw.json()).resolves.toMatchObject({
+      metricTypes: expect.arrayContaining([expect.objectContaining({
+        metric_type: "soil_moisture",
+        totalCount: 3,
+        latest: expect.objectContaining({ value: 40 }),
+        previous: expect.objectContaining({ value: 80 }),
+      })]),
+      metrics: expect.arrayContaining([expect.objectContaining({ value: 10, created_at: "2999-01-01T00:00:00Z" })]),
+    });
+
+    const history = await request("/api/plants/1/metrics", withApiKey(readKey));
+    await expect(history.json()).resolves.toMatchObject({
+      metrics: [expect.objectContaining({ value: 100 }), expect.objectContaining({ value: 0 })],
+      totalCount: 2,
+    });
+  });
+
   it("deletes all metrics while keeping the plant and other plants intact", async () => {
     await env.DB.batch([
       env.DB.prepare("INSERT INTO plants (name) VALUES (?)").bind("カランコエ"),

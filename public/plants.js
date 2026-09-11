@@ -9,6 +9,7 @@ const form = document.querySelector("#create-plant-form");
 const nameInput = document.querySelector("#plant-name");
 const errorElement = document.querySelector("#create-plant-error");
 const submitButton = document.querySelector("#submit-create-plant");
+const displayedAt = Date.now();
 
 function showMessage(message, error = false) {
   replaceWithListState(plantsElement, message, { error });
@@ -92,6 +93,7 @@ function createMetricChart(metrics) {
       scales: {
         x: {
           type: "linear",
+          max: displayedAt,
           grid: { color: "#e5f3e8" },
           ticks: {
             color: "#78716c",
