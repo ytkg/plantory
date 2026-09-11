@@ -48,25 +48,31 @@ jobs:
         with:
           node-version: 22
           cache: npm
+          cache-dependency-path: app/package-lock.json
 
       - name: Install dependencies
         if: steps.target.outputs.deploy == 'true'
         run: npm ci
+        working-directory: app
 
       - name: Build production assets
         if: steps.target.outputs.deploy == 'true'
         run: npm run build
+        working-directory: app
 
       - name: Apply pending D1 migrations
         if: steps.target.outputs.deploy == 'true'
         run: npx wrangler d1 migrations apply plantory --remote
+        working-directory: app
 
       - name: Deploy Worker
         if: steps.target.outputs.deploy == 'true'
         run: npx wrangler deploy
+        working-directory: app
 
       - name: Confirm deployed production state
         if: steps.target.outputs.deploy == 'true'
+        working-directory: app
         run: |
           for attempt in 1 2 3; do
             if npx wrangler deployments status; then

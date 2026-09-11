@@ -35,7 +35,7 @@
 
 ## D1 migration
 
-- `src/db/schema.ts`を正本としてDrizzle Kitでmigration SQLを生成し、`migrations/`はWranglerで適用する。生成・ローカル検証の詳細は[migration手順](migrations.md)を参照する。
+- `app/src/db/schema.ts`を正本としてDrizzle Kitでmigration SQLを生成し、`app/migrations/`はWranglerで適用する。アプリケーション向けコマンドは `app/` で実行する。生成・ローカル検証の詳細は[migration手順](migrations.md)を参照する。
 - 本番確認は`npx wrangler d1 migrations list plantory --remote`を使う。既存の0001〜0005は変更しない。
 - `npx wrangler d1 migrations apply plantory --remote`は未適用分だけを適用する。CIではmigrationの確認入力を待たない。
 - 2026-09-08の確認時点で、本番D1に未適用migrationはなかった。
@@ -49,6 +49,6 @@
 - 現在の本番デプロイは`npx wrangler deployments status`で確認する。過去のデプロイは`npx wrangler deployments list`、Workerバージョンは`npx wrangler versions list`で確認する。
 - 実行中のWorkerログは`npx wrangler tail plantory --format pretty`で確認する。CronとHTTPリクエストの失敗はGitHub Actionsの実行ログとこのログから調べる。追加通知は設定していない。
 - Workerだけを以前の版へ戻す必要がある場合は、現在のデプロイとバージョンを確認し、`npx wrangler versions deploy <version-id>@100 --yes`を使う。D1は同時に戻らないため、互換性と必要なD1復旧を個別に判断する。
-- ローカルでの手動反映は、まず本番migrationを適用してから`npm run deploy`を実行する。自動デプロイと重ならないよう、実行前にGitHub Actionsの`Deploy`が動作中でないことを確認する。
+- ローカルでの手動反映は、`app/` でまず本番migrationを適用してから`npm run deploy`を実行する。自動デプロイと重ならないよう、実行前にGitHub Actionsの`Deploy`が動作中でないことを確認する。
 
 バックアップの保持期間、通知、完全なゼロダウンタイム移行はこのリポジトリで設定・保証していない。
