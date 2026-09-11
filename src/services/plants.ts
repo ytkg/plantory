@@ -1,5 +1,5 @@
 import { calculateMoisturePercentage, calculateMoistureRange, getMoistureDirection, type MoistureRange } from "../moisture";
-import { and, asc, count, desc, eq, inArray, or, sql } from "drizzle-orm";
+import { and, asc, count, desc, eq, inArray, isNull, or, sql } from "drizzle-orm";
 import { db } from "../db";
 import { metrics as metricsTable, plants } from "../db/schema";
 import type { AppContext } from "../routes/context";
@@ -39,6 +39,11 @@ export type RawMetricPage = {
   totalCount: number;
   nextCursor: string | null;
 };
+
+const recordedAtOrBeforeNow = or(
+  isNull(metricsTable.createdAt),
+  sql`julianday(${metricsTable.createdAt}) <= julianday(CURRENT_TIMESTAMP)`,
+);
 
 export async function listPlants(c: AppContext): Promise<Response> {
   return c.json({ plants: await listPlantsData(c.env) });
@@ -94,7 +99,7 @@ async function rawMetricTypes(plantId: number, env: Env): Promise<RawMetricType[
     const result = await db(env.DB)
       .select({ id: metricsTable.id, plant_id: metricsTable.plantId, metric_type: metricsTable.metricType, value: metricsTable.value, created_at: metricsTable.createdAt })
       .from(metricsTable)
-      .where(and(eq(metricsTable.plantId, plantId), eq(metricsTable.metricType, metric_type)))
+      .where(and(eq(metricsTable.plantId, plantId), eq(metricsTable.metricType, metric_type), recordedAtOrBeforeNow))
       .orderBy(desc(metricsTable.createdAt), desc(metricsTable.id))
       .limit(2)
       .all() as Metric[];
@@ -148,7 +153,7 @@ export async function rawMetricPage(plantId: number, query: RawMetricQuery, env:
 }
 
 async function resolveMoistureMetricSource(plantId: number, env: Env): Promise<MoistureMetricSource> {
-  const allWaterMetrics = await db(env.DB).select({ id: metricsTable.id, plant_id: metricsTable.plantId, metric_type: metricsTable.metricType, value: metricsTable.value, created_at: metricsTable.createdAt }).from(metricsTable).where(and(eq(metricsTable.plantId, plantId), inArray(metricsTable.metricType, ["soil_moisture", "weight"]))).orderBy(desc(metricsTable.createdAt), desc(metricsTable.id)).all() as Metric[];
+  const allWaterMetrics = await db(env.DB).select({ id: metricsTable.id, plant_id: metricsTable.plantId, metric_type: metricsTable.metricType, value: metricsTable.value, created_at: metricsTable.createdAt }).from(metricsTable).where(and(eq(metricsTable.plantId, plantId), inArray(metricsTable.metricType, ["soil_moisture", "weight"]), recordedAtOrBeforeNow)).orderBy(desc(metricsTable.createdAt), desc(metricsTable.id)).all() as Metric[];
   const metricType: WaterMetricType | null = allWaterMetrics.some((metric) => metric.metric_type === "soil_moisture")
     ? "soil_moisture"
     : allWaterMetrics.some((metric) => metric.metric_type === "weight") ? "weight" : null;
@@ -166,6 +171,7 @@ export async function metricHistory(plantId: number, query: HistoryQuery, env: E
   const conditions = [
     eq(metricsTable.plantId, plantId),
     eq(metricsTable.metricType, metricType),
+    recordedAtOrBeforeNow,
     query.from ? sql`datetime(${metricsTable.createdAt}) >= datetime(${query.from}, '-9 hours')` : undefined,
     query.to ? sql`datetime(${metricsTable.createdAt}) < datetime(${query.to}, '+1 day', '-9 hours')` : undefined,
   ];
@@ -190,6 +196,7 @@ async function rawMetricHistories(plantId: number, query: HistoryQuery, env: Env
     const conditions = [
       eq(metricsTable.plantId, plantId),
       eq(metricsTable.metricType, metric_type),
+      recordedAtOrBeforeNow,
       query.from ? sql`datetime(${metricsTable.createdAt}) >= datetime(${query.from}, '-9 hours')` : undefined,
       query.to ? sql`datetime(${metricsTable.createdAt}) < datetime(${query.to}, '+1 day', '-9 hours')` : undefined,
     ];

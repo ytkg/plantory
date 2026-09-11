@@ -1,6 +1,6 @@
 import { requestJson, logout } from "./api-client.js";
 import { formatDateTime, listStateCard, setupMobileMenu } from "./ui.js";
-import { formatRawValue, metricLabel, metricUnit, rawDifferenceText, rawMetricBounds, totalMetricCount } from "./presentation.js";
+import { formatRawValue, isRecordedAtOrBefore, metricLabel, metricUnit, rawDifferenceText, rawMetricBounds, totalMetricCount } from "./presentation.js";
 
 const content = document.querySelector("#metrics-content");
 const plantName = document.querySelector("#metrics-plant-name");
@@ -21,6 +21,7 @@ let visibleHistoryCount = 30;
 let rangeWindow = null;
 let currentData = null;
 let metricToDelete = null;
+let referenceTime = Date.now();
 
 function showFeedback(message, error = false) {
   feedback.textContent = message;
@@ -157,7 +158,14 @@ function createChart(metrics, metricType) {
     graph.className = "mt-5 flex h-64 items-center text-sm text-stone-500";
     return section;
   }
-  const chronological = [...metrics].reverse();
+  const chronological = metrics.filter((metric) => isRecordedAtOrBefore(metric, referenceTime)).reverse();
+  if (!chronological.length) {
+    const empty = document.createElement("p");
+    empty.className = "mt-4 text-sm text-stone-600";
+    empty.textContent = `${rangeLabel(selectedRange)}の記録はありません。`;
+    section.append(empty);
+    return section;
+  }
   const bounds = rawMetricBounds(chronological);
   new window.Chart(canvas, {
     type: "line",
@@ -192,6 +200,7 @@ function createChart(metrics, metricType) {
       scales: {
         x: {
           type: "linear",
+          max: referenceTime,
           grid: { color: "#e5f3e8" },
           ticks: { color: "#78716c", maxTicksLimit: 5, callback: (value) => formatDateTime(new Date(Number(value)).toISOString()) },
         },
@@ -299,8 +308,9 @@ async function refresh({ preserveFeedback = false } = {}) {
   }
   content.replaceChildren(listStateCard("計測データを読み込んでいます…"));
   if (!preserveFeedback) feedback.className = "mt-6 hidden text-sm";
+  referenceTime = Date.now();
   rangeWindow = selectedRange === "recent" ? null : (() => {
-    const to = new Date();
+    const to = new Date(referenceTime);
     return { from: new Date(to.getTime() - Number(selectedRange) * 24 * 60 * 60 * 1000).toISOString(), to: to.toISOString() };
   })();
   try {
