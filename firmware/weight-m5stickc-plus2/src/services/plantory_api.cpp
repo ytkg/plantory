@@ -10,6 +10,28 @@
 #include "secrets.h"
 
 namespace plantory::api {
+bool fetchMetricsInterval(int& intervalHours) {
+  WiFiClientSecure client;
+  client.setInsecure();
+  client.setHandshakeTimeout(5);
+  HTTPClient http;
+  http.setConnectTimeout(5000);
+  http.setTimeout(5000);
+  if (!http.begin(client, config::METRICS_SETTINGS_URL)) return false;
+  http.addHeader("Authorization", "Bearer " PLANTORY_API_KEY);
+  if (http.GET() != HTTP_CODE_OK) {
+    http.end();
+    return false;
+  }
+  JsonDocument document;
+  const auto error = deserializeJson(document, http.getString());
+  http.end();
+  // Check the response shape; Plantory validates the allowed interval values.
+  if (error || !document["interval_hours"].is<int>() || document["interval_hours"].as<int>() <= 0) return false;
+  intervalHours = document["interval_hours"].as<int>();
+  return true;
+}
+
 bool fetchPlantName(AppState& state) {
   WiFiClientSecure client;
   client.setInsecure();

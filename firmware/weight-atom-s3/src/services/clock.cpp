@@ -16,13 +16,9 @@ String formatTime(time_t timestamp) {
   if (!localtime_r(&timestamp, &localTime)) return "--:--:--";
   char buffer[9]; strftime(buffer, sizeof(buffer), "%H:%M:%S", &localTime); return String(buffer);
 }
-String nextSendText(const struct tm& current) {
-  for (size_t index = 0; index < config::SEND_HOUR_COUNT; ++index) {
-    const int hour = config::SEND_HOURS[index];
-    if (current.tm_hour < hour || (current.tm_hour == hour && current.tm_min == 0 && current.tm_sec < 1)) {
-      char buffer[9]; snprintf(buffer, sizeof(buffer), "%02d:00:00", hour); return String(buffer);
-    }
-  }
-  return "00:00:00";
+String nextSendText(const struct tm& current, const MetricsSchedule& schedule) {
+  char buffer[9];
+  snprintf(buffer, sizeof(buffer), "%02d:00:00", schedule.nextSendHour(current));
+  return String(buffer);
 }
 }  // namespace plantory::clock
