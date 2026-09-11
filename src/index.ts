@@ -9,6 +9,7 @@ import { pageRoutes } from "./routes/pages";
 import { plantRoutes } from "./routes/plants";
 import { reportRoutes } from "./routes/reports";
 import { statusRoutes } from "./routes/status";
+import { settingsRoutes } from "./routes/settings";
 import { weatherRoutes } from "./routes/weather";
 import { collectEnvironmentMetrics } from "./services/environment";
 
@@ -21,6 +22,7 @@ app.route("/api/environment", environmentRoutes);
 app.route("/api/weather", weatherRoutes);
 app.route("/api/reports", reportRoutes);
 app.route("/api/api-keys", apiKeyRoutes);
+app.route("/api/settings", settingsRoutes);
 app.route("/", pageRoutes);
 
 app.notFound((c) => c.json({ error: "Not found." }, 404));

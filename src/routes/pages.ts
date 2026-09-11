@@ -4,8 +4,8 @@ import { loginDestination, protectedAsset, redirectToLogin } from "../pages";
 import { setCookies } from "./context";
 
 export const pageRoutes = new Hono<{ Bindings: Env }>();
-const protectedPages = new Map([["/plants", "/plants.html"], ["/settings/api-keys", "/api-keys.html"]]);
-const staticAssets = new Set(["/styles.css", "/chart.umd.min.js", "/marked.umd.js", "/purify.min.js", "/api-client.js", "/presentation.js", "/ui.js", "/reports.js", "/status.js", "/environment.js", "/login.js", "/plants.js", "/metrics.js", "/api-keys.js", "/authenticated-header.js"]);
+const protectedPages = new Map([["/plants", "/plants.html"], ["/settings/api-keys", "/api-keys.html"], ["/settings/metrics", "/metrics-settings.html"]]);
+const staticAssets = new Set(["/styles.css", "/chart.umd.min.js", "/marked.umd.js", "/purify.min.js", "/api-client.js", "/presentation.js", "/ui.js", "/reports.js", "/status.js", "/environment.js", "/login.js", "/plants.js", "/metrics.js", "/api-keys.js", "/metrics-settings.js", "/authenticated-header.js"]);
 
 for (const [path, asset] of protectedPages) pageRoutes.get(path, async (c) => {
   const session = await authenticateSession(c.req.raw, c.env);

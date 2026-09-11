@@ -50,7 +50,7 @@ void showMainScreen(const AppState& state) {
   M5.Display.setTextColor(TFT_LIGHTGREY, TFT_BLACK);
   M5.Display.setTextSize(1);
   M5.Display.drawString(hasTime ? "現在: " + clock::formatTime(time(nullptr)) : "現在: 未同期", M5.Display.width() / 2, 119);
-  M5.Display.drawString(hasTime ? "次回: " + clock::nextSendText(current) : "次回: --:--:--", M5.Display.width() / 2, 145);
+  M5.Display.drawString(hasTime ? "次回: " + clock::nextSendText(current, state.metricsSchedule) : "次回: --:--:--", M5.Display.width() / 2, 145);
   M5.Display.drawString("最終: " + clock::formatTime(state.lastSentAt), M5.Display.width() / 2, 171);
   M5.Display.setTextColor(TFT_DARKGREY, TFT_BLACK);
   M5.Display.drawString("短押し:ゼロ  ダブル:送信", M5.Display.width() / 2, 207);

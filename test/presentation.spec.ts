@@ -7,6 +7,7 @@ import {
   formatMoisture,
   formatRawValue,
   formatValue,
+  isRecordedAtOrBefore,
   metricLabel,
   metricUnit,
   metricHistoryState,
@@ -63,6 +64,13 @@ describe("frontend presentation helpers", () => {
     expect(metricUnit("soil_moisture")).toBe("");
     expect(formatRawValue(482.347)).toBe("482.347");
     expect(rawDifferenceText(482.347, 483.547, " g")).toBe("-1.2 g");
+  });
+
+  it("includes only readings at or before the fixed current time", () => {
+    const referenceTime = new Date("2026-09-11T00:00:00Z").getTime();
+    expect(isRecordedAtOrBefore({ created_at: "2026-09-11T00:00:00Z" }, referenceTime)).toBe(true);
+    expect(isRecordedAtOrBefore({ created_at: "2026-09-11T00:00:01Z" }, referenceTime)).toBe(false);
+    expect(isRecordedAtOrBefore({ created_at: "invalid" }, referenceTime)).toBe(false);
   });
 
   it("adds an adaptive non-zero range around raw metric values", () => {
