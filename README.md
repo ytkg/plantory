@@ -20,7 +20,7 @@
 - Cloudflare D1
 - Tailwind CSS v4
 - auth.takagi.dev（ログインとトークン検証）
-- Drizzle schema: `src/db/schema.ts`、D1 migrations: `migrations/`
+- アプリケーション: `app/`（Drizzle schema: `app/src/db/schema.ts`、D1 migrations: `app/migrations/`）
 - `firmware/`（M5Stackからmetricsを送るファームウェアと送信仕様）
 
 ## データモデル
@@ -38,17 +38,20 @@ api_keys(id INTEGER PRIMARY KEY, name TEXT, key_hash TEXT, scope TEXT, created_a
 ## はじめかた
 
 ```bash
+cd app
 npm ci
 npm run dev
 ```
 
-ローカル D1 に初期スキーマを反映するには、次を実行します。
+以降のアプリケーション向けコマンドはすべて `app/` で実行します。ローカル D1 に初期スキーマを反映するには、次を実行します。
 
 ```bash
 npx wrangler d1 migrations apply plantory --local
 ```
 
-本番 D1 を作成するには、次を実行し、表示される UUID で `wrangler.jsonc` の `database_id` を置き換えます。
+既存の開発環境を移行する場合は、依存関係を `app/` で再インストールし、必要なら既存の `.wrangler/` と `.dev.vars` を `app/` へ移します。これらにはローカルD1の状態や秘密情報が含まれるため、削除・コミットしません。
+
+本番 D1 を作成するには、`app/` で次を実行し、表示される UUID で `app/wrangler.jsonc` の `database_id` を置き換えます。
 
 ```bash
 npx wrangler d1 create plantory
