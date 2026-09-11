@@ -36,7 +36,7 @@ function createMetricChart(metrics) {
   detail.textContent = `${formatDateTime(latest.created_at)} 受信 · ${differenceText(metrics.map((metric) => metric.value), "%")}`;
 
   const graph = document.createElement("div");
-  graph.className = "mt-3 h-32";
+  graph.className = "mt-3 h-64";
   const canvas = document.createElement("canvas");
   canvas.setAttribute("role", "img");
   canvas.setAttribute("aria-label", `水分量の直近${history.length}件の推移。最新値は${formatMoisture(latest.value)}%。`);
@@ -97,16 +97,15 @@ function createMetricChart(metrics) {
           grid: { color: "#e5f3e8" },
           ticks: {
             color: "#78716c",
-            maxTicksLimit: 3,
+            maxTicksLimit: 5,
             callback: (value) => formatDateTime(new Date(Number(value)).toISOString()),
           },
         },
         y: {
-          border: { display: false },
           grid: { color: "#e5f3e8" },
           min: 0,
           max: 100,
-          ticks: { color: "#78716c", callback: (value) => `${value}%`, maxTicksLimit: 3 },
+          ticks: { color: "#78716c", callback: (value) => `${value}%` },
         },
       },
     },
