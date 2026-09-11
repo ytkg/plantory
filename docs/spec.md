@@ -1,6 +1,6 @@
 # Plantory 仕様
 
-最終更新: 2026-09-11
+最終更新: 2026-09-12
 
 ## 目的
 
@@ -21,9 +21,9 @@ Plantoryは、室内植物の状態をセンサーから記録し、AIが日々�
 
 共通UIは固定ヘッダーと `© 2026 Plantory` のフッターで構成する。管理用ヘッダーはモバイルではメニューに集約し、現在のページを色と下線で示す。
 
-ヘッダーとフッターは `scripts/build-layouts.mjs` の共通レイアウトから生成する。全画面のナビゲーション、モバイルメニュー、ログアウト導線、フッターはこの部品を変更して更新する。
+ヘッダーとフッターは `app/scripts/build-layouts.mjs` の共通レイアウトから生成する。全画面のナビゲーション、モバイルメニュー、ログアウト導線、フッターはこの部品を変更して更新する。
 
-一覧の状態カードと日時表示は `public/ui.js` の共通UI部品を使用する。
+一覧の状態カードと日時表示は `app/public/ui.js` の共通UI部品を使用する。
 
 一覧の読み込み中・空・エラー状態は、各一覧と同じ角丸と影を持つカードで表示する。日時は日本語表記で表示する。
 
@@ -88,11 +88,11 @@ metrics_settings(id INTEGER PRIMARY KEY CHECK(id = 1), interval_hours INTEGER NO
 
 ## API
 
-ルーティングはHonoの機能別ルーター（`src/routes/`）で管理し、各ルーターから処理本体を呼び出す。Workerのエントリポイント（`src/index.ts`）はルーターの組み立てと共通エラーハンドリングのみを担当する。
+ルーティングはHonoの機能別ルーター（`app/src/routes/`）で管理し、各ルーターから処理本体を呼び出す。Workerのエントリポイント（`app/src/index.ts`）はルーターの組み立てと共通エラーハンドリングのみを担当する。
 
-処理本体（D1アクセスとドメイン処理）は`src/services/`に集約し、ルート定義と分離する。認証などの共通処理は`src/auth.ts`、ページ配信は`src/pages.ts`で管理する。
+処理本体（D1アクセスとドメイン処理）は`app/src/services/`に集約し、ルート定義と分離する。認証などの共通処理は`app/src/auth.ts`、ページ配信は`app/src/pages.ts`で管理する。
 
-Cookie付与とメソッド不許可の共通処理は`src/routes/context.ts`に置く。各サービスとルーターは必要なJSON／エラーレスポンスを生成し、ルーター自身の404・500はHonoの標準レスポンスを利用する。
+Cookie付与とメソッド不許可の共通処理は`app/src/routes/context.ts`に置く。各サービスとルーターは必要なJSON／エラーレスポンスを生成し、ルーター自身の404・500はHonoの標準レスポンスを利用する。
 
 APIキーは `Authorization: Bearer plnt_...` で送る。`read` は取得のみ、`write` は取得と登録に利用できる。管理画面からのログインCookieでも、植物・metrics APIを利用できる。
 
@@ -237,16 +237,17 @@ APIキー管理APIはログインCookieでのみ利用できる。
 ## 運用
 
 - 技術構成: Cloudflare Workers、Cloudflare D1、TypeScript、Tailwind CSS v4、Chart.js v4.5.1。
+- アプリケーションのソース、静的アセット、テスト、migration、設定、依存関係は`app/`に集約する。アプリケーション向けの開発・ビルド・テスト・DB操作・デプロイは、リポジトリルートから`cd app`して実行する。`firmware/`と`hardware/`、共通ドキュメント、GitHub Actions、リポジトリ共通ルールはルート側に置く。
 - `npm run build` でTailwind CSSとChart.jsアセットを生成し、TypeScriptを検証する。
 - `npm run lint` はESLintの推奨ルールで手書きのTypeScript・JavaScriptを検査する。生成済みアセット、依存ライブラリ、ビルド成果物、ファームウェアは対象外とする。
 - `npm test` でVitestとCloudflare Workers用テスト環境を使い、ローカルD1に対するAPIの認証・登録・取得・APIキー管理を検証する。
-- GitHub Actionsの`Test / test`チェックは、pull requestの作成・再オープン・更新時と、`main`へのpush時に`npm ci`、`npm run build`、`npm test`を実行する。開発ブランチへのpushだけでは実行しない。
-- GitHub Actionsの`Test / lint`チェックは、`Test / test`と独立して同じ条件で`npm ci`と`npm run lint`を実行する。どちらのジョブもデプロイや本番D1への変更を実行しない。
+- GitHub Actionsの`Test / test`チェックは、pull requestの作成・再オープン・更新時と、`main`へのpush時に`app/`で`npm ci`、`npm run build`、`npm test`を実行する。開発ブランチへのpushだけでは実行しない。
+- GitHub Actionsの`Test / lint`チェックは、`Test / test`と独立して同じ条件で`app/`で`npm ci`と`npm run lint`を実行する。どちらのジョブもデプロイや本番D1への変更を実行しない。
 - `main`への変更はpull request経由とし、`Test / test`と`Test / lint`チェックの成功を必須とする。
 - GitHub Actionsの`Deploy`は、mainへのpushで成功した`Test`ワークフローだけを受け取り、対象SHAが開始時点のmain先頭なら本番D1の未適用migrationを適用してからWorkerをデプロイする。PRや開発ブランチのCI、古い待機SHAでは本番を変更しない。デプロイは同時に1件だけ実行し、実行中のデプロイはキャンセルしない。
 - `CLOUDFLARE_ACCOUNT_ID`と最小権限の`CLOUDFLARE_API_TOKEN`をGitHub Actions Secretsに設定するまで、自動デプロイは有効化しない。ローカルの手動反映は`npx wrangler d1 migrations apply plantory --remote`の後に`npm run deploy`を実行し、GitHub Actionsのデプロイと重ならないようにする。
 - migration適用の失敗時はWorkerをデプロイしない。Workerデプロイの失敗時にD1を自動ロールバックしない。破壊的なmigrationは影響、互換性を保つ適用順、復旧方針をPRに記載してレビューする。本番の確認・復旧方法は[本番運用](operations.md)に記載する。
-- D1スキーマの正本は `src/db/schema.ts` とし、Drizzle Kitで `migrations/` の差分SQLを生成する。D1への適用と適用履歴の管理はWranglerが担う。`0001`〜`0005`の既存migrationは変更せず、Drizzle Kitのベースラインから以後の差分だけを追加する。`0003_make_daily_reports_aggregate.sql` は、既存の植物単位の日報テーブルを日付ごとの集約観察日記へ移行する。
+- D1スキーマの正本は `app/src/db/schema.ts` とし、Drizzle Kitで `app/migrations/` の差分SQLを生成する。D1への適用と適用履歴の管理はWranglerが担う。`0001`〜`0005`の既存migrationは変更せず、Drizzle Kitのベースラインから以後の差分だけを追加する。`0003_make_daily_reports_aggregate.sql` は、既存の植物単位の日報テーブルを日付ごとの集約観察日記へ移行する。
 - 観察日記の定期更新は現在設定しない。M5Stackから十分なmetricsが蓄積してから、D1の情報をもとに作成・更新する仕組みを設定する。
 - 毎時0分（UTC）にWorker CronでSwitchBot CO₂センサーの温度・湿度・CO₂濃度を取得し、`environment_metrics` へ1件の環境観測スナップショットとして保存する。3値すべてが有限な数値で取得できた場合だけ保存する。取得失敗・不正値・欠損時は保存、通知、リトライを行わない。SwitchBotとの通信、HTTP応答、APIエラー、不正な環境値については、認証情報やレスポンス本文を含めず原因別にWorkerログへ記録する。
 - `firmware/` にはPlantory専用のM5Stackファームウェアを置く。`soil-moisture-atom-s3/`、`weight-atom-s3/`、`weight-m5stickc-plus2/`、`unit-cams3-5mp/` はそれぞれ独立したPlatformIOプロジェクトで、`sample/` はWi-Fi接続と公開ステータス表示の動作確認用サンプルとする。
