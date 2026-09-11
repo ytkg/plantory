@@ -2,12 +2,13 @@
 
 #include <Arduino.h>
 #include <time.h>
+#include "app/metrics_schedule.h"
 
 namespace plantory {
 struct AppState {
   String plantName = "Plantory";
   time_t lastSentAt = 0;
-  long lastAutoSlotKey = -1;
+  MetricsSchedule metricsSchedule;
   float lastMeasuredValue = NAN;
   bool timeSynced = false;
   bool scalesReady = false;

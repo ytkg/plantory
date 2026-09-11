@@ -1,0 +1,7 @@
+{
+  "name": "plantory-firmware",
+  "private": true,
+  "scripts": {
+    "test": "node ./scripts/test-schedule.mjs"
+  }
+}
