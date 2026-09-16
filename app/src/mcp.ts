@@ -1,6 +1,7 @@
 import { McpServer } from "@modelcontextprotocol/server";
 import { environmentHistory } from "./services/environment";
-import { listPlantsData, metricHistory, plantObservationData } from "./services/plants";
+import { listPlantsData } from "./services/plants";
+import { metricHistory, plantObservationData } from "./services/observations";
 import { listReportsData, upsertReportData } from "./services/reports";
 import { fetchDailyWeather } from "./services/weather";
 import { historyQuery, type HistoryQuery } from "./validation";
