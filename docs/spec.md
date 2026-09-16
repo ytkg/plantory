@@ -90,7 +90,9 @@ metrics_settings(id INTEGER PRIMARY KEY CHECK(id = 1), interval_hours INTEGER NO
 
 ルーティングはHonoの機能別ルーター（`app/src/routes/`）で管理し、各ルーターから処理本体を呼び出す。Workerのエントリポイント（`app/src/index.ts`）はルーターの組み立てと共通エラーハンドリングのみを担当する。
 
-処理本体（D1アクセスとドメイン処理）は`app/src/services/`に集約し、ルート定義と分離する。認証などの共通処理は`app/src/auth.ts`、ページ配信は`app/src/pages.ts`で管理する。
+処理本体（D1アクセスとドメイン処理）は`app/src/services/`に集約し、ルート定義と分離する。植物自体の操作は`services/plants.ts`、metricの保存・削除・生値取得は`services/metrics.ts`、水分履歴と観察用データの組み立ては`services/observations.ts`に分離する。観察データ取得では、水分計算用の全履歴の取得・採用metricの選択・P5/P95算出をリクエスト内で1回だけ行い、返却する計算基準と水分履歴の正規化に同じ結果を使う。純粋な水分量計算は`app/src/moisture.ts`に置く。
+
+認証などの共通処理は`app/src/auth.ts`、ページ配信は`app/src/pages.ts`で管理する。
 
 Cookie付与とメソッド不許可の共通処理は`app/src/routes/context.ts`に置く。各サービスとルーターは必要なJSON／エラーレスポンスを生成し、ルーター自身の404・500はHonoの標準レスポンスを利用する。
 
