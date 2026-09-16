@@ -72,6 +72,21 @@ describe("metrics settings", () => {
     await expect((await get()).json()).resolves.toEqual({ interval_hours: 3 });
   });
 
+  it.each(["null", "[]", '"text"', "42", "true", "false", "{}", "", "{"])("preserves settings and error messages for body %j", async (body) => {
+    await put({ interval_hours: 6 });
+    const response = await SELF.fetch(url, { method: "PUT", headers: session, body });
+    expect(response.status).toBe(400);
+    await expect(response.json()).resolves.toEqual({
+      error: body === "" || body === "{" ? "Request body must be valid JSON." : "interval_hours must be one of 1, 2, 3, 4, 6, 8, 12, 24.",
+    });
+    await expect((await get()).json()).resolves.toEqual({ interval_hours: 6 });
+    for (const headers of [{}, keyHeaders(readKey), keyHeaders(writeKey)]) {
+      const denied = await SELF.fetch(url, { method: "PUT", headers, body });
+      expect(denied.status).toBe(401);
+      await expect(denied.json()).resolves.toEqual({ error: "Authentication is required." });
+    }
+  });
+
   it("rejects malformed JSON and unsupported methods", async () => {
     expect((await SELF.fetch(url, { method: "PUT", headers: session, body: "{" })).status).toBe(400);
     for (const method of ["POST", "PATCH", "DELETE"]) {

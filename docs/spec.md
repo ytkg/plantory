@@ -96,6 +96,14 @@ Cookie付与とメソッド不許可の共通処理は`app/src/routes/context.ts
 
 APIキーは `Authorization: Bearer plnt_...` で送る。`read` は取得のみ、`write` は取得と登録に利用できる。管理画面からのログインCookieでも、植物・metrics APIを利用できる。
 
+### JSON入力の検証
+
+植物作成、metric作成、観察日記更新、APIキー作成、ログイン、送信間隔設定はJSON objectを受け付ける。認証・認可などの既存の前提条件を満たしたリクエストでは、次の入力エラーをJSONの`{ "error": "…" }`とHTTP 400で返す。
+
+- 空body・壊れたJSONは`Request body must be valid JSON.`を返す。
+- JSONとして正しい`null`・配列・文字列・数値・boolean、および必須項目のないobjectは、各機能の必須項目・型のエラーを返す。植物・APIキーは`name is required.`、metricは`metric_type must be 1 to 50 lowercase letters, numbers, or underscores.`、観察日記は`content is required.`（日付が不正なら従来どおり日付エラーを優先）、ログインは`username and password are required.`、送信間隔は`interval_hours must be one of 1, 2, 3, 4, 6, 8, 12, 24.`を返す。
+- 不正入力で対象データを作成・更新せず、ログイン情報も外部認証サービスへ送信しない。既存の認証処理（セッション確認・更新やAPIキー利用日時の記録）は維持し、認証・認可で拒否するリクエストは従来どおり401とする。
+
 ### 植物
 
 | メソッド | URL | 権限 | 内容 |

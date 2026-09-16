@@ -1,3 +1,4 @@
+import { isJsonObject } from "../validation";
 import { createApiKeyValue, hashApiKey } from "../auth";
 import { and, desc, eq, isNotNull, isNull } from "drizzle-orm";
 import { db } from "../db";
@@ -5,21 +6,19 @@ import { apiKeys } from "../db/schema";
 import type { ApiKey } from "../types";
 import type { AppContext } from "../routes/context";
 
-type CreateApiKeyInput = { name?: unknown; scope?: unknown };
-
 export async function listApiKeys(c: AppContext): Promise<Response> {
   const rows = await db(c.env.DB).select({ id: apiKeys.id, name: apiKeys.name, scope: apiKeys.scope, created_at: apiKeys.createdAt, last_used_at: apiKeys.lastUsedAt, revoked_at: apiKeys.revokedAt }).from(apiKeys).orderBy(desc(apiKeys.id)).all();
   return c.json({ apiKeys: rows as ApiKey[] });
 }
 
 export async function createManagedApiKey(c: AppContext): Promise<Response> {
-  let input: CreateApiKeyInput;
+  let input: unknown;
   try {
     input = await c.req.json();
   } catch {
     return c.json({ error: "Request body must be valid JSON." }, 400);
   }
-  if (typeof input.name !== "string") return c.json({ error: "name is required." }, 400);
+  if (!isJsonObject(input) || typeof input.name !== "string") return c.json({ error: "name is required." }, 400);
 
   const name = input.name.trim();
   if (name.length === 0 || name.length > 100) return c.json({ error: "name must contain 1 to 100 characters." }, 400);
