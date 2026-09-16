@@ -1,3 +1,4 @@
+import { isJsonObject } from "../validation";
 import { calculateMoisturePercentage, calculateMoistureRange, getMoistureDirection, type MoistureRange } from "../moisture";
 import { and, asc, count, desc, eq, inArray, isNull, or, sql } from "drizzle-orm";
 import { db } from "../db";
@@ -7,8 +8,6 @@ import { toUtcIsoTimestamp } from "../time";
 import type { Metric, Plant } from "../types";
 import type { HistoryQuery, RawMetricQuery } from "../validation";
 
-type CreatePlantInput = { name?: unknown };
-type CreateMetricInput = { metric_type?: unknown; value?: unknown };
 type WaterMetricType = "soil_moisture" | "weight";
 type MoistureMetric = Pick<Metric, "id" | "plant_id" | "created_at"> & { value: number };
 type MoistureMetricSource = {
@@ -54,13 +53,13 @@ export async function listPlantsData(env: Env): Promise<Plant[]> {
 }
 
 export async function createPlant(c: AppContext): Promise<Response> {
-  let input: CreatePlantInput;
+  let input: unknown;
   try {
     input = await c.req.json();
   } catch {
     return c.json({ error: "Request body must be valid JSON." }, 400);
   }
-  if (typeof input.name !== "string") return c.json({ error: "name is required." }, 400);
+  if (!isJsonObject(input) || typeof input.name !== "string") return c.json({ error: "name is required." }, 400);
 
   const name = input.name.trim();
   if (name.length === 0 || name.length > 100) return c.json({ error: "name must contain 1 to 100 characters." }, 400);
@@ -250,13 +249,13 @@ export async function deleteMetric(plantId: number, metricId: number, c: AppCont
 }
 
 export async function createMetric(plantId: number, c: AppContext): Promise<Response> {
-  let input: CreateMetricInput;
+  let input: unknown;
   try {
     input = await c.req.json();
   } catch {
     return c.json({ error: "Request body must be valid JSON." }, 400);
   }
-  if (typeof input.metric_type !== "string" || !/^[a-z][a-z0-9_]{0,49}$/.test(input.metric_type)) {
+  if (!isJsonObject(input) || typeof input.metric_type !== "string" || !/^[a-z][a-z0-9_]{0,49}$/.test(input.metric_type)) {
     return c.json({ error: "metric_type must be 1 to 50 lowercase letters, numbers, or underscores." }, 400);
   }
   if (typeof input.value !== "number" || !Number.isFinite(input.value)) return c.json({ error: "value must be a finite number." }, 400);

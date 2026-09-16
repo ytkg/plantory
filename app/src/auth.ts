@@ -1,3 +1,4 @@
+import { isJsonObject } from "./validation";
 import type { ApiKey, ApiKeyAuth, Authentication, Scope, SessionAuth, TokenPair } from "./types";
 import { and, eq, isNull, sql } from "drizzle-orm";
 import { db } from "./db";
@@ -122,13 +123,13 @@ export function unauthorized(): Response {
 export async function login(c: AppContext): Promise<Response> {
   const request = c.req.raw;
   const env = c.env;
-  let credentials: { username?: unknown; password?: unknown };
+  let credentials: unknown;
   try {
     credentials = await request.json();
   } catch {
     return error("Request body must be valid JSON.", 400);
   }
-  if (typeof credentials.username !== "string" || typeof credentials.password !== "string") {
+  if (!isJsonObject(credentials) || typeof credentials.username !== "string" || typeof credentials.password !== "string") {
     return error("username and password are required.", 400);
   }
 
