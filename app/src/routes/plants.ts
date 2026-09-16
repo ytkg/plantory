@@ -1,5 +1,7 @@
 import { Hono } from "hono";
-import { createMetric, createPlant, deleteMetric, deleteMetrics, listMetrics, listPlants, rawMetricPage } from "../services/plants";
+import { createPlant, listPlants } from "../services/plants";
+import { createMetric, deleteMetric, deleteMetrics, rawMetricPage } from "../services/metrics";
+import { listMetrics } from "../services/observations";
 import { authenticated, notAllowed } from "./context";
 import { historyQuery, rawMetricQuery, resourceId } from "../validation";
 
