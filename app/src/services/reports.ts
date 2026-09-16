@@ -1,10 +1,9 @@
+import { isJsonObject } from "../validation";
 import type { DailyReport } from "../types";
 import { desc, sql } from "drizzle-orm";
 import { db } from "../db";
 import { dailyReports } from "../db/schema";
 import type { AppContext } from "../routes/context";
-
-type UpsertReportInput = { content?: unknown };
 
 function validDate(value: string): boolean {
   if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return false;
@@ -38,12 +37,12 @@ export async function listReports(c: AppContext): Promise<Response> {
 
 export async function upsertReport(c: AppContext): Promise<Response> {
   const date = c.req.param("date") ?? "";
-  let input: UpsertReportInput;
+  let input: unknown;
   try {
     input = await c.req.json();
   } catch {
     return c.json({ error: "Request body must be valid JSON." }, 400);
   }
-  const saved = await upsertReportData(date, input.content, c.env);
+  const saved = await upsertReportData(date, isJsonObject(input) ? input.content : undefined, c.env);
   return "report" in saved ? c.json(saved, 200) : c.json(saved, saved.error === "Could not save report." ? 500 : 400);
 }

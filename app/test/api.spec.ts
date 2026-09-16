@@ -114,6 +114,113 @@ describe("Plantory API", () => {
 
   afterAll(() => vi.unstubAllGlobals());
 
+  describe("JSON input validation", () => {
+    const endpoints = [
+      { path: "/api/plants", method: "POST", error: "name is required." },
+      { path: "/api/plants/1/metrics", method: "POST", error: "metric_type must be 1 to 50 lowercase letters, numbers, or underscores." },
+      { path: "/api/reports/2026-09-16", method: "PUT", error: "content is required." },
+      { path: "/api/api-keys", method: "POST", error: "name is required." },
+    ];
+    const bodies = ["null", "[]", '[{"name":"plant"}]', '"text"', "42", "true", "false", "{}", "", "{"];
+
+    async function snapshot() {
+      return Promise.all(["plants", "metrics", "daily_reports", "api_keys"].map(
+        async (table) => (await env.DB.prepare(`SELECT * FROM ${table} ORDER BY id`).all()).results,
+      ));
+    }
+
+    beforeEach(async () => {
+      await env.DB.batch([
+        env.DB.prepare("INSERT INTO plants (id, name) VALUES (1, 'existing plant')"),
+        env.DB.prepare("INSERT INTO metrics (plant_id, metric_type, value) VALUES (1, 'weight', 100)"),
+        env.DB.prepare("INSERT INTO daily_reports (date, content) VALUES ('2026-09-16', 'existing report')"),
+      ]);
+    });
+
+    for (const endpoint of endpoints) {
+      it.each(bodies)(`${endpoint.method} ${endpoint.path} rejects %j without changing data`, async (body) => {
+        mockSignedInSession();
+        const before = await snapshot();
+        const response = await request(endpoint.path, {
+          method: endpoint.method,
+          headers: { Cookie: "plantory_access=test-access", "Content-Type": "application/json" },
+          body,
+        });
+        expect(response.status).toBe(400);
+        expect(response.headers.get("Content-Type")).toContain("application/json");
+        await expect(response.json()).resolves.toEqual({
+          error: body === "" || body === "{" ? "Request body must be valid JSON." : endpoint.error,
+        });
+        expect(await snapshot()).toEqual(before);
+      });
+
+      it.each(["null", "{"])(`${endpoint.path} preserves authorization before parsing %j`, async (body) => {
+        const before = await snapshot();
+        for (const headers of [{}, { Authorization: `Bearer ${readKey}` }]) {
+          const response = await request(endpoint.path, { method: endpoint.method, headers, body });
+          expect(response.status).toBe(401);
+          await expect(response.json()).resolves.toEqual({ error: "Authentication is required." });
+        }
+        expect(await snapshot()).toEqual(before);
+      });
+    }
+
+    it.each([...bodies, '{"username":"user"}', '{"username":123,"password":"secret"}', '{"username":"user","password":null}'])("rejects login body %j without sending credentials", async (body) => {
+      const outbound = vi.fn(() => Promise.resolve(new Response(null, { status: 401 })));
+      vi.stubGlobal("fetch", outbound);
+      const response = await request("/api/auth/login", { method: "POST", body });
+      expect(response.status).toBe(400);
+      await expect(response.json()).resolves.toEqual({
+        error: body === "" || body === "{" ? "Request body must be valid JSON." : "username and password are required.",
+      });
+      expect(outbound).not.toHaveBeenCalled();
+      expect(response.headers.get("Set-Cookie")).toBeNull();
+    });
+
+    it.each([
+      ["/api/plants", "POST", { name: 123 }, "name is required."],
+      ["/api/plants", "POST", { name: " " }, "name must contain 1 to 100 characters."],
+      ["/api/plants/1/metrics", "POST", { metric_type: "weight" }, "value must be a finite number."],
+      ["/api/reports/2026-09-16", "PUT", { content: 123 }, "content is required."],
+      ["/api/reports/2026-09-16", "PUT", { content: " " }, "content must contain 1 to 10000 characters."],
+      ["/api/api-keys", "POST", { name: " " }, "name must contain 1 to 100 characters."],
+      ["/api/api-keys", "POST", { name: "key", scope: "admin" }, "scope must be read or write."],
+    ])("preserves field validation for %s with %j", async (path, method, input, error) => {
+      mockSignedInSession();
+      const before = await snapshot();
+      const response = await request(path, {
+        method, headers: { Cookie: "plantory_access=test-access" }, body: JSON.stringify(input),
+      });
+      expect(response.status).toBe(400);
+      await expect(response.json()).resolves.toEqual({ error });
+      expect(await snapshot()).toEqual(before);
+    });
+
+    it("still creates a usable API key with a trimmed name and the requested scope", async () => {
+      mockSignedInSession();
+      const response = await request("/api/api-keys", {
+        method: "POST", headers: { Cookie: "plantory_access=test-access" },
+        body: JSON.stringify({ name: " new key ", scope: "write" }),
+      });
+      expect(response.status).toBe(201);
+      const result = await response.json() as { apiKey: { id: number }; key: string };
+      expect(result).toMatchObject({ apiKey: { name: "new key", scope: "write" }, key: expect.stringMatching(/^plnt_/) });
+      await expect(env.DB.prepare("SELECT name, scope, key_hash FROM api_keys WHERE id = ?").bind(result.apiKey.id).first()).resolves.toEqual({
+        name: "new key", scope: "write", key_hash: await hashApiKey(result.key),
+      });
+      expect((await request("/api/plants", withApiKey(result.key))).status).toBe(200);
+    });
+
+    it("preserves report date validation before content validation", async () => {
+      mockSignedInSession();
+      const response = await request("/api/reports/invalid", {
+        method: "PUT", headers: { Cookie: "plantory_access=test-access" }, body: "null",
+      });
+      expect(response.status).toBe(400);
+      await expect(response.json()).resolves.toEqual({ error: "date must be a valid YYYY-MM-DD value." });
+    });
+  });
+
   it("rejects a protected API request without credentials", async () => {
     const response = await request("/api/plants");
 
