@@ -2,9 +2,10 @@
 
 namespace plantory::sensor {
 
-using KeepAliveHandler = void (*)();
+using KeepAliveHandler = bool (*)();
 
 void begin();
-int measureAverage(KeepAliveHandler keepAlive);
+void powerOff();
+bool measureAverage(int& average, KeepAliveHandler keepAlive);
 
 }  // namespace plantory::sensor
