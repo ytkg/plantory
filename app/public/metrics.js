@@ -1,4 +1,5 @@
 import { requestJson, logout } from "./api-client.js";
+import { metricFetchLimit, shouldFetchAllMetrics } from "./metrics-query.js";
 import { formatDateTime, listStateCard, setupMobileMenu } from "./ui.js";
 import { formatRawValue, isRecordedAtOrBefore, metricLabel, metricUnit, rawDifferenceText, rawMetricBounds, totalMetricCount } from "./presentation.js";
 
@@ -29,7 +30,7 @@ function showFeedback(message, error = false) {
 }
 
 function rawEndpoint(metricType, cursor = null) {
-  const params = new URLSearchParams({ metric_type: metricType, limit: "500" });
+  const params = new URLSearchParams({ metric_type: metricType, limit: String(metricFetchLimit(selectedRange)) });
   if (rangeWindow) {
     params.set("from", rangeWindow.from);
     params.set("to", rangeWindow.to);
@@ -40,6 +41,8 @@ function rawEndpoint(metricType, cursor = null) {
 
 async function loadAllMetrics(metricType) {
   const first = await requestJson(rawEndpoint(metricType));
+  if (!shouldFetchAllMetrics(selectedRange)) return first;
+
   const metrics = [...first.metrics];
   let cursor = first.nextCursor;
   while (cursor) {
@@ -325,7 +328,7 @@ async function refresh({ preserveFeedback = false } = {}) {
     }
     if (!metricTypes.some((type) => type.metric_type === selectedType)) selectedType = metricTypes[0].metric_type;
     const data = selectedType === metadata.metric_type ? metadata : await loadAllMetrics(selectedType);
-    if (selectedType === metadata.metric_type && metadata.nextCursor) {
+    if (selectedType === metadata.metric_type && shouldFetchAllMetrics(selectedRange) && metadata.nextCursor) {
       const rest = await loadAllMetrics(selectedType);
       data.metrics = rest.metrics;
     }
