@@ -1,7 +1,7 @@
 import { requestJson, logout } from "./api-client.js";
 import { metricFetchLimit, shouldFetchAllMetrics } from "./metrics-query.js";
 import { formatDateTime, listStateCard, setupMobileMenu } from "./ui.js";
-import { formatRawValue, isRecordedAtOrBefore, metricLabel, metricUnit, rawDifferenceText, rawMetricBounds, totalMetricCount } from "./presentation.js";
+import { formatRawValue, metricLabel, metricUnit, rawDifferenceText, rawMetricBounds, totalMetricCount } from "./presentation.js";
 
 const content = document.querySelector("#metrics-content");
 const plantName = document.querySelector("#metrics-plant-name");
@@ -161,7 +161,7 @@ function createChart(metrics, metricType) {
     graph.className = "mt-5 flex h-64 items-center text-sm text-stone-500";
     return section;
   }
-  const chronological = metrics.filter((metric) => isRecordedAtOrBefore(metric, referenceTime)).reverse();
+  const chronological = [...metrics].reverse();
   if (!chronological.length) {
     const empty = document.createElement("p");
     empty.className = "mt-4 text-sm text-stone-600";
@@ -203,7 +203,6 @@ function createChart(metrics, metricType) {
       scales: {
         x: {
           type: "linear",
-          max: referenceTime,
           grid: { color: "#e5f3e8" },
           ticks: { color: "#78716c", maxTicksLimit: 5, callback: (value) => formatDateTime(new Date(Number(value)).toISOString()) },
         },
