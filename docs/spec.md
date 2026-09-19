@@ -245,6 +245,7 @@ APIキー管理APIはログインCookieでのみ利用できる。
 - アクセストークンの検証に失敗した場合はリフレッシュを試みる。更新したCookieは、REST API、保護ページ、MCPを含む、その認証済みリクエストの最終レスポンスに付与する。
 - ログアウト時はアクセストークンとリフレッシュトークンの両方のCookieを削除する。
 - `API_KEY_PEPPER` はCloudflare Secretとして設定し、リポジトリには保存しない。
+- `API_KEY_PEPPER` が未設定・空文字・空白だけの場合、APIキーの発行とBearer APIキー認証はハッシュ処理をせず、`API key configuration error.` のHTTP 500を返す。ログには設定名だけを記録し、Secret値は記録しない。ログインCookieによる認証は継続する。
 - SwitchBot連携の `SWITCHBOT_TOKEN`、`SWITCHBOT_SECRET`、`SWITCHBOT_DEVICE_ID` はCloudflare Secretとして設定し、リポジトリには保存しない。
 
 ## 運用

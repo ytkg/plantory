@@ -1,6 +1,6 @@
 import { createMcpHandler } from "agents/mcp/server";
 import { Hono } from "hono";
-import { authenticate, unauthorized } from "./auth";
+import { ApiKeyConfigurationError, authenticate, unauthorized } from "./auth";
 import { createPlantoryMcpServer } from "./mcp";
 import { apiKeyRoutes } from "./routes/api-keys";
 import { authRoutes } from "./routes/auth";
@@ -28,6 +28,10 @@ app.route("/", pageRoutes);
 
 app.notFound((c) => c.json({ error: "Not found." }, 404));
 app.onError((cause) => {
+  if (cause instanceof ApiKeyConfigurationError) {
+    console.error("Plantory API key configuration error: API_KEY_PEPPER is not configured.");
+    return Response.json({ error: "API key configuration error." }, { status: 500 });
+  }
   console.error("Plantory request failed", cause);
   return new Response(JSON.stringify({ error: "Internal server error." }), { status: 500, headers: { "Content-Type": "application/json" } });
 });
