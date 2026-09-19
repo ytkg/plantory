@@ -1,5 +1,6 @@
 import { env, SELF } from "cloudflare:test";
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
+import { hashApiKey } from "../src/auth";
 import worker from "../src";
 
 const baseUrl = "https://plantory.test";
@@ -46,7 +47,7 @@ const schemaQueries = [
   )`,
 ];
 
-async function hashApiKey(key: string): Promise<string> {
+async function expectedApiKeyHash(key: string): Promise<string> {
   const bytes = new TextEncoder().encode(`test-api-key-pepper:${key}`);
   const digest = await crypto.subtle.digest("SHA-256", bytes);
   return [...new Uint8Array(digest)].map((byte) => byte.toString(16).padStart(2, "0")).join("");
@@ -117,13 +118,23 @@ describe("Plantory API", () => {
     ]);
     await env.DB.batch([
       env.DB.prepare("INSERT INTO api_keys (name, key_hash, scope) VALUES (?, ?, ?)")
-        .bind("test write key", await hashApiKey(writeKey), "write"),
+        .bind("test write key", await expectedApiKeyHash(writeKey), "write"),
       env.DB.prepare("INSERT INTO api_keys (name, key_hash, scope) VALUES (?, ?, ?)")
-        .bind("test read key", await hashApiKey(readKey), "read"),
+        .bind("test read key", await expectedApiKeyHash(readKey), "read"),
     ]);
   });
 
   afterAll(() => vi.unstubAllGlobals());
+
+  describe("API key pepper configuration", () => {
+    it.each([
+      ["unset", undefined],
+      ["empty", ""],
+      ["whitespace-only", "   "],
+    ])("rejects a %s API_KEY_PEPPER before hashing", async (_description, pepper) => {
+      await expect(hashApiKey(writeKey, { API_KEY_PEPPER: pepper } as Env)).rejects.toThrow("API_KEY_PEPPER is not configured.");
+    });
+  });
 
   describe("JSON input validation", () => {
     const endpoints = [
@@ -218,7 +229,7 @@ describe("Plantory API", () => {
       const result = await response.json() as { apiKey: { id: number }; key: string };
       expect(result).toMatchObject({ apiKey: { name: "new key", scope: "write" }, key: expect.stringMatching(/^plnt_/) });
       await expect(env.DB.prepare("SELECT name, scope, key_hash FROM api_keys WHERE id = ?").bind(result.apiKey.id).first()).resolves.toEqual({
-        name: "new key", scope: "write", key_hash: await hashApiKey(result.key),
+        name: "new key", scope: "write", key_hash: await expectedApiKeyHash(result.key),
       });
       expect((await request("/api/plants", withApiKey(result.key))).status).toBe(200);
     });
@@ -1024,7 +1035,7 @@ describe("Plantory API", () => {
     await env.DB.prepare(
       "INSERT INTO api_keys (name, key_hash, scope, revoked_at) VALUES (?, ?, ?, CURRENT_TIMESTAMP)",
     )
-      .bind("revoked key", await hashApiKey("plnt_revoked_key"), "read")
+      .bind("revoked key", await expectedApiKeyHash("plnt_revoked_key"), "read")
       .run();
     const revoked = await env.DB.prepare("SELECT id FROM api_keys WHERE name = ?")
       .bind("revoked key")
