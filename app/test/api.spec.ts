@@ -136,6 +136,24 @@ describe("Plantory API", () => {
     });
   });
 
+  describe("security headers", () => {
+    const expectedHeaders = {
+      "Content-Security-Policy": "default-src 'self'; base-uri 'self'; connect-src 'self'; form-action 'self'; frame-ancestors 'none'; img-src 'self' data:; object-src 'none'; script-src 'self'; style-src 'self'",
+      "Permissions-Policy": "camera=(), geolocation=(), microphone=()",
+      "Referrer-Policy": "strict-origin-when-cross-origin",
+      "X-Content-Type-Options": "nosniff",
+      "X-Frame-Options": "DENY",
+    };
+
+    it("adds security headers to page, API, and MCP responses", async () => {
+      const responses = await Promise.all([request("/"), request("/api/reports"), request("/mcp")]);
+
+      for (const response of responses) {
+        for (const [name, value] of Object.entries(expectedHeaders)) expect(response.headers.get(name)).toBe(value);
+      }
+    });
+  });
+
   describe("JSON input validation", () => {
     const endpoints = [
       { path: "/api/plants", method: "POST", error: "name is required." },

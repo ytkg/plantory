@@ -248,6 +248,11 @@ APIキー管理APIはログインCookieでのみ利用できる。
 - `API_KEY_PEPPER` が未設定・空文字・空白だけの場合、APIキーの発行とBearer APIキー認証はハッシュ処理をせず、`API key configuration error.` のHTTP 500を返す。ログには設定名だけを記録し、Secret値は記録しない。ログインCookieによる認証は継続する。
 - SwitchBot連携の `SWITCHBOT_TOKEN`、`SWITCHBOT_SECRET`、`SWITCHBOT_DEVICE_ID` はCloudflare Secretとして設定し、リポジトリには保存しない。
 
+## Webレスポンスのセキュリティ
+
+- Workerが返すページ、静的アセット、REST API、MCPを含むすべてのHTTPレスポンスに `X-Content-Type-Options: nosniff`、`Referrer-Policy: strict-origin-when-cross-origin`、`Permissions-Policy: camera=(), geolocation=(), microphone=()`、`X-Frame-Options: DENY` を付与する。
+- 同じレスポンスにCSPを強制適用する。リソース、スクリプト、スタイル、フォーム送信、API通信は同一オリジンだけを許可し、画像は同一オリジンと `data:` URLだけを許可する。プラグインコンテンツとページのiframe埋め込みは許可しない。
+
 ## 運用
 
 - 技術構成: Cloudflare Workers、Cloudflare D1、TypeScript、Tailwind CSS v4、Chart.js v4.5.1。
