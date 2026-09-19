@@ -5,7 +5,7 @@ describe("Open-Meteo weather service", () => {
   afterEach(() => vi.unstubAllGlobals());
 
   it("returns the current weather for Nishi-Tokyo", async () => {
-    const fetchMock = vi.fn(() => Promise.resolve(Response.json({
+    const fetchMock = vi.fn<typeof fetch>(() => Promise.resolve(Response.json({
       current: {
         time: "2026-09-07T10:00",
         temperature_2m: 24.3,
