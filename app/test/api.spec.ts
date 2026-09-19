@@ -156,7 +156,8 @@ describe("Plantory API", () => {
 
       it.each(["null", "{"])(`${endpoint.path} preserves authorization before parsing %j`, async (body) => {
         const before = await snapshot();
-        for (const headers of [{}, { Authorization: `Bearer ${readKey}` }]) {
+        const authorizationHeaders: HeadersInit[] = [{}, { Authorization: `Bearer ${readKey}` }];
+        for (const headers of authorizationHeaders) {
           const response = await request(endpoint.path, { method: endpoint.method, headers, body });
           expect(response.status).toBe(401);
           await expect(response.json()).resolves.toEqual({ error: "Authentication is required." });
@@ -367,11 +368,7 @@ describe("Plantory API", () => {
       ),
     );
 
-    await worker.scheduled!(
-      { cron: "0 * * * *", scheduledTime: Date.now(), noRetry: vi.fn() },
-      env,
-      {} as ExecutionContext,
-    );
+    await worker.scheduled!({ cron: "0 * * * *", scheduledTime: Date.now(), noRetry: vi.fn() }, env);
 
     const { results } = await env.DB.prepare(
       "SELECT temperature, humidity, co2, created_at FROM environment_metrics ORDER BY id ASC",
@@ -388,11 +385,7 @@ describe("Plantory API", () => {
   ])("does not save partial or invalid SwitchBot readings", async (body) => {
     vi.stubGlobal("fetch", () => Promise.resolve(Response.json({ statusCode: 100, body })));
 
-    await worker.scheduled!(
-      { cron: "0 * * * *", scheduledTime: Date.now(), noRetry: vi.fn() },
-      env,
-      {} as ExecutionContext,
-    );
+    await worker.scheduled!({ cron: "0 * * * *", scheduledTime: Date.now(), noRetry: vi.fn() }, env);
 
     await expect(env.DB.prepare("SELECT COUNT(*) AS count FROM environment_metrics").first<{ count: number }>()).resolves.toEqual({ count: 0 });
   });
@@ -400,11 +393,7 @@ describe("Plantory API", () => {
   it("does not save readings when the SwitchBot request fails", async () => {
     vi.stubGlobal("fetch", () => Promise.resolve(new Response(null, { status: 503 })));
 
-    await worker.scheduled!(
-      { cron: "0 * * * *", scheduledTime: Date.now(), noRetry: vi.fn() },
-      env,
-      {} as ExecutionContext,
-    );
+    await worker.scheduled!({ cron: "0 * * * *", scheduledTime: Date.now(), noRetry: vi.fn() }, env);
 
     await expect(env.DB.prepare("SELECT COUNT(*) AS count FROM environment_metrics").first<{ count: number }>()).resolves.toEqual({ count: 0 });
   });
@@ -414,11 +403,7 @@ describe("Plantory API", () => {
     const errorSpy = vi.spyOn(console, "error").mockImplementation(() => undefined);
     vi.stubGlobal("fetch", () => Promise.reject(error));
 
-    await worker.scheduled!(
-      { cron: "0 * * * *", scheduledTime: Date.now(), noRetry: vi.fn() },
-      env,
-      {} as ExecutionContext,
-    );
+    await worker.scheduled!({ cron: "0 * * * *", scheduledTime: Date.now(), noRetry: vi.fn() }, env);
 
     expect(errorSpy).toHaveBeenCalledWith("SwitchBot API request failed", error);
     errorSpy.mockRestore();
@@ -428,11 +413,7 @@ describe("Plantory API", () => {
     const errorSpy = vi.spyOn(console, "error").mockImplementation(() => undefined);
     vi.stubGlobal("fetch", () => Promise.resolve(new Response(null, { status: 503 })));
 
-    await worker.scheduled!(
-      { cron: "0 * * * *", scheduledTime: Date.now(), noRetry: vi.fn() },
-      env,
-      {} as ExecutionContext,
-    );
+    await worker.scheduled!({ cron: "0 * * * *", scheduledTime: Date.now(), noRetry: vi.fn() }, env);
 
     expect(errorSpy).toHaveBeenCalledWith(expect.stringContaining("status=503"));
     errorSpy.mockRestore();
@@ -442,11 +423,7 @@ describe("Plantory API", () => {
     const errorSpy = vi.spyOn(console, "error").mockImplementation(() => undefined);
     vi.stubGlobal("fetch", () => Promise.resolve(Response.json({ statusCode: 190, message: "Unauthorized", body: { token: "secret" } })));
 
-    await worker.scheduled!(
-      { cron: "0 * * * *", scheduledTime: Date.now(), noRetry: vi.fn() },
-      env,
-      {} as ExecutionContext,
-    );
+    await worker.scheduled!({ cron: "0 * * * *", scheduledTime: Date.now(), noRetry: vi.fn() }, env);
 
     expect(errorSpy).toHaveBeenCalledWith(expect.stringContaining("statusCode=190"));
     expect(errorSpy).toHaveBeenCalledWith(expect.stringContaining('message="Unauthorized"'));
@@ -458,11 +435,7 @@ describe("Plantory API", () => {
     const errorSpy = vi.spyOn(console, "error").mockImplementation(() => undefined);
     vi.stubGlobal("fetch", () => Promise.resolve(Response.json({ statusCode: 100, body: { temperature: "24.3", humidity: null } })));
 
-    await worker.scheduled!(
-      { cron: "0 * * * *", scheduledTime: Date.now(), noRetry: vi.fn() },
-      env,
-      {} as ExecutionContext,
-    );
+    await worker.scheduled!({ cron: "0 * * * *", scheduledTime: Date.now(), noRetry: vi.fn() }, env);
 
     expect(errorSpy).toHaveBeenCalledWith(expect.stringContaining("temperature, humidity, co2"));
     errorSpy.mockRestore();
@@ -472,11 +445,7 @@ describe("Plantory API", () => {
     const errorSpy = vi.spyOn(console, "error").mockImplementation(() => undefined);
     vi.stubGlobal("fetch", () => Promise.resolve(Response.json({ statusCode: 100, body: { temperature: 24.3, humidity: 58, CO2: 741 } })));
 
-    await worker.scheduled!(
-      { cron: "0 * * * *", scheduledTime: Date.now(), noRetry: vi.fn() },
-      env,
-      {} as ExecutionContext,
-    );
+    await worker.scheduled!({ cron: "0 * * * *", scheduledTime: Date.now(), noRetry: vi.fn() }, env);
 
     expect(errorSpy).not.toHaveBeenCalled();
     errorSpy.mockRestore();
@@ -566,7 +535,7 @@ describe("Plantory API", () => {
   });
 
   it("returns authenticated daily weather for the requested period", async () => {
-    const fetchMock = vi.fn(() => Promise.resolve(Response.json({
+    const fetchMock = vi.fn<typeof fetch>(() => Promise.resolve(Response.json({
       daily: {
         time: ["2026-09-01", "2026-09-02"],
         weather_code: [1, 3],

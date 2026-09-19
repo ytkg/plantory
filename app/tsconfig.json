@@ -6,7 +6,8 @@
     "moduleResolution": "Bundler",
     "strict": true,
     "skipLibCheck": true,
+    "allowJs": true,
     "noEmit": true
   },
-  "include": ["src/**/*.ts", "worker-configuration.d.ts"]
+  "include": ["src/**/*.ts", "test/**/*.ts", "worker-configuration.d.ts"]
 }
