@@ -43,7 +43,7 @@ jobs:
             echo "Skipping an outdated commit; the current main workflow will deploy the latest commit."
           fi
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         if: steps.target.outputs.deploy == 'true'
         with:
           node-version: 22
