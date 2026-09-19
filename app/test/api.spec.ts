@@ -627,6 +627,9 @@ describe("Plantory API", () => {
     const metricsResponse = await request("/metrics.js");
     expect(metricsResponse.status).toBe(200);
     await expect(metricsResponse.text()).resolves.toContain("/metrics/raw");
+    const metricsQueryResponse = await request("/metrics-query.js");
+    expect(metricsQueryResponse.status).toBe(200);
+    await expect(metricsQueryResponse.text()).resolves.toContain("metricFetchLimit");
   });
 
   it("redirects the raw metric detail page to login when no session is present", async () => {
