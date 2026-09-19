@@ -90,6 +90,17 @@ function mockSignedInSession(): void {
   });
 }
 
+function mockSessionRefresh(): void {
+  vi.stubGlobal("fetch", (input: RequestInfo | URL) => {
+    const url = new URL(input instanceof Request ? input.url : input.toString());
+    if (url.href === "https://auth.takagi.dev/verify") return Promise.resolve(new Response(null, { status: 401 }));
+    if (url.href === "https://auth.takagi.dev/refresh") {
+      return Promise.resolve(Response.json({ accessToken: "refreshed-access", refreshToken: "refreshed-refresh", expiresIn: 900 }));
+    }
+    return Promise.reject(new Error(`Unexpected outbound request: ${url}`));
+  });
+}
+
 describe("Plantory API", () => {
   beforeAll(async () => {
     await env.DB.batch(schemaQueries.map((query) => env.DB.prepare(query)));
@@ -227,6 +238,32 @@ describe("Plantory API", () => {
 
     expect(response.status).toBe(401);
     await expect(response.json()).resolves.toEqual({ error: "Authentication is required." });
+  });
+
+  it("attaches refreshed cookies to API, page, and MCP responses", async () => {
+    mockSessionRefresh();
+    const headers = { Cookie: "plantory_access=expired; plantory_refresh=refresh-token" };
+
+    const api = await request("/api/plants", { headers });
+    expect(api.status).toBe(200);
+
+    const sessionOnly = await request("/api/api-keys", { headers });
+    expect(sessionOnly.status).toBe(200);
+
+    const page = await request("/", { headers });
+    expect(page.status).toBe(200);
+
+    const mcp = await request("/mcp", {
+      method: "POST",
+      headers: { ...headers, Accept: "application/json, text/event-stream", "Content-Type": "application/json" },
+      body: JSON.stringify({ jsonrpc: "2.0", id: 1, method: "initialize", params: { protocolVersion: "2025-03-26", capabilities: {}, clientInfo: { name: "plantory-test", version: "1.0.0" } } }),
+    });
+    expect(mcp.status).toBe(200);
+
+    for (const response of [api, sessionOnly, page, mcp]) {
+      expect(response.headers.get("Set-Cookie")).toContain("plantory_access=refreshed-access");
+      expect(response.headers.get("Set-Cookie")).toContain("plantory_refresh=refreshed-refresh");
+    }
   });
 
   it("serves the Markdown renderer assets used by observation reports", async () => {
