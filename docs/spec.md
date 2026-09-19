@@ -128,6 +128,7 @@ APIキーは `Authorization: Bearer plnt_...` で送る。`read` は取得のみ
 - `POST` の `value` はセンサーから受け取った生値として保存する。一方、`GET` は画面や観察日記で使う解釈済みの水分量だけを返す。
 - `GET /api/plants/:plantId/metrics` は任意の `from`・`to`（`YYYY-MM-DD`、日本時間の暦日・両端を含む）と `limit`（1〜1000、デフォルト100）で返却対象を絞り込める。`from` は `to` 以前でなければならない。
 - `metrics` の各要素は `id`、`plant_id`、水分量を表す `value`（0〜100の整数）、UTCを明示したISO 8601形式の`created_at`を返す。ADC値や重量などの生値、センサー種別、P5/P95レンジは返さない。
+- 計測値の読み取りでは、`created_at` が未来日時かどうかで除外せず、保存済みのデータをそのまま扱う。
 - 水分量は、土壌水分を優先し、なければ重量の全履歴をP5/P95で正規化して算出する。`totalCount`は選択された水分量の記録総数を返す。範囲を算出できない場合、`metrics` は空配列になる。
 - metricsの削除は対象が0件でも204を返す。存在しない植物は404。
 - `GET /api/plants/:plantId/metrics/raw` は`metric_type`（必須）、`from`・`to`（任意、UTC ISO 8601形式、両端を含む）、`limit`（1〜500、デフォルト100）、`cursor`（任意）を受け付ける。`from`・`to`は日時精度で比較し、`from`は`to`以前でなければならない。
