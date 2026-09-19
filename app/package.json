@@ -37,7 +37,7 @@
   },
   "dependencies": {
     "@modelcontextprotocol/server": "^2.0.0",
-    "agents": "^0.22.0",
+    "agents": "^0.23.0",
     "chart.js": "4.5.1",
     "dompurify": "^3.4.15",
     "drizzle-orm": "^0.45.2",
