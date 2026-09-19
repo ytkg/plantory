@@ -11,6 +11,13 @@ const ACCESS_COOKIE = "plantory_access";
 const REFRESH_COOKIE = "plantory_refresh";
 const encoder = new TextEncoder();
 
+export class ApiKeyConfigurationError extends Error {
+  constructor() {
+    super("API_KEY_PEPPER is not configured.");
+    this.name = "ApiKeyConfigurationError";
+  }
+}
+
 function parseCookies(request: Request): Map<string, string> {
   const cookies = new Map<string, string>();
   const header = request.headers.get("Cookie");
@@ -78,7 +85,10 @@ function authorizationToken(request: Request): string | null {
 }
 
 export async function hashApiKey(key: string, env: Env): Promise<string> {
-  const digest = await crypto.subtle.digest("SHA-256", encoder.encode(`${env.API_KEY_PEPPER}:${key}`));
+  const pepper = env.API_KEY_PEPPER;
+  if (typeof pepper !== "string" || pepper.trim().length === 0) throw new ApiKeyConfigurationError();
+
+  const digest = await crypto.subtle.digest("SHA-256", encoder.encode(`${pepper}:${key}`));
   return [...new Uint8Array(digest)].map((byte) => byte.toString(16).padStart(2, "0")).join("");
 }
 

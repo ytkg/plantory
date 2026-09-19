@@ -1,4 +1,4 @@
-import { and, asc, count, desc, eq, inArray, isNull, or, sql } from "drizzle-orm";
+import { and, asc, count, desc, eq, inArray, or, sql } from "drizzle-orm";
 import { db } from "../db";
 import { metrics as metricsTable } from "../db/schema";
 import type { AppContext } from "../routes/context";
@@ -24,11 +24,6 @@ export type RawMetricPage = {
   nextCursor: string | null;
 };
 
-const recordedAtOrBeforeNow = or(
-  isNull(metricsTable.createdAt),
-  sql`julianday(${metricsTable.createdAt}) <= julianday(CURRENT_TIMESTAMP)`,
-);
-
 const metricColumns = { id: metricsTable.id, plant_id: metricsTable.plantId, metric_type: metricsTable.metricType, value: metricsTable.value, created_at: metricsTable.createdAt };
 const newestFirst = [desc(metricsTable.createdAt), desc(metricsTable.id)];
 
@@ -53,7 +48,7 @@ async function rawMetricTypes(plantId: number, env: Env): Promise<RawMetricType[
     const result = await db(env.DB)
       .select(metricColumns)
       .from(metricsTable)
-      .where(and(eq(metricsTable.plantId, plantId), eq(metricsTable.metricType, metric_type), recordedAtOrBeforeNow))
+      .where(and(eq(metricsTable.plantId, plantId), eq(metricsTable.metricType, metric_type)))
       .orderBy(...newestFirst)
       .limit(2)
       .all() as Metric[];
@@ -108,7 +103,7 @@ export async function rawMetricPage(plantId: number, query: RawMetricQuery, env:
 
 export async function waterMetrics(plantId: number, env: Env): Promise<Metric[]> {
   return await db(env.DB).select(metricColumns).from(metricsTable)
-    .where(and(eq(metricsTable.plantId, plantId), inArray(metricsTable.metricType, ["soil_moisture", "weight"]), recordedAtOrBeforeNow))
+    .where(and(eq(metricsTable.plantId, plantId), inArray(metricsTable.metricType, ["soil_moisture", "weight"])))
     .orderBy(...newestFirst).all() as Metric[];
 }
 
@@ -117,7 +112,6 @@ export async function metricHistoryReadings(plantId: number, metricType: string,
   const conditions = [
     eq(metricsTable.plantId, plantId),
     eq(metricsTable.metricType, metricType),
-    recordedAtOrBeforeNow,
     query.from ? sql`datetime(${metricsTable.createdAt}) >= datetime(${query.from}, '-9 hours')` : undefined,
     query.to ? sql`datetime(${metricsTable.createdAt}) < datetime(${query.to}, '+1 day', '-9 hours')` : undefined,
   ];
