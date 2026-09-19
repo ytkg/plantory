@@ -302,7 +302,7 @@ APIキー管理APIはログインCookieでのみ利用できる。
 
 ### ATOM S3 土壌水分センサー
 
-- `firmware/soil-moisture-atom-s3/` はEarth Unit用。ADC値は送信時に1秒ごとに10回読み取り、その平均を`soil_moisture`として送信する。シングルタップでは何もしない。
+- `firmware/soil-moisture-atom-s3/` はEarth Unit用。Earth Unitの5Vは、ENを10kΩ程度でGNDへプルダウンした3.3Vロジック対応の外付けハイサイド電源スイッチを通す。起動・再起動・待機・OTA更新中はENをLOWにして給電せず、測定時だけHIGHにする。給電後は`include/secrets.h`の`SOIL_SENSOR_STABILIZATION_MS`（初期値1000ms、実機で調整）だけ待ってからADC値を1秒ごとに10回読み取り、その平均を`soil_moisture`として送信する。読み取り後、測定中断時、OTA更新開始時には直ちにLOWへ戻し、送信・表示中に通電を続けない。OTA開始で測定が中断された値は送信しない。白線（Analog Output）はGPIO1、スイッチENは`SOIL_SENSOR_POWER_PIN`で指定したGPIOへ接続する。シングルタップでは何もしない。
 - 起動時、再接続成功時、送信成功後に`/api/status`から相対水分量を取得して表示する。取得に失敗しても最後に取得した値を維持し、未取得の場合は`--%`を表示する。
 - OTAホスト名は`soil-moisture-atom-s3.local`である。
 

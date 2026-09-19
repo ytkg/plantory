@@ -11,6 +11,8 @@ namespace {
 bool reconnectActive = false;
 uint8_t reconnectTry = 0;
 unsigned long reconnectStartedAt = 0;
+bool otaUpdating = false;
+OtaStartHandler otaStartHandler = nullptr;
 
 void beginReconnectAttempt() {
   ++reconnectTry;
@@ -39,11 +41,23 @@ bool isConnected() {
 void beginOta() {
   if (!isConnected()) return;
   ArduinoOTA.setHostname(config::OTA_HOSTNAME);
+  ArduinoOTA.onStart([]() {
+    otaUpdating = true;
+    if (otaStartHandler != nullptr) otaStartHandler();
+  });
   ArduinoOTA.begin();
 }
 
 void handleOta() {
   ArduinoOTA.handle();
+}
+
+void setOtaStartHandler(OtaStartHandler handler) {
+  otaStartHandler = handler;
+}
+
+bool otaInProgress() {
+  return otaUpdating;
 }
 
 void startReconnect() {

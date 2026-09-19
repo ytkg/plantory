@@ -18,9 +18,10 @@ void updateM5() {
   M5.update();
 }
 
-void keepAlive() {
+bool keepAlive() {
   M5.update();
   plantory::network::handleOta();
+  return !plantory::network::otaInProgress();
 }
 
 void showTransientMessage(const String& message, unsigned long now) {
@@ -31,7 +32,12 @@ void showTransientMessage(const String& message, unsigned long now) {
 
 void measureAndSend() {
   plantory::display::showMessage("測定中…");
-  appState.lastMeasuredValue = plantory::sensor::measureAverage(keepAlive);
+  if (!plantory::sensor::measureAverage(appState.lastMeasuredValue, keepAlive)) {
+    plantory::display::showMessage("OTA更新開始\n測定を中断しました");
+    uiState.messageUntil = millis() + plantory::config::MESSAGE_DISPLAY_MS;
+    uiState.mainScreenNeedsRedraw = true;
+    return;
+  }
 
   plantory::display::showMessage("送信中…");
   if (plantory::network::isConnected() && plantory::api::sendSoilMoisture(appState.lastMeasuredValue)) {
@@ -93,6 +99,7 @@ void setup() {
 
   plantory::display::begin(uiState);
   plantory::sensor::begin();
+  plantory::network::setOtaStartHandler(plantory::sensor::powerOff);
   plantory::display::showMessage("Wi-Fi…");
 
   plantory::network::connectWifi(updateM5);
