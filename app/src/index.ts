@@ -11,6 +11,7 @@ import { reportRoutes } from "./routes/reports";
 import { statusRoutes } from "./routes/status";
 import { settingsRoutes } from "./routes/settings";
 import { weatherRoutes } from "./routes/weather";
+import { withCookies } from "./routes/context";
 import { collectEnvironmentMetrics } from "./services/environment";
 
 const app = new Hono<{ Bindings: Env }>();
@@ -37,7 +38,8 @@ export default {
       const authentication = await authenticate(request, env, "read", ctx);
       if (!authentication) return unauthorized();
       const canWrite = authentication.kind === "session" || authentication.scope === "write";
-      return createMcpHandler(() => createPlantoryMcpServer(env, canWrite))(request, env, ctx);
+      const response = await createMcpHandler(() => createPlantoryMcpServer(env, canWrite))(request, env, ctx);
+      return authentication.kind === "session" ? withCookies(response, authentication.cookies) : response;
     }
     return app.fetch(request, env, ctx);
   },
