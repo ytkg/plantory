@@ -23,7 +23,7 @@ describe("plant observation data", () => {
   });
   afterEach(() => vi.restoreAllMocks());
 
-  it.each(["soil_moisture", "weight"])("loads normalization once per request for %s and preserves JST boundaries and counts", async (metricType) => {
+  it.each(["soil_moisture", "weight"])("loads normalization once per request for %s and includes future readings", async (metricType) => {
     await insertMetric(metricType, 0, "2026-09-01 14:59:59");
     await insertMetric(metricType, 50, "2026-09-01 15:00:00");
     await insertMetric(metricType, 75, "2026-09-02 14:59:59");
@@ -43,11 +43,11 @@ describe("plant observation data", () => {
     expect(observation?.moistureSource).toEqual({
       metric_type: metricType,
       direction: metricType === "weight" ? "increasing" : "decreasing",
-      p5: expect.closeTo(7.5), p95: expect.closeTo(96.25),
+      p5: expect.closeTo(10), p95: expect.closeTo(8020),
     });
     expect(observation?.moistureHistory).toEqual({
-      metrics: [{ id: 3, plant_id: 1, value: metricType === "weight" ? 76 : 24, created_at: "2026-09-02T14:59:59Z" }],
-      totalCount: 4,
+      metrics: [{ id: 3, plant_id: 1, value: metricType === "weight" ? 1 : 99, created_at: "2026-09-02T14:59:59Z" }],
+      totalCount: 5,
     });
     expect(observation?.rawMetricHistories.find((history) => history.metric_type === metricType)).toEqual({
       metric_type: metricType,
@@ -61,9 +61,9 @@ describe("plant observation data", () => {
     await insertMetric(metricType, 200, "2026-09-01 00:00:00");
     const next = await plantObservationData(1, query, env);
     expect(sourceQueries()).toHaveLength(3);
-    expect(next?.moistureHistory.totalCount).toBe(5);
-    expect(next?.moistureSource?.p95).toBeCloseTo(180);
-    expect(next?.moistureHistory.metrics[0].value).toBe(metricType === "weight" ? 38 : 62);
+    expect(next?.moistureHistory.totalCount).toBe(6);
+    expect(next?.moistureSource?.p95).toBeCloseTo(7550);
+    expect(next?.moistureHistory.metrics[0].value).toBe(metricType === "weight" ? 1 : 99);
   });
 
   it.each([{ values: [] }, { values: [50] }, { values: [50, 50] }])("keeps empty or degenerate ranges $values consistent with standalone history", async ({ values }) => {

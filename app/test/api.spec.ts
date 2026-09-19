@@ -1,5 +1,6 @@
 import { env, SELF } from "cloudflare:test";
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
+import { hashApiKey } from "../src/auth";
 import worker from "../src";
 
 const baseUrl = "https://plantory.test";
@@ -46,7 +47,7 @@ const schemaQueries = [
   )`,
 ];
 
-async function hashApiKey(key: string): Promise<string> {
+async function expectedApiKeyHash(key: string): Promise<string> {
   const bytes = new TextEncoder().encode(`test-api-key-pepper:${key}`);
   const digest = await crypto.subtle.digest("SHA-256", bytes);
   return [...new Uint8Array(digest)].map((byte) => byte.toString(16).padStart(2, "0")).join("");
@@ -117,13 +118,41 @@ describe("Plantory API", () => {
     ]);
     await env.DB.batch([
       env.DB.prepare("INSERT INTO api_keys (name, key_hash, scope) VALUES (?, ?, ?)")
-        .bind("test write key", await hashApiKey(writeKey), "write"),
+        .bind("test write key", await expectedApiKeyHash(writeKey), "write"),
       env.DB.prepare("INSERT INTO api_keys (name, key_hash, scope) VALUES (?, ?, ?)")
-        .bind("test read key", await hashApiKey(readKey), "read"),
+        .bind("test read key", await expectedApiKeyHash(readKey), "read"),
     ]);
   });
 
   afterAll(() => vi.unstubAllGlobals());
+
+  describe("API key pepper configuration", () => {
+    it.each([
+      ["unset", undefined],
+      ["empty", ""],
+      ["whitespace-only", "   "],
+    ])("rejects a %s API_KEY_PEPPER before hashing", async (_description, pepper) => {
+      await expect(hashApiKey(writeKey, { API_KEY_PEPPER: pepper } as Env)).rejects.toThrow("API_KEY_PEPPER is not configured.");
+    });
+  });
+
+  describe("security headers", () => {
+    const expectedHeaders = {
+      "Content-Security-Policy": "default-src 'self'; base-uri 'self'; connect-src 'self'; form-action 'self'; frame-ancestors 'none'; img-src 'self' data:; object-src 'none'; script-src 'self'; style-src 'self'",
+      "Permissions-Policy": "camera=(), geolocation=(), microphone=()",
+      "Referrer-Policy": "strict-origin-when-cross-origin",
+      "X-Content-Type-Options": "nosniff",
+      "X-Frame-Options": "DENY",
+    };
+
+    it("adds security headers to page, API, and MCP responses", async () => {
+      const responses = await Promise.all([request("/"), request("/api/reports"), request("/mcp")]);
+
+      for (const response of responses) {
+        for (const [name, value] of Object.entries(expectedHeaders)) expect(response.headers.get(name)).toBe(value);
+      }
+    });
+  });
 
   describe("JSON input validation", () => {
     const endpoints = [
@@ -218,7 +247,7 @@ describe("Plantory API", () => {
       const result = await response.json() as { apiKey: { id: number }; key: string };
       expect(result).toMatchObject({ apiKey: { name: "new key", scope: "write" }, key: expect.stringMatching(/^plnt_/) });
       await expect(env.DB.prepare("SELECT name, scope, key_hash FROM api_keys WHERE id = ?").bind(result.apiKey.id).first()).resolves.toEqual({
-        name: "new key", scope: "write", key_hash: await hashApiKey(result.key),
+        name: "new key", scope: "write", key_hash: await expectedApiKeyHash(result.key),
       });
       expect((await request("/api/plants", withApiKey(result.key))).status).toBe(200);
     });
@@ -852,7 +881,7 @@ describe("Plantory API", () => {
     expect((await request("/api/plants/999/metrics/raw?metric_type=weight", withApiKey(readKey))).status).toBe(404);
   });
 
-  it("keeps future metrics in raw history but excludes them from current summaries and moisture calculations", async () => {
+  it("uses future metrics in raw history, summaries, and moisture calculations", async () => {
     await env.DB.batch([
       env.DB.prepare("INSERT INTO plants (name) VALUES (?)").bind("将来日時テスト"),
       env.DB.prepare("INSERT INTO metrics (plant_id, metric_type, value, created_at) VALUES (?, ?, ?, ?)").bind(1, "soil_moisture", 80, "2026-09-01 00:00:00"),
@@ -865,16 +894,20 @@ describe("Plantory API", () => {
       metricTypes: expect.arrayContaining([expect.objectContaining({
         metric_type: "soil_moisture",
         totalCount: 3,
-        latest: expect.objectContaining({ value: 40 }),
-        previous: expect.objectContaining({ value: 80 }),
+        latest: expect.objectContaining({ value: 10 }),
+        previous: expect.objectContaining({ value: 40 }),
       })]),
       metrics: expect.arrayContaining([expect.objectContaining({ value: 10, created_at: "2999-01-01T00:00:00Z" })]),
     });
 
     const history = await request("/api/plants/1/metrics", withApiKey(readKey));
     await expect(history.json()).resolves.toMatchObject({
-      metrics: [expect.objectContaining({ value: 100 }), expect.objectContaining({ value: 0 })],
-      totalCount: 2,
+      metrics: [
+        expect.objectContaining({ created_at: "2999-01-01T00:00:00Z" }),
+        expect.objectContaining({ created_at: "2026-09-02T00:00:00Z" }),
+        expect.objectContaining({ created_at: "2026-09-01T00:00:00Z" }),
+      ],
+      totalCount: 3,
     });
   });
 
@@ -1024,7 +1057,7 @@ describe("Plantory API", () => {
     await env.DB.prepare(
       "INSERT INTO api_keys (name, key_hash, scope, revoked_at) VALUES (?, ?, ?, CURRENT_TIMESTAMP)",
     )
-      .bind("revoked key", await hashApiKey("plnt_revoked_key"), "read")
+      .bind("revoked key", await expectedApiKeyHash("plnt_revoked_key"), "read")
       .run();
     const revoked = await env.DB.prepare("SELECT id FROM api_keys WHERE name = ?")
       .bind("revoked key")

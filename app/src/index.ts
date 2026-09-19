@@ -1,6 +1,6 @@
 import { createMcpHandler } from "agents/mcp/server";
 import { Hono } from "hono";
-import { authenticate, unauthorized } from "./auth";
+import { ApiKeyConfigurationError, authenticate, unauthorized } from "./auth";
 import { createPlantoryMcpServer } from "./mcp";
 import { apiKeyRoutes } from "./routes/api-keys";
 import { authRoutes } from "./routes/auth";
@@ -13,6 +13,7 @@ import { settingsRoutes } from "./routes/settings";
 import { weatherRoutes } from "./routes/weather";
 import { withCookies } from "./routes/context";
 import { collectEnvironmentMetrics } from "./services/environment";
+import { withSecurityHeaders } from "./security";
 
 const app = new Hono<{ Bindings: Env }>();
 
@@ -28,6 +29,10 @@ app.route("/", pageRoutes);
 
 app.notFound((c) => c.json({ error: "Not found." }, 404));
 app.onError((cause) => {
+  if (cause instanceof ApiKeyConfigurationError) {
+    console.error("Plantory API key configuration error: API_KEY_PEPPER is not configured.");
+    return Response.json({ error: "API key configuration error." }, { status: 500 });
+  }
   console.error("Plantory request failed", cause);
   return new Response(JSON.stringify({ error: "Internal server error." }), { status: 500, headers: { "Content-Type": "application/json" } });
 });
@@ -36,12 +41,12 @@ export default {
   async fetch(request, env, ctx): Promise<Response> {
     if (new URL(request.url).pathname === "/mcp") {
       const authentication = await authenticate(request, env, "read", ctx);
-      if (!authentication) return unauthorized();
+      if (!authentication) return withSecurityHeaders(unauthorized());
       const canWrite = authentication.kind === "session" || authentication.scope === "write";
       const response = await createMcpHandler(() => createPlantoryMcpServer(env, canWrite))(request, env, ctx);
-      return authentication.kind === "session" ? withCookies(response, authentication.cookies) : response;
+      return withSecurityHeaders(authentication.kind === "session" ? withCookies(response, authentication.cookies) : response);
     }
-    return app.fetch(request, env, ctx);
+    return withSecurityHeaders(await app.fetch(request, env, ctx));
   },
   async scheduled(_controller, env): Promise<void> {
     try {
