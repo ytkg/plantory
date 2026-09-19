@@ -250,10 +250,11 @@ APIキー管理APIはログインCookieでのみ利用できる。
 
 - 技術構成: Cloudflare Workers、Cloudflare D1、TypeScript、Tailwind CSS v4、Chart.js v4.5.1。
 - アプリケーションのソース、静的アセット、テスト、migration、設定、依存関係は`app/`に集約する。アプリケーション向けの開発・ビルド・テスト・DB操作・デプロイは、リポジトリルートから`cd app`して実行する。`firmware/`と`hardware/`、共通ドキュメント、GitHub Actions、リポジトリ共通ルールはルート側に置く。
-- `npm run build` でTailwind CSSとChart.jsアセットを生成し、TypeScriptを検証する。
+- `npm run build` でTailwind CSS、Chart.js、Marked、DOMPurify、共通HTMLレイアウトのアセットを生成し、TypeScriptを検証する。`npm run cf-typegen` はWrangler設定から `worker-configuration.d.ts` を生成し、`npm run db:generate` はDrizzleスキーマから migration を生成する。これらの生成物はリポジトリで管理する。
 - `npm run lint` はESLintの推奨ルールで手書きのTypeScript・JavaScriptを検査する。生成済みアセット、依存ライブラリ、ビルド成果物、ファームウェアは対象外とする。
 - `npm test` でVitestとCloudflare Workers用テスト環境を使い、ローカルD1に対するAPIの認証・登録・取得・APIキー管理を検証する。
 - Dependabotは毎週月曜日（日本時間）に`app/`のnpm依存関係とGitHub Actionsの依存関係を確認し、更新があればpull requestを作成する。作成されたpull requestでは既存の`Test`ワークフローが実行される。
+- GitHub Actionsの`Test / generated`チェックは、`Test / test`と同じ条件で`app/`にて`npm ci`、`npm run check:generated`を実行する。生成処理後に追跡済みファイルの差分または未追跡ファイルがあれば失敗し、生成物のコミット漏れを検出する。
 - GitHub Actionsの`Test / test`チェックは、pull requestの作成・再オープン・更新時と、`main`へのpush時に`app/`で`npm ci`、`npm run build`、`npm test`を実行する。開発ブランチへのpushだけでは実行しない。
 - GitHub Actionsの`Test / lint`チェックは、`Test / test`と独立して同じ条件で`app/`で`npm ci`と`npm run lint`を実行する。どちらのジョブもデプロイや本番D1への変更を実行しない。
 - `main`への変更はpull request経由とし、`Test / test`と`Test / lint`チェックの成功を必須とする。
