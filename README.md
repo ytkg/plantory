@@ -125,7 +125,7 @@ M5Stackなどの端末からmetricsを送る方法は、[firmware/metrics-api.md
 
 `GET /api/plants/:plantId/metrics`
 
-植物ごとのmetricsを新しい順に最大100件返します。保存されているmetricsの総件数 `totalCount` も含まれます。
+植物ごとの水分量履歴を新しい順に最大100件返します。`soil_moisture` を優先し、なければ `weight` を算出元として選択します。返す値は選択された種類の全履歴からP5/P95を用いて正規化した相対水分量で、`totalCount` はその算出元metric種類の総件数です。
 
 ```bash
 curl https://plantory.ytkg.workers.dev/api/plants/2/metrics \
