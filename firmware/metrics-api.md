@@ -24,7 +24,7 @@ Content-Type: application/json
 - `metric_type` は先頭を小文字にした1〜50文字の小文字・数字・アンダースコアで指定する。
 - `value` は有限の数値で指定する。
 - 1回のリクエストで送るmetricsは1件だけにする。
-- 計測時刻は送らない。Plantoryが受信時刻を `created_at` として保存する。
+- 計測時刻は送らない。Plantoryが受信時刻を `created_at` として保存する。成功レスポンスの `created_at` はUTCのISO 8601形式（例: `2026-09-04T12:00:00Z`）で返る。
 - 単位も送らない。グラフで分かるように、`metric_type` を用途ごとに統一する。
 
 水分量の算出には`soil_moisture`を優先し、なければ`weight`を使います。ほかの`metric_type`も保存でき、計測データページでは生値として確認できます。種類ごとの表示名や単位を推測しないため、端末ごとに`metric_type`を統一します。
@@ -40,7 +40,7 @@ Content-Type: application/json
     "plant_id": 2,
     "metric_type": "soil_moisture",
     "value": 62.4,
-    "created_at": "2026-09-04 12:00:00"
+    "created_at": "2026-09-04T12:00:00Z"
   }
 }
 ```
