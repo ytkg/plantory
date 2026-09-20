@@ -30,10 +30,11 @@ plants(id INTEGER PRIMARY KEY, name TEXT, created_at DATETIME, updated_at DATETI
 metrics(id INTEGER PRIMARY KEY, plant_id INTEGER, metric_type TEXT, value REAL, created_at DATETIME)
 daily_reports(id INTEGER PRIMARY KEY, date DATE UNIQUE, content TEXT, created_at DATETIME, updated_at DATETIME)
 environment_metrics(id INTEGER PRIMARY KEY, temperature REAL, humidity REAL, co2 INTEGER, created_at DATETIME)
+metrics_settings(id INTEGER PRIMARY KEY, interval_hours INTEGER)
 api_keys(id INTEGER PRIMARY KEY, name TEXT, key_hash TEXT, scope TEXT, created_at DATETIME, last_used_at DATETIME, revoked_at DATETIME)
 ```
 
-`metrics.plant_id` は `plants.id` を参照します。`daily_reports` は全植物をまとめた日付ごとの観察日記です。現段階では、センサー自体を管理するテーブル、`species`、`unit`、`measured_at` は設けません。
+`metrics.plant_id` は `plants.id` を参照します。`daily_reports` は全植物をまとめた日付ごとの観察日記です。`metrics_settings` は送信間隔を保持する単一行の設定で、`id` は `1` 固定、`interval_hours` は `1`、`2`、`3`、`4`、`6`、`8`、`12`、`24` のいずれかです。現段階では、センサー自体を管理するテーブル、`species`、`unit`、`measured_at` は設けません。
 
 ## はじめかた
 
