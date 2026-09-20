@@ -233,6 +233,8 @@ APIキー管理APIはログインCookieでのみ利用できる。
 | `POST` | `/api/api-keys/:id/revoke` | 有効なキーを無効化する。無効化は取り消せない。 |
 | `DELETE` | `/api/api-keys/:id` | 無効化済みキーだけを完全に削除する。 |
 
+- `:id` は正の安全な整数である必要がある。不正なIDは、無効化では`API key not found or already revoked.`、削除では`Revoked API key not found.`を返し、いずれもHTTP 404とする。
+
 - 実際のキー値は発行時に一度だけ表示する。
 - 発行直後のキーは画面からコピーできる。発行・無効化・削除の結果は画面に表示する。
 - 一覧ではキーごとに有効・無効の状態を明示する。

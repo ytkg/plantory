@@ -1096,4 +1096,19 @@ describe("Plantory API", () => {
       env.DB.prepare("SELECT id FROM api_keys WHERE id = ?").bind(revoked!.id).first(),
     ).resolves.toBeNull();
   });
+
+  it.each([
+    ["POST", "/api/api-keys/not-a-number/revoke", "API key not found or already revoked."],
+    ["DELETE", "/api/api-keys/0", "Revoked API key not found."],
+  ])("returns the established not-found response for an invalid API key id", async (method, path, error) => {
+    mockSignedInSession();
+
+    const response = await request(path, {
+      method,
+      headers: { Cookie: "plantory_access=test-access-token" },
+    });
+
+    expect(response.status).toBe(404);
+    await expect(response.json()).resolves.toEqual({ error });
+  });
 });
