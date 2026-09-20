@@ -1,52 +1,11 @@
 import { env, SELF } from "cloudflare:test";
-import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
+import { afterAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { hashApiKey } from "../src/auth";
 import worker from "../src";
 
 const baseUrl = "https://plantory.test";
 const writeKey = "plnt_test_write_key";
 const readKey = "plnt_test_read_key";
-
-const schemaQueries = [
-  `CREATE TABLE plants (
-    id INTEGER PRIMARY KEY,
-    name TEXT,
-    created_at DATETIME,
-    updated_at DATETIME
-  )`,
-  `CREATE TABLE metrics (
-    id INTEGER PRIMARY KEY,
-    plant_id INTEGER,
-    metric_type TEXT,
-    value REAL,
-    created_at DATETIME,
-    FOREIGN KEY (plant_id) REFERENCES plants(id)
-  )`,
-  "CREATE INDEX idx_metrics_plant_type_created_at ON metrics (plant_id, metric_type, created_at)",
-  `CREATE TABLE daily_reports (
-    id INTEGER PRIMARY KEY,
-    date DATE NOT NULL UNIQUE,
-    content TEXT NOT NULL,
-    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
-  )`,
-  `CREATE TABLE api_keys (
-    id INTEGER PRIMARY KEY,
-    name TEXT NOT NULL,
-    key_hash TEXT NOT NULL UNIQUE,
-    scope TEXT NOT NULL CHECK (scope IN ('read', 'write')),
-    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    last_used_at DATETIME,
-    revoked_at DATETIME
-  )`,
-  `CREATE TABLE environment_metrics (
-    id INTEGER PRIMARY KEY,
-    temperature REAL NOT NULL,
-    humidity REAL NOT NULL,
-    co2 INTEGER NOT NULL,
-    created_at DATETIME NOT NULL
-  )`,
-];
 
 async function expectedApiKeyHash(key: string): Promise<string> {
   const bytes = new TextEncoder().encode(`test-api-key-pepper:${key}`);
@@ -104,10 +63,6 @@ function mockSessionRefresh(): void {
 }
 
 describe("Plantory API", () => {
-  beforeAll(async () => {
-    await env.DB.batch(schemaQueries.map((query) => env.DB.prepare(query)));
-  });
-
   beforeEach(async () => {
     vi.unstubAllGlobals();
     await env.DB.batch([

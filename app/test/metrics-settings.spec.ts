@@ -1,8 +1,6 @@
 import { env, SELF } from "cloudflare:test";
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { hashApiKey } from "../src/auth";
-import apiKeysMigration from "../migrations/0002_create_api_keys.sql?raw";
-import settingsMigration from "../migrations/20260910145302_metrics_settings.sql?raw";
 
 const url = "https://plantory.test/api/settings/metrics";
 const session = { Cookie: "plantory_access=test-access" };
@@ -16,7 +14,6 @@ const put = (input: unknown, headers = session) => SELF.fetch(url, {
 
 describe("metrics settings", () => {
   beforeAll(async () => {
-    await env.DB.batch([env.DB.prepare(apiKeysMigration), env.DB.prepare(settingsMigration)]);
     for (const [key, scope] of [[readKey, "read"], [writeKey, "write"]]) {
       await env.DB.prepare("INSERT INTO api_keys (name, key_hash, scope) VALUES (?, ?, ?)")
         .bind(scope, await hashApiKey(key, env), scope).run();
