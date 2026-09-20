@@ -22,12 +22,12 @@ export type PlantObservationData = {
 };
 
 export async function listMetrics(plantId: number, query: HistoryQuery, c: AppContext): Promise<Response> {
-  const history = await metricHistory(plantId, query, c.env);
+  const history = await currentMetricHistory(plantId, query, c.env);
   return history ? c.json(history) : c.json({ error: "Plant not found." }, 404);
 }
 
-async function resolveMoistureMetricSource(plantId: number, env: Env): Promise<MoistureMetricSource> {
-  const allWaterMetrics = await waterMetrics(plantId, env);
+async function resolveMoistureMetricSource(plantId: number, env: Env, includeFuture = true): Promise<MoistureMetricSource> {
+  const allWaterMetrics = await waterMetrics(plantId, env, includeFuture);
   const metricType: WaterMetricType | null = allWaterMetrics.some((metric) => metric.metric_type === "soil_moisture")
     ? "soil_moisture"
     : allWaterMetrics.some((metric) => metric.metric_type === "weight") ? "weight" : null;
@@ -40,12 +40,17 @@ export async function metricHistory(plantId: number, query: HistoryQuery, env: E
   return moistureHistoryFromSource(plantId, query, await resolveMoistureMetricSource(plantId, env), env);
 }
 
-async function moistureHistoryFromSource(plantId: number, query: HistoryQuery, source: MoistureMetricSource, env: Env): Promise<MetricHistory> {
+async function currentMetricHistory(plantId: number, query: HistoryQuery, env: Env): Promise<MetricHistory | null> {
+  if (!(await plantExists(plantId, env))) return null;
+  return moistureHistoryFromSource(plantId, query, await resolveMoistureMetricSource(plantId, env, false), env, false);
+}
+
+async function moistureHistoryFromSource(plantId: number, query: HistoryQuery, source: MoistureMetricSource, env: Env, includeFuture = true): Promise<MetricHistory> {
   const { metricType, metrics: sourceMetrics, range } = source;
 
   if (!metricType || !range) return { metrics: [], totalCount: sourceMetrics.length };
 
-  const result = await metricHistoryReadings(plantId, metricType, query, env);
+  const result = await metricHistoryReadings(plantId, metricType, query, env, includeFuture);
   const metrics = result.flatMap((metric): MoistureMetric[] => {
     const value = calculateMoisturePercentage(metric.value, range, metricType);
     return value === null ? [] : [{ id: metric.id, plant_id: metric.plant_id, value, created_at: toUtcIsoTimestamp(metric.created_at) }];
