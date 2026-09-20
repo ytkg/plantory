@@ -6,5 +6,6 @@ declare namespace Cloudflare {
     SWITCHBOT_TOKEN: string;
     SWITCHBOT_SECRET: string;
     SWITCHBOT_DEVICE_ID: string;
+    TEST_MIGRATIONS: D1Migration[];
   }
 }

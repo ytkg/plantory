@@ -1,7 +1,6 @@
 import { env } from "cloudflare:test";
-import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { metricHistory, plantObservationData } from "../src/services/observations";
-import initialSchema from "../migrations/0001_initial_schema.sql?raw";
 
 const query = { from: "2026-09-02", to: "2026-09-02", limit: 1 };
 
@@ -11,9 +10,6 @@ async function insertMetric(type: string, value: number, createdAt: string | nul
 }
 
 describe("plant observation data", () => {
-  beforeAll(async () => {
-    await env.DB.batch(initialSchema.split(";").filter((sql) => sql.trim()).map((sql) => env.DB.prepare(sql)));
-  });
   beforeEach(async () => {
     await env.DB.batch([
       env.DB.prepare("DELETE FROM metrics"),
