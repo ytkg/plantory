@@ -1,4 +1,5 @@
 import { logout, requestJson } from "./api-client.js";
+import { renderMetricChart } from "./metric-chart.js";
 import { differenceText, formatChartTooltipLabel, formatMoisture, metricHistoryState } from "./presentation.js";
 import { formatDateTime, replaceWithListState, setupMobileMenu } from "./ui.js";
 
@@ -20,11 +21,11 @@ function createMetricChart(metrics) {
   const history = metrics.slice(0, 30).reverse();
 
   const chart = document.createElement("section");
-  chart.className = "rounded-xl bg-leaf-50 p-3";
+  chart.className = "rounded-2xl border border-leaf-100 bg-white p-5 shadow-sm";
   const header = document.createElement("div");
   header.className = "flex items-baseline justify-between gap-3";
   const title = document.createElement("h4");
-  title.className = "text-xs font-semibold text-stone-600";
+  title.className = "text-lg font-semibold";
   title.textContent = "水分量";
   const value = document.createElement("p");
   value.className = "text-lg font-semibold text-leaf-700";
@@ -32,11 +33,11 @@ function createMetricChart(metrics) {
   header.append(title, value);
 
   const detail = document.createElement("p");
-  detail.className = "mt-1 text-xs text-stone-500";
+  detail.className = "mt-2 text-sm text-stone-500";
   detail.textContent = `${formatDateTime(latest.created_at)} 受信 · ${differenceText(metrics.map((metric) => metric.value), "%")}`;
 
   const graph = document.createElement("div");
-  graph.className = "mt-3 h-64";
+  graph.className = "mt-5 h-64";
   const canvas = document.createElement("canvas");
   canvas.setAttribute("role", "img");
   canvas.setAttribute("aria-label", `水分量の直近${history.length}件の推移。最新値は${formatMoisture(latest.value)}%。`);
@@ -45,70 +46,16 @@ function createMetricChart(metrics) {
 
   if (typeof window.Chart !== "function") {
     graph.textContent = "グラフを読み込めませんでした。";
-    graph.className = "mt-3 flex h-32 items-center text-sm text-stone-500";
+    graph.className = "mt-5 flex h-64 items-center text-sm text-stone-500";
     return chart;
   }
 
-  new window.Chart(canvas, {
-    type: "line",
-    data: {
-      datasets: [{
-        label: "水分量",
-        data: history.map((metric) => ({
-          x: new Date(metric.created_at).getTime(),
-          y: metric.value,
-          created_at: metric.created_at,
-        })),
-        borderColor: "#27613a",
-        borderWidth: 2,
-        pointBackgroundColor: "#27613a",
-        pointRadius: metricHistoryState(history) === "single" ? 3 : 2,
-        pointHitRadius: 12,
-        pointHoverRadius: 5,
-        cubicInterpolationMode: "monotone",
-        tension: 0.35,
-      }],
-    },
-    options: {
-      responsive: true,
-      maintainAspectRatio: false,
-      interaction: {
-        mode: "nearest",
-        intersect: false,
-      },
-      plugins: {
-        legend: { display: false },
-        tooltip: {
-          displayColors: false,
-          callbacks: {
-            title(items) {
-              return formatDateTime(items[0]?.raw?.created_at);
-            },
-            label(context) {
-              return formatChartTooltipLabel(context.dataset.label, context.parsed.y);
-            },
-          },
-        },
-      },
-      scales: {
-        x: {
-          type: "linear",
-          max: displayedAt,
-          grid: { color: "#e5f3e8" },
-          ticks: {
-            color: "#78716c",
-            maxTicksLimit: 5,
-            callback: (value) => formatDateTime(new Date(Number(value)).toISOString()),
-          },
-        },
-        y: {
-          grid: { color: "#e5f3e8" },
-          min: 0,
-          max: 100,
-          ticks: { color: "#78716c", callback: (value) => `${value}%` },
-        },
-      },
-    },
+  renderMetricChart(canvas, {
+    label: "水分量",
+    metrics: history,
+    referenceTime: displayedAt,
+    tooltipLabel: (value) => formatChartTooltipLabel("水分量", value),
+    yScale: { bounds: { min: 0, max: 100 }, tickLabel: (value) => `${value}%` },
   });
   return chart;
 }
