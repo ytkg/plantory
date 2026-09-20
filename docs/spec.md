@@ -266,6 +266,7 @@ APIキー管理APIはログインCookieでのみ利用できる。
 - `npm test` でVitestとCloudflare Workers用テスト環境を使い、ローカルD1に対するAPIの認証・登録・取得・APIキー管理を検証する。
 - Dependabotは毎週月曜日（日本時間）に`app/`のnpm依存関係とGitHub Actionsの依存関係を確認し、更新があればpull requestを作成する。作成されたpull requestでは既存の`Test`ワークフローが実行される。
 - GitHub Actionsの`Test / generated`チェックは、`Test / test`と同じ条件で`app/`にて`npm ci`、`npm run check:generated`を実行する。生成処理後に追跡済みファイルの差分または未追跡ファイルがあれば失敗し、生成物のコミット漏れを検出する。ただし`worker-configuration.d.ts`のWranglerが出力するworkerdバージョンのコメントだけの差分は無視し、型定義の実質的な差分は検出する。
+- GitHub Actionsの`Test / db-check`チェックは、`Test / test`と同じ条件で`app/`にて`npm ci`と`npm run db:check`を実行する。Drizzleスキーマとmigrationの履歴に不整合があれば失敗し、本番D1やデプロイは変更しない。
 - GitHub Actionsの`Test / test`チェックは、pull requestの作成・再オープン・更新時と、`main`へのpush時に`app/`で`npm ci`、`npm run build`、`npm test`を実行する。開発ブランチへのpushだけでは実行しない。
 - GitHub Actionsの`Test / lint`チェックは、`Test / test`と独立して同じ条件で`app/`で`npm ci`と`npm run lint`を実行する。どちらのジョブもデプロイや本番D1への変更を実行しない。
 - `main`への変更はpull request経由とし、`Test / test`と`Test / lint`チェックの成功を必須とする。
