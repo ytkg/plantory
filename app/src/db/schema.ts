@@ -20,13 +20,17 @@ export const plants = sqliteTable("plants", {
   updatedAt: dateTime("updated_at"),
 });
 
-export const metrics = sqliteTable("metrics", {
-  id: integer().primaryKey(),
-  plantId: integer("plant_id").references(() => plants.id),
-  metricType: text("metric_type"),
-  value: real(),
-  createdAt: dateTime("created_at"),
-});
+export const metrics = sqliteTable(
+  "metrics",
+  {
+    id: integer().primaryKey(),
+    plantId: integer("plant_id").references(() => plants.id),
+    metricType: text("metric_type"),
+    value: real(),
+    createdAt: dateTime("created_at"),
+  },
+  (table) => [index("idx_metrics_plant_type_created_at").on(table.plantId, table.metricType, table.createdAt)],
+);
 
 export const dailyReports = sqliteTable("daily_reports", {
   id: integer().primaryKey(),

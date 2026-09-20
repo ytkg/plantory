@@ -1,0 +1,1 @@
+CREATE INDEX `idx_metrics_plant_type_created_at` ON `metrics` (`plant_id`,`metric_type`,`created_at`);
