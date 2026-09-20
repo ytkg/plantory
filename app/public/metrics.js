@@ -1,4 +1,5 @@
 import { requestJson, logout } from "./api-client.js";
+import { renderMetricChart } from "./metric-chart.js";
 import { metricFetchLimit, shouldFetchAllMetrics } from "./metrics-query.js";
 import { formatDateTime, listStateCard, setupMobileMenu } from "./ui.js";
 import { formatRawValue, metricLabel, metricUnit, rawDifferenceText, rawMetricBounds, totalMetricCount } from "./presentation.js";
@@ -136,16 +137,17 @@ function createControls() {
 
 function createChart(metrics, metricType) {
   const unit = metricUnit(metricType);
+  const currentMetrics = metrics.filter((metric) => new Date(metric.created_at).getTime() <= referenceTime);
   const section = document.createElement("section");
   section.className = "mt-7 rounded-2xl border border-leaf-100 bg-white p-5 shadow-sm";
   const heading = document.createElement("h2");
   heading.className = "text-lg font-semibold";
   heading.textContent = "生値の推移";
   section.append(heading);
-  if (!metrics.length) {
+  if (!currentMetrics.length) {
     const empty = document.createElement("p");
     empty.className = "mt-4 text-sm text-stone-600";
-    empty.textContent = `${rangeLabel(selectedRange)}の記録はありません。`;
+    empty.textContent = `${rangeLabel(selectedRange)}に現在時刻以前の記録はありません。`;
     section.append(empty);
     return section;
   }
@@ -161,7 +163,7 @@ function createChart(metrics, metricType) {
     graph.className = "mt-5 flex h-64 items-center text-sm text-stone-500";
     return section;
   }
-  const chronological = [...metrics].reverse();
+  const chronological = [...currentMetrics].reverse();
   if (!chronological.length) {
     const empty = document.createElement("p");
     empty.className = "mt-4 text-sm text-stone-600";
@@ -170,49 +172,12 @@ function createChart(metrics, metricType) {
     return section;
   }
   const bounds = rawMetricBounds(chronological);
-  new window.Chart(canvas, {
-    type: "line",
-    data: {
-      datasets: [{
-        label: metricLabel(metricType),
-        data: chronological.map((metric) => ({ x: new Date(metric.created_at).getTime(), y: metric.value, created_at: metric.created_at })),
-        borderColor: "#27613a",
-        borderWidth: 2,
-        pointBackgroundColor: "#27613a",
-        pointRadius: chronological.length === 1 ? 3 : 2,
-        pointHitRadius: 12,
-        pointHoverRadius: 5,
-        cubicInterpolationMode: "monotone",
-        tension: 0.35,
-      }],
-    },
-    options: {
-      responsive: true,
-      maintainAspectRatio: false,
-      interaction: { mode: "nearest", intersect: false },
-      plugins: {
-        legend: { display: false },
-        tooltip: {
-          displayColors: false,
-          callbacks: {
-            title(items) { return items[0]?.raw?.created_at ? formatDateTime(items[0].raw.created_at) : "日時不明"; },
-            label(context) { return `${metricLabel(metricType)}: ${valueWithUnit(context.parsed.y, unit)}`; },
-          },
-        },
-      },
-      scales: {
-        x: {
-          type: "linear",
-          grid: { color: "#e5f3e8" },
-          ticks: { color: "#78716c", maxTicksLimit: 5, callback: (value) => formatDateTime(new Date(Number(value)).toISOString()) },
-        },
-        y: {
-          grid: { color: "#e5f3e8" },
-          ticks: { color: "#78716c", callback: (value) => valueWithUnit(value, unit) },
-          ...(bounds ?? {}),
-        },
-      },
-    },
+  renderMetricChart(canvas, {
+    label: metricLabel(metricType),
+    metrics: chronological,
+    referenceTime,
+    tooltipLabel: (value) => `${metricLabel(metricType)}: ${valueWithUnit(value, unit)}`,
+    yScale: { bounds, tickLabel: (value) => valueWithUnit(value, unit) },
   });
   return section;
 }

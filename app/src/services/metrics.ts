@@ -1,4 +1,4 @@
-import { and, asc, count, desc, eq, inArray, or, sql } from "drizzle-orm";
+import { and, asc, count, desc, eq, inArray, isNull, or, sql } from "drizzle-orm";
 import { db } from "../db";
 import { metrics as metricsTable } from "../db/schema";
 import type { AppContext } from "../routes/context";
@@ -48,7 +48,11 @@ async function rawMetricTypes(plantId: number, env: Env): Promise<RawMetricType[
     const result = await db(env.DB)
       .select(metricColumns)
       .from(metricsTable)
-      .where(and(eq(metricsTable.plantId, plantId), eq(metricsTable.metricType, metric_type)))
+      .where(and(
+        eq(metricsTable.plantId, plantId),
+        eq(metricsTable.metricType, metric_type),
+        or(isNull(metricsTable.createdAt), sql`datetime(${metricsTable.createdAt}) <= datetime('now')`),
+      ))
       .orderBy(...newestFirst)
       .limit(2)
       .all() as Metric[];
@@ -101,19 +105,24 @@ export async function rawMetricPage(plantId: number, query: RawMetricQuery, env:
   };
 }
 
-export async function waterMetrics(plantId: number, env: Env): Promise<Metric[]> {
+export async function waterMetrics(plantId: number, env: Env, includeFuture = true): Promise<Metric[]> {
   return await db(env.DB).select(metricColumns).from(metricsTable)
-    .where(and(eq(metricsTable.plantId, plantId), inArray(metricsTable.metricType, ["soil_moisture", "weight"])))
+    .where(and(
+      eq(metricsTable.plantId, plantId),
+      inArray(metricsTable.metricType, ["soil_moisture", "weight"]),
+      includeFuture ? undefined : or(isNull(metricsTable.createdAt), sql`datetime(${metricsTable.createdAt}) <= datetime('now')`),
+    ))
     .orderBy(...newestFirst).all() as Metric[];
 }
 
 // History dates are inclusive JST calendar days; rawMetricPage uses UTC instants.
-export async function metricHistoryReadings(plantId: number, metricType: string, query: HistoryQuery, env: Env): Promise<Metric[]> {
+export async function metricHistoryReadings(plantId: number, metricType: string, query: HistoryQuery, env: Env, includeFuture = true): Promise<Metric[]> {
   const conditions = [
     eq(metricsTable.plantId, plantId),
     eq(metricsTable.metricType, metricType),
     query.from ? sql`datetime(${metricsTable.createdAt}) >= datetime(${query.from}, '-9 hours')` : undefined,
     query.to ? sql`datetime(${metricsTable.createdAt}) < datetime(${query.to}, '+1 day', '-9 hours')` : undefined,
+    includeFuture ? undefined : or(isNull(metricsTable.createdAt), sql`datetime(${metricsTable.createdAt}) <= datetime('now')`),
   ];
   return await db(env.DB).select(metricColumns).from(metricsTable)
     .where(and(...conditions)).orderBy(...newestFirst).limit(query.limit).all() as Metric[];
