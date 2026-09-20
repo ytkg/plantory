@@ -79,6 +79,8 @@ environment_metrics(id INTEGER PRIMARY KEY, temperature REAL, humidity REAL, co2
 metrics_settings(id INTEGER PRIMARY KEY CHECK(id = 1), interval_hours INTEGER NOT NULL DEFAULT 3 CHECK(interval_hours IN (1, 2, 3, 4, 6, 8, 12, 24)))
 ```
 
+- `metrics` には、植物・計測種別ごとの期間指定・新しい順の取得に使う複合インデックス `(plant_id, metric_type, created_at)` がある。
+
 - `metrics.plant_id` は植物を参照する。
 - センサーを管理するテーブルは作らない。
 - `species`、`unit`、`measured_at` は保存しない。metricsの記録日時はWorkerが受信時に `created_at` として設定する。

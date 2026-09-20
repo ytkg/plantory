@@ -22,6 +22,7 @@ const schemaQueries = [
     created_at DATETIME,
     FOREIGN KEY (plant_id) REFERENCES plants(id)
   )`,
+  "CREATE INDEX idx_metrics_plant_type_created_at ON metrics (plant_id, metric_type, created_at)",
   `CREATE TABLE daily_reports (
     id INTEGER PRIMARY KEY,
     date DATE NOT NULL UNIQUE,
@@ -267,6 +268,22 @@ describe("Plantory API", () => {
 
     expect(response.status).toBe(401);
     await expect(response.json()).resolves.toEqual({ error: "Authentication is required." });
+  });
+
+  it("uses the metrics lookup index for a plant, metric type, and time range", async () => {
+    const plan = await env.DB.prepare(`
+      EXPLAIN QUERY PLAN
+      SELECT id, plant_id, metric_type, value, created_at
+      FROM metrics
+      WHERE plant_id = ?
+        AND metric_type = ?
+        AND julianday(created_at) >= julianday(?)
+        AND julianday(created_at) <= julianday(?)
+      ORDER BY created_at DESC, id DESC
+      LIMIT ?
+    `).bind(1, "soil_moisture", "2026-09-01T00:00:00Z", "2026-09-30T23:59:59Z", 101).all<{ detail: string }>();
+
+    expect(plan.results.map((row) => row.detail).join(" ")).toContain("idx_metrics_plant_type_created_at");
   });
 
   it("attaches refreshed cookies to API, page, and MCP responses", async () => {

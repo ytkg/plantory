@@ -15,6 +15,13 @@
       "when": 1789051982636,
       "tag": "20260910145302_metrics_settings",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "6",
+      "when": 1789865835850,
+      "tag": "20260920005715_add_metrics_lookup_index",
+      "breakpoints": true
     }
   ]
 }
