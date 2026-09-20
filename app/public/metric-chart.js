@@ -6,6 +6,11 @@ const CHART_COLORS = {
   line: "#27613a",
 };
 
+export function chartTimeBounds(metrics, referenceTime) {
+  const firstTimestamp = new Date(metrics[0]?.created_at).getTime();
+  return Number.isFinite(firstTimestamp) ? { min: firstTimestamp, max: referenceTime } : { max: referenceTime };
+}
+
 export function renderMetricChart(canvas, { label, metrics, referenceTime, tooltipLabel, yScale }) {
   return new window.Chart(canvas, {
     type: "line",
@@ -48,7 +53,7 @@ export function renderMetricChart(canvas, { label, metrics, referenceTime, toolt
       scales: {
         x: {
           type: "linear",
-          max: referenceTime,
+          ...chartTimeBounds(metrics, referenceTime),
           grid: { color: CHART_COLORS.grid },
           ticks: {
             color: CHART_COLORS.axis,
