@@ -38,6 +38,8 @@ api_keys(id INTEGER PRIMARY KEY, name TEXT, key_hash TEXT, scope TEXT, created_a
 
 ## はじめかた
 
+Node.jsはリポジトリルートの `.node-version` に指定した **22.23.3** を使用します。任意のバージョン管理ツールまたは公式配布版でインストールし、`node --version` が指定と一致することを確認してください。特定のバージョン管理ツールは必須ではありません。アプリケーションの対応範囲は `app/package.json` の `engines.node`（`^22.18.0 || >=24.11.0`）で定義し、GitHub Actionsも `.node-version` を参照します。
+
 ```bash
 cd app
 npm ci

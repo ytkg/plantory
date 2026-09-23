@@ -259,6 +259,8 @@ APIキー管理APIはログインCookieでのみ利用できる。
 
 ## 運用
 
+- 開発用Node.jsはルートの `.node-version` で22.23.3に固定する。アプリケーションの対応範囲は `app/package.json` の `engines.node` に `^22.18.0 || >=24.11.0` と定義する。特定のバージョン管理ツールを必須とせず、GitHub ActionsのTest・Deployも `.node-version` を参照する。
+
 - 技術構成: Cloudflare Workers、Cloudflare D1、TypeScript、Tailwind CSS v4、Chart.js v4.5.1。
 - アプリケーションのソース、静的アセット、テスト、migration、設定、依存関係は`app/`に集約する。アプリケーション向けの開発・ビルド・テスト・DB操作・デプロイは、リポジトリルートから`cd app`して実行する。`firmware/`と`hardware/`、共通ドキュメント、GitHub Actions、リポジトリ共通ルールはルート側に置く。
 - `npm run build` でTailwind CSS、Chart.js、Marked、DOMPurify、共通HTMLレイアウトのアセットを生成し、TypeScriptを検証する。`npm run cf-typegen` はWrangler設定から `worker-configuration.d.ts` を生成し、`npm run db:generate` はDrizzleスキーマから migration を生成する。これらの生成物はリポジトリで管理する。
